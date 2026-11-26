@@ -1,0 +1,35 @@
+{
+  "rods": [
+    {
+      "id": "rod_starter",
+      "name": "堤防ライトスピニング 240",
+      "maxLoadKg": 5.5,
+      "castBonus": 1.0,
+      "flex": 1.0
+    }
+  ],
+  "reels": [
+    {
+      "id": "reel_starter",
+      "name": "汎用スピニング 2500",
+      "maxDragKg": 4.8,
+      "retrieveSpeed": 1.4
+    }
+  ],
+  "lines": [
+    {
+      "id": "line_starter",
+      "name": "ナイロンライン 3号",
+      "breakLoadKg": 5.0,
+      "lengthM": 80
+    }
+  ],
+  "lures": [
+    {
+      "id": "lure_jig",
+      "name": "メタルジグ 20g（イワシカラー）",
+      "sinkRate": 1.25,
+      "attract": 1.0
+    }
+  ]
+}
