@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>さかなサン - Phase 1</title>
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/fishing-ui.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- 上部HUD -->
+  <header class="hud-top">
+    <div class="hud-group">
+      <div class="hud-pill" id="hud-time">Day 1 05:30 晴</div>
+      <div class="hud-pill money" id="hud-money">¥1,000</div>
+    </div>
+    <div class="hud-group">
+      <button class="hud-btn" id="btn-market">🐟 市場 (<span id="hud-fish-count">0</span>)</button>
+      <button class="hud-btn" id="btn-quality">画質: 最高</button>
+    </div>
+  </header>
+
+  <!-- ステータス＆距離・水深表示 -->
+  <div class="telemetry-bar">
+    <div class="telemetry-item">距離 <strong id="info-dist">0.0m</strong></div>
+    <div class="telemetry-item">水深 <strong id="info-depth">0.0m</strong></div>
+    <div class="telemetry-status" id="info-status">右ボタン長押しでキャスト</div>
+  </div>
+
+  <!-- キャストパワーバー -->
+  <div class="cast-power-wrap hidden" id="cast-power-wrap">
+    <div class="cast-power-fill" id="cast-power-fill"></div>
+  </div>
+
+  <!-- Fishing Planet風 3本ゲージ（ライン・竿・リール） -->
+  <aside class="fp-gauges">
+    <div class="gauge-col">
+      <div class="gauge-track"><div class="gauge-fill" id="gauge-line-fill"></div></div>
+      <span>LINE</span>
+    </div>
+    <div class="gauge-col">
+      <div class="gauge-track"><div class="gauge-fill" id="gauge-rod-fill"></div></div>
+      <span>ROD</span>
+    </div>
+    <div class="gauge-col">
+      <div class="gauge-track"><div class="gauge-fill" id="gauge-reel-fill"></div></div>
+      <span>REEL</span>
+    </div>
+  </aside>
+
+  <!-- 左タッチパッド（照準・ロッドアクション・ポンピング） -->
+  <div id="touch-pad-left" aria-label="ロッド操作エリア">
+    <div class="pad-hint" id="pad-hint">ドラッグ/上スワイプで竿操作</div>
+  </div>
+
+  <!-- 下部操作コントロール -->
+  <footer class="controls-bottom">
+    <div class="controls-left">
+      <button class="action-btn" id="btn-rod-action">アワセ / しゃくり</button>
+    </div>
+
+    <div class="controls-right">
+      <div class="sub-controls">
+        <div class="control-box">
+          <span class="ctrl-label">DRAG</span>
+          <div class="ctrl-row">
+            <button class="mini-btn" id="btn-drag-minus">−</button>
+            <strong id="drag-val">4/8</strong>
+            <button class="mini-btn" id="btn-drag-plus">＋</button>
+          </div>
+        </div>
+        <div class="control-box">
+          <span class="ctrl-label">SPEED</span>
+          <button class="mini-btn wide" id="btn-speed">x<span id="speed-val">2</span></button>
+        </div>
+      </div>
+
+      <button class="reel-btn" id="btn-reel">
+        <span id="reel-btn-label">キャスト</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- 釣果モーダル -->
+  <div class="modal-backdrop hidden" id="modal-catch">
+    <div class="modal-card">
+      <h2 id="catch-title">釣果！</h2>
+      <div id="catch-details" class="catch-details"></div>
+      <div class="modal-actions">
+        <button class="primary-btn" id="btn-catch-keep">クーラーに入れる</button>
+        <button class="secondary-btn" id="btn-catch-release">リリース</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 市場・相場モーダル -->
+  <div class="modal-backdrop hidden" id="modal-market">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>本日の魚市場</h2>
+        <button class="close-btn" id="btn-close-market">✕</button>
+      </div>
+      <p class="market-trend" id="market-trend"></p>
+      <div class="market-list" id="market-list"></div>
+      <div class="modal-actions">
+        <button class="primary-btn" id="btn-sell-all">すべて売却する</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
