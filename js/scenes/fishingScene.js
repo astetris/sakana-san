@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { clampWorldPosition } from "../systems/worldMap.js";
+import { clampWorldPosition } from "../systems/worldMap.js?v=20261128_042032";
 
 function createNameSprite(text) {
   const canvas = document.createElement("canvas");

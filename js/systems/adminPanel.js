@@ -1,11 +1,11 @@
-import { SHOP_ITEMS, BOATS } from "./economy.js";
-import { BUSINESS_DEFS } from "./business.js";
-import { getAllSpecies } from "./fishingEngine.js";
-import { getGachaGearList } from "./gacha.js";
-import { setEnvOverride, getEnvOverride } from "./environment.js";
-import { grantMonthlyPass, grantWeeklyPass, isMonthlyPassActive, isWeeklyPassActive } from "./pearlShop.js";
-import { createCouponCode, resetTodayDailyRankings } from "../config/firebase.js";
-import { audioEngine } from "./audioEngine.js";
+import { SHOP_ITEMS, BOATS } from "./economy.js?v=20261128_042032";
+import { BUSINESS_DEFS } from "./business.js?v=20261128_042032";
+import { getAllSpecies } from "./fishingEngine.js?v=20261128_042032";
+import { getGachaGearList } from "./gacha.js?v=20261128_042032";
+import { setEnvOverride, getEnvOverride } from "./environment.js?v=20261128_042032";
+import { grantMonthlyPass, grantWeeklyPass, isMonthlyPassActive, isWeeklyPassActive } from "./pearlShop.js?v=20261128_042032";
+import { createCouponCode, resetTodayDailyRankings } from "../config/firebase.js?v=20261128_042032";
+import { audioEngine } from "./audioEngine.js?v=20261128_042032";
 
 export const ADMIN_PASSCODE = "sakana-admin";
 

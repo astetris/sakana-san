@@ -2,10 +2,10 @@ import {
   PAYMENT_URLS, PAYMENT_METHODS, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF, PEARL_USES,
   getTotalPearls, spendPearls, isMonthlyPassActive, isWeeklyPassActive,
   canClaimAnyPass, claimAllDailyPassRewards, grantMonthlyPass, grantWeeklyPass, calcDiscountedPrice, startStripeCheckout
-} from "./pearlShop.js";
-import { getActiveBanners, getExchangeCatalog, getGachaGearList, executeGachaDraw, applyGachaPrize } from "./gacha.js";
-import { previewCouponCode, redeemCouponCode, getCurrentUid } from "../config/firebase.js";
-import { audioEngine } from "./audioEngine.js";
+} from "./pearlShop.js?v=20261128_042032";
+import { getActiveBanners, getExchangeCatalog, getGachaGearList, executeGachaDraw, applyGachaPrize } from "./gacha.js?v=20261128_042032";
+import { previewCouponCode, redeemCouponCode, getCurrentUid } from "../config/firebase.js?v=20261128_042032";
+import { audioEngine } from "./audioEngine.js?v=20261128_042032";
 
 let pearlTab = "buy";
 let gachaTab = "draw";
