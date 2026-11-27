@@ -458,7 +458,7 @@ function doNetHarvest() {
   if (!save || phase !== "idle") return;
   const { coolerCap } = getEquippedStats(save);
   if (save.cooler.length >= coolerCap) { $("status-banner").textContent = "🧊 クーラーボックスがいっぱいです！"; audioEngine.playFail(); return; }
-  const net = getEquippedNet(save);
+  const { net } = getEquippedStats(save);
   if (!net || net.tier <= 0) { $("status-banner").textContent = "🕸️ 網を持っていません！🏪道具屋で買おう"; audioEngine.playFail(); return; }
   if (save.stamina < 5) { $("status-banner").textContent = "⚡ スタミナ不足（網漁は⚡5必要）！"; audioEngine.playFail(); return; }
 
@@ -470,8 +470,8 @@ function doNetHarvest() {
   runTimingMiniGame({
     title: `🕸️ 網引き上げ勝負（${net.name}）`,
     desc: "緑のゾーンに合わせて引き上げよう！外すと獲物が逃げるぞ…",
-    speedMs: 25,
-    hitWidth: 20,
+    speedMs: 30,
+    hitWidth: 36,
     onFinish: (quality) => {
       if (quality === "miss") {
         $("status-banner").textContent = "💨 タイミングが合わず網から逃げられてしまった…";
@@ -537,8 +537,8 @@ function doShellHarvest() {
   runTimingMiniGame({
     title: `🐚 ${methodLabel}チャレンジ`,
     desc: "貝が砂に潜り切る前に緑ゾーンで狙い撃ちしよう！",
-    speedMs: 26,
-    hitWidth: 18,
+    speedMs: 32,
+    hitWidth: 34,
     onFinish: (quality) => {
       if (quality === "miss") {
         $("status-banner").textContent = "🐚 貝が深く潜ってしまい採取できなかった…";
@@ -549,7 +549,7 @@ function doShellHarvest() {
       }
       const buff = getActiveBuff(save);
       const qBonus = quality === "great" ? 1.35 : 1.0;
-      const res = rollShellfish(areaId, env, getEquippedStats(save).shellBonus * (buff?.rareBonus ? 1.25 : 1) * qBonus);
+      const res = rollShellfish(areaId, env, (getEquippedStats(save).shellBonus || 1) * (buff?.rareBonus ? 1.25 : 1) * qBonus);
       if (!res) { $("status-banner").textContent = "ここでは貝が見つからなかった…"; updateHud(); return; }
 
       const sp = res.species;
@@ -1413,6 +1413,7 @@ function openJobsModal() {
 
 function setPlayMode(mode) {
   playMode = mode === "solo" ? "solo" : "multi";
+  window.playMode = playMode;
   localStorage.setItem("sakana_play_mode", playMode);
   if (playMode === "solo") {
     scene3d?.syncRemotePlayers({});
@@ -1422,6 +1423,7 @@ function setPlayMode(mode) {
     scene3d?.syncRemotePlayers(remotePlayersCache);
     $("status-banner").textContent = "🌐 マルチプレイモードに切り替えました（他プレイヤー表示・一緒に釣りボーナス有効）";
   }
+  if (typeof ensurePlayModeButton === "function") ensurePlayModeButton();
   updateHud();
 }
 
@@ -1446,48 +1448,59 @@ function openPlayModeSelectModal() {
   $("btn-mode-multi").onclick = () => { setPlayMode("multi"); audioEngine.playOk(); closeModal(); };
 }
 
-function runTimingMiniGame({ title, desc, speedMs = 28, hitWidth = 24, onFinish }) {
+function runTimingMiniGame({ title, desc, speedMs = 30, hitWidth = 34, onFinish }) {
   if (phase !== "idle") return;
   phase = "harvesting";
   let pos = 0;
   let dir = 1;
-  const sweetStart = 38;
+  let finished = false;
+  const sweetStart = Math.max(10, Math.round((100 - hitWidth) / 2));
   const sweetEnd = sweetStart + hitWidth;
 
   openModal(title, `
     <div class="bank-box" style="text-align:center;">
       <div class="muted">${escapeHtml(desc)}</div>
-      <div style="position:relative;height:28px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden;margin:12px 0;">
-        <div style="position:absolute;left:${sweetStart}%;width:${sweetEnd - sweetStart}%;top:0;bottom:0;background:rgba(56,229,154,0.35);border-left:2px solid #38e59a;border-right:2px solid #38e59a;"></div>
+      <div style="position:relative;height:30px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden;margin:12px 0;">
+        <div style="position:absolute;left:${sweetStart}%;width:${sweetEnd - sweetStart}%;top:0;bottom:0;background:rgba(56,229,154,0.38);border-left:2px solid #38e59a;border-right:2px solid #38e59a;"></div>
         <div id="mg-cursor" style="position:absolute;left:0%;top:2px;bottom:2px;width:10px;border-radius:999px;background:#f3c687;transform:translateX(-50%);"></div>
       </div>
-      <button class="btn-primary" id="btn-mg-stop" style="width:100%;height:46px;font-size:1rem;">🎯 タイミングを合わせる！</button>
+      <button class="btn-primary" id="btn-mg-stop" style="width:100%;height:50px;font-size:1.05rem;touch-action:manipulation;">🎯 緑ゾーンでタップ！</button>
     </div>
   `);
 
   const timer = setInterval(() => {
-    pos += dir * 3.2;
+    pos += dir * 1.8;
     if (pos >= 100) { pos = 100; dir = -1; }
     else if (pos <= 0) { pos = 0; dir = 1; }
     const cur = document.getElementById("mg-cursor");
     if (cur) cur.style.left = `${pos}%`;
   }, speedMs);
 
+  const origClose = $("btn-close-modal").onclick;
   const cleanup = () => {
     clearInterval(timer);
     phase = "idle";
+    if ($("btn-close-modal")) $("btn-close-modal").onclick = origClose;
   };
 
-  $("btn-mg-stop").onclick = () => {
+  const stopNow = () => {
+    if (finished) return;
+    finished = true;
     cleanup();
     closeModal();
-    const diff = Math.abs(pos - (sweetStart + hitWidth / 2));
-    const quality = diff <= hitWidth * 0.22 ? "great" : (pos >= sweetStart && pos <= sweetEnd ? "good" : "miss");
+    const center = sweetStart + hitWidth / 2;
+    const diff = Math.abs(pos - center);
+    const quality = diff <= hitWidth * 0.25 ? "great" : (pos >= sweetStart && pos <= sweetEnd ? "good" : "miss");
     onFinish(quality);
   };
 
-  const origClose = $("btn-close-modal").onclick;
+  const stopBtn = $("btn-mg-stop");
+  stopBtn.onpointerdown = (ev) => { ev.preventDefault(); stopNow(); };
+  stopBtn.onclick = () => stopNow();
+
   $("btn-close-modal").onclick = () => {
+    if (finished) return;
+    finished = true;
     cleanup();
     if (origClose) origClose();
     else closeModal();
@@ -1524,8 +1537,15 @@ if (typeof window.playMode === "undefined") {
 }
 
 function ensurePlayModeButton() {
-  const modeVal = window.playMode || localStorage.getItem("sakana_play_mode") || "multi";
-  const label = modeVal === "solo" ? "🧍 ソロ" : "🌐 マルチ";
+  const modeVal = (typeof playMode === "string" && playMode) ? playMode : (localStorage.getItem("sakana_play_mode") || "multi");
+  window.playMode = modeVal;
+  const isSolo = modeVal === "solo";
+  const label = isSolo ? "🧍 ソロ" : "🌐 マルチ";
+
+  // 左上メニュー側の重複ボタンがあれば削除（ミニマップ上に一本化）
+  const dupBtn = document.getElementById("btn-play-mode-toggle");
+  if (dupBtn) dupBtn.remove();
+
   const onOpenMode = () => {
     if (typeof audioEngine !== "undefined" && audioEngine?.unlock) audioEngine.unlock();
     if (typeof openPlayModeSelectModal === "function") {
@@ -1535,20 +1555,6 @@ function ensurePlayModeButton() {
     }
   };
 
-  const coolerBtn = document.getElementById("btn-open-cooler");
-  if (coolerBtn && coolerBtn.parentElement) {
-    let btn = document.getElementById("btn-play-mode-toggle");
-    if (!btn) {
-      btn = document.createElement("button");
-      btn.id = "btn-play-mode-toggle";
-      btn.className = "btn-mini";
-      btn.type = "button";
-      btn.onclick = onOpenMode;
-      coolerBtn.parentElement.appendChild(btn);
-    }
-    btn.textContent = label;
-  }
-
   const playScreen = document.getElementById("play-screen");
   if (playScreen) {
     let floatBtn = document.getElementById("btn-play-mode-float");
@@ -1557,11 +1563,14 @@ function ensurePlayModeButton() {
       floatBtn.id = "btn-play-mode-float";
       floatBtn.className = "btn-mini";
       floatBtn.type = "button";
-      floatBtn.style.cssText = "position:fixed;right:12px;top:118px;z-index:50;padding:6px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,0.45);";
+      floatBtn.style.cssText = "position:fixed;right:12px;top:118px;z-index:50;padding:6px 12px;border-radius:999px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.45);";
       floatBtn.onclick = onOpenMode;
       playScreen.appendChild(floatBtn);
     }
     floatBtn.style.display = playScreen.classList.contains("active") ? "inline-flex" : "none";
+    floatBtn.style.borderColor = isSolo ? "#f59e0b" : "#38bdf8";
+    floatBtn.style.background = isSolo ? "rgba(120, 53, 15, 0.88)" : "rgba(12, 74, 110, 0.88)";
+    floatBtn.style.color = "#ffffff";
     floatBtn.textContent = label;
   }
 }
