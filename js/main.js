@@ -1,5 +1,5 @@
 import {
-  initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase,
+  initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail,
   fetchDailyRanking, submitDailyBoard,
   updateWorldPresence, clearWorldPresence, subscribeWorldPlayers,
   pushWorldFeed, subscribeWorldFeed,
@@ -993,6 +993,78 @@ async function processPendingPurchases() {
   }
 }
 
+
+async function refreshAfterAuthChange(successMsg) {
+  slots = await syncLoadSlots();
+  renderSlots();
+  renderHomeRanking();
+  if (activeSlotIndex >= 0 && slots[activeSlotIndex]) {
+    updateHud();
+    syncMyPublicProfile();
+  }
+  audioEngine.playCash();
+  alert(successMsg);
+  openAccountLinkModal();
+}
+
+function openAccountLinkModal() {
+  const info = getAuthAccountSummary();
+  const hasGoogle = info.providers.includes("google.com");
+  const hasPassword = info.providers.includes("password");
+  const statusLabel = !info.isAnonymous
+    ? `✅ 連携済み（${info.email || info.providers.join(", ")}）`
+    : "⚠️ 匿名ゲスト状態（端末変更に備えて連携がおすすめ）";
+
+  openModal("🔐 アカウント連携・データ引継ぎ", `
+    <div class="bank-box">
+      <div><strong>現在の状態:</strong> ${escapeHtml(statusLabel)}</div>
+      <div class="muted">セーブデータは本人のアカウントのみアクセスでき、他のプレイヤーからは閲覧できません。</div>
+      <div class="muted" style="word-break:break-all;">UID: ${escapeHtml(info.uid || "未接続")}</div>
+    </div>
+
+    <div class="bank-box">
+      <strong>① Googleアカウント連携 / サインイン</strong>
+      <div class="muted">${hasGoogle ? "Googleアカウントと連携済みです。" : "今のセーブデータをGoogleアカウントに紐づけます（別端末での復元にも対応）。"}</div>
+      <button class="btn-primary" id="btn-auth-google">${hasGoogle ? "Googleアカウントで切替・再確認" : "🔵 Googleと連携する"}</button>
+    </div>
+
+    <div class="bank-box">
+      <strong>② メール＆パスワード連携 / サインイン</strong>
+      <input id="auth-email" class="field-input" type="email" placeholder="メールアドレス" value="${escapeHtml(info.email || "")}" />
+      <input id="auth-pass" class="field-input" type="password" placeholder="パスワード（6文字以上）" />
+      <div class="btn-row">
+        <button class="btn-sub" id="btn-auth-email-link" style="flex:1;">${hasPassword ? "メール情報を更新" : "✉️ 今のデータと連携"}</button>
+        <button class="btn-warn" id="btn-auth-email-signin" style="flex:1;">🔑 既存メールでサインイン</button>
+      </div>
+    </div>
+  `);
+
+  $("btn-auth-google").onclick = async () => {
+    const btn = $("btn-auth-google");
+    btn.disabled = true;
+    const res = await linkOrSignInGoogle();
+    btn.disabled = false;
+    if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
+    await refreshAfterAuthChange(res.msg);
+  };
+
+  $("btn-auth-email-link").onclick = async () => {
+    const email = $("auth-email").value;
+    const password = $("auth-pass").value;
+    const res = await linkOrSignInEmail({ email, password, mode: "link" });
+    if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
+    await refreshAfterAuthChange(res.msg);
+  };
+
+  $("btn-auth-email-signin").onclick = async () => {
+    const email = $("auth-email").value;
+    const password = $("auth-pass").value;
+    const res = await linkOrSignInEmail({ email, password, mode: "signin" });
+    if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
+    await refreshAfterAuthChange(res.msg);
+  };
+}
+
 function openPearlShopModal() {
   openPearlShopUI({
     save: currentSave(),
@@ -1431,6 +1503,9 @@ async function boot() {
 
   $("btn-open-chat").onclick = () => { audioEngine.unlock(); openChatAndFriendsModal(); };
   $("btn-open-orders-quick").onclick = () => { audioEngine.unlock(); openOrdersModal(); };
+  if ($("btn-open-account-home")) {
+    $("btn-open-account-home").onclick = () => { audioEngine.unlock(); openAccountLinkModal(); };
+  }
   $("btn-open-pearls").onclick = () => { audioEngine.unlock(); openPearlShopModal(); };
   $("btn-open-gacha").onclick = () => { audioEngine.unlock(); openGachaModal(); };
   $("btn-open-lounge").onclick = () => { audioEngine.unlock(); openLoungeModal(); };

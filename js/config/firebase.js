@@ -1,5 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  getAuth, signInAnonymously, onAuthStateChanged,
+  GoogleAuthProvider, EmailAuthProvider,
+  linkWithPopup, linkWithCredential,
+  signInWithPopup, signInWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import {
   getDatabase, ref, set, get, remove, push, onValue, onDisconnect, query, limitToLast, runTransaction
@@ -366,5 +371,80 @@ export async function clearPendingPurchase(sessionId) {
   } catch (e) {
     console.warn("購入データの削除に失敗:", e);
     return false;
+  }
+}
+
+// ===== Phase 8: 複数アカウント連携（Google / メール＆パスワード） =====
+export function getAuthAccountSummary() {
+  const u = auth?.currentUser;
+  if (!u) return { signedIn: false, isAnonymous: true, uid: null, providers: [], email: "" };
+  const providers = (u.providerData || []).map((p) => p.providerId).filter(Boolean);
+  return {
+    signedIn: true,
+    isAnonymous: !!u.isAnonymous,
+    uid: u.uid,
+    providers,
+    email: u.email || ""
+  };
+}
+
+function formatAuthError(e) {
+  const code = e?.code || "";
+  if (code === "auth/credential-already-in-use" || code === "auth/email-already-in-use") {
+    return "そのアカウントはすでに別のセーブデータに紐づいています。「既存アカウントでサインイン」をお試しください。";
+  }
+  if (code === "auth/invalid-email") return "メールアドレスの形式が正しくありません。";
+  if (code === "auth/weak-password") return "パスワードは6文字以上で入力してください。";
+  if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+    return "メールアドレスまたはパスワードが正しくありません。";
+  }
+  if (code === "auth/user-not-found") return "該当するアカウントが見つかりません。";
+  if (code === "auth/popup-closed-by-user") return "ログイン画面が閉じられました。";
+  return e?.message || "認証処理に失敗しました。";
+}
+
+export async function linkOrSignInGoogle() {
+  if (!auth?.currentUser) return { ok: false, msg: "認証機能が初期化されていません。" };
+  const provider = new GoogleAuthProvider();
+  try {
+    let cred;
+    if (auth.currentUser.isAnonymous) {
+      cred = await linkWithPopup(auth.currentUser, provider);
+    } else {
+      cred = await signInWithPopup(auth, provider);
+    }
+    currentUid = cred.user.uid;
+    return { ok: true, uid: currentUid, msg: "Googleアカウントと連携しました！" };
+  } catch (e) {
+    if (e?.code === "auth/provider-already-linked") {
+      return { ok: true, uid: auth.currentUser.uid, msg: "すでにGoogleアカウントと連携済みです。" };
+    }
+    return { ok: false, msg: formatAuthError(e) };
+  }
+}
+
+export async function linkOrSignInEmail({ email, password, mode = "link" }) {
+  if (!auth?.currentUser) return { ok: false, msg: "認証機能が初期化されていません。" };
+  const cleanEmail = (email || "").trim();
+  if (!cleanEmail || !password) return { ok: false, msg: "メールアドレスとパスワードを入力してください。" };
+  try {
+    let cred;
+    if (mode === "signin") {
+      cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+    } else {
+      const credential = EmailAuthProvider.credential(cleanEmail, password);
+      if (auth.currentUser.isAnonymous) {
+        cred = await linkWithCredential(auth.currentUser, credential);
+      } else {
+        cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      }
+    }
+    currentUid = cred.user.uid;
+    return { ok: true, uid: currentUid, msg: mode === "signin" ? "アカウントへサインインしました！" : "メール＆パスワードと連携しました！" };
+  } catch (e) {
+    if (e?.code === "auth/provider-already-linked") {
+      return { ok: true, uid: auth.currentUser.uid, msg: "すでにメール＆パスワードと連携済みです。" };
+    }
+    return { ok: false, msg: formatAuthError(e) };
   }
 }
