@@ -10,6 +10,16 @@ export function createEmptySlots() {
   return Array.from({ length: MAX_SLOTS }, () => null);
 }
 
+function defaultBusinesses() {
+  const now = Date.now();
+  return {
+    fishmonger:   { owned: false, rentExpiresAt: 0, stock: [], pendingRevenue: 0, totalRevenue: 0, lastTickAt: now },
+    kaiten_sushi: { owned: false, rentExpiresAt: 0, stock: [], pendingRevenue: 0, totalRevenue: 0, lastTickAt: now },
+    luxury_sushi: { owned: false, rentExpiresAt: 0, stock: [], pendingRevenue: 0, totalRevenue: 0, lastTickAt: now },
+    aquarium:     { owned: false, rentExpiresAt: 0, stock: [], pendingRevenue: 0, totalRevenue: 0, lastTickAt: now }
+  };
+}
+
 export function createNewSave(name = "新人漁師") {
   return ensureSaveDefaults({
     name,
@@ -22,6 +32,7 @@ export function createNewSave(name = "新人漁師") {
     dex: {},
     stats: { totalCaught: 0, totalEarned: 0 },
     jobProfile: { totalClears: 0, streak: 0 },
+    reputation: 0,
     lastPlayedAt: Date.now()
   });
 }
@@ -35,9 +46,7 @@ export function ensureSaveDefaults(save) {
   if (!save.gear.net) save.gear.net = "net_toami";
   if (!save.gear.bait) save.gear.bait = "bait_free";
 
-  if (!save.ownedGear) {
-    save.ownedGear = ["rod_1", "reel_1", "line_1", "cooler_1", "shell_1", "net_toami", "bait_free"];
-  }
+  if (!save.ownedGear) save.ownedGear = [];
   ["rod_1", "reel_1", "line_1", "cooler_1", "shell_1", "net_toami", "bait_free"].forEach((id) => {
     if (!save.ownedGear.includes(id)) save.ownedGear.push(id);
   });
@@ -49,6 +58,15 @@ export function ensureSaveDefaults(save) {
   if (typeof save.autoRefuel !== "boolean") save.autoRefuel = true;
   if (!save.worldPos) save.worldPos = { x: 0, z: 4, yaw: 0, isBoating: false };
   if (!save.jobProfile) save.jobProfile = { totalClears: 0, streak: 0 };
+
+  if (typeof save.reputation !== "number") save.reputation = 0;
+  if (!save.businesses) save.businesses = defaultBusinesses();
+  else {
+    const def = defaultBusinesses();
+    Object.keys(def).forEach((k) => { if (!save.businesses[k]) save.businesses[k] = def[k]; });
+  }
+  if (!save.farm) save.farm = { maxPlots: 2, plots: [null, null] };
+  if (!Array.isArray(save.orders)) save.orders = [];
 
   if (!save.bank) save.bank = { ordinary: 0, loan: 0, lastCalcAt: Date.now() };
   if (!save.cooler) save.cooler = [];
@@ -80,9 +98,7 @@ export function loadLocalSlots() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length !== MAX_SLOTS) return createEmptySlots();
     return parsed.map((s) => ensureSaveDefaults(s));
-  } catch {
-    return createEmptySlots();
-  }
+  } catch { return createEmptySlots(); }
 }
 
 export async function syncLoadSlots() {

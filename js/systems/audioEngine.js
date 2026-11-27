@@ -70,32 +70,24 @@ class AudioEngine {
     const noiseBuf = this.createNoiseBuffer(4);
 
     const waveSrc = this.ctx.createBufferSource();
-    waveSrc.buffer = noiseBuf;
-    waveSrc.loop = true;
+    waveSrc.buffer = noiseBuf; waveSrc.loop = true;
     const waveFilter = this.ctx.createBiquadFilter();
-    waveFilter.type = "lowpass";
-    waveFilter.frequency.value = 340;
-    this.waveGain = this.ctx.createGain();
-    this.waveGain.gain.value = 0.09;
+    waveFilter.type = "lowpass"; waveFilter.frequency.value = 340;
+    this.waveGain = this.ctx.createGain(); this.waveGain.gain.value = 0.09;
 
     const lfo = this.ctx.createOscillator();
     lfo.frequency.value = 0.14;
-    const lfoGain = this.ctx.createGain();
-    lfoGain.gain.value = 180;
+    const lfoGain = this.ctx.createGain(); lfoGain.gain.value = 180;
     lfo.connect(lfoGain).connect(waveFilter.frequency);
     lfo.start();
-
     waveSrc.connect(waveFilter).connect(this.waveGain).connect(this.master);
     waveSrc.start();
 
     const rainSrc = this.ctx.createBufferSource();
-    rainSrc.buffer = noiseBuf;
-    rainSrc.loop = true;
+    rainSrc.buffer = noiseBuf; rainSrc.loop = true;
     const rainFilter = this.ctx.createBiquadFilter();
-    rainFilter.type = "bandpass";
-    rainFilter.frequency.value = 1800;
-    this.rainGain = this.ctx.createGain();
-    this.rainGain.gain.value = 0;
+    rainFilter.type = "bandpass"; rainFilter.frequency.value = 1800;
+    this.rainGain = this.ctx.createGain(); this.rainGain.gain.value = 0;
     rainSrc.connect(rainFilter).connect(this.rainGain).connect(this.master);
     rainSrc.start();
   }
@@ -114,14 +106,12 @@ class AudioEngine {
       [146.8, 220.0, 261.6, 329.6],
       [164.8, 246.9, 293.7, 392.0]
     ];
-
     this.bgmTimer = setInterval(() => {
       if (!this.ctx || this.ctx.state !== "running" || this.muted) return;
       const isNight = this.timePhase === "night" || this.timePhase === "dusk";
       const chords = isNight ? nightChords : dayChords;
       const chord = chords[this.bgmStep % chords.length];
       this.bgmStep++;
-
       const now = this.ctx.currentTime;
       chord.forEach((freq, idx) => {
         const osc = this.ctx.createOscillator();
@@ -133,8 +123,7 @@ class AudioEngine {
         gain.gain.exponentialRampToValueAtTime(isNight ? 0.024 : 0.03, start + 0.25);
         gain.gain.exponentialRampToValueAtTime(0.0001, start + 3.4);
         osc.connect(gain).connect(this.master);
-        osc.start(start);
-        osc.stop(start + 3.5);
+        osc.start(start); osc.stop(start + 3.5);
       });
     }, 3600);
   }
@@ -144,14 +133,12 @@ class AudioEngine {
     const now = this.ctx.currentTime + delay;
     const osc = this.ctx.createOscillator();
     const g = this.ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, now);
+    osc.type = type; osc.frequency.setValueAtTime(freq, now);
     g.gain.setValueAtTime(0.001, now);
     g.gain.linearRampToValueAtTime(vol, now + 0.015);
     g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
     osc.connect(g).connect(this.master);
-    osc.start(now);
-    osc.stop(now + dur + 0.02);
+    osc.start(now); osc.stop(now + dur + 0.02);
   }
 
   playCast() {
@@ -166,18 +153,11 @@ class AudioEngine {
     g.gain.setValueAtTime(0.08, now);
     g.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
     osc.connect(g).connect(this.master);
-    osc.start(now);
-    osc.stop(now + 0.25);
+    osc.start(now); osc.stop(now + 0.25);
     this.playTone(280, 0.14, "sine", 0.1, 0.32);
     this.playTone(420, 0.12, "sine", 0.07, 0.36);
   }
-
-  playNetThrow() {
-    this.unlock();
-    this.playTone(340, 0.14, "triangle", 0.11, 0);
-    this.playTone(210, 0.22, "sine", 0.12, 0.12);
-  }
-
+  playNetThrow() { this.unlock(); this.playTone(340, 0.14, "triangle", 0.11, 0); this.playTone(210, 0.22, "sine", 0.12, 0.12); }
   playEnginePulse() {
     if (!this.ctx || this.muted) return;
     const now = performance.now();
@@ -185,7 +165,6 @@ class AudioEngine {
     this.lastEngineAt = now;
     this.playTone(88, 0.14, "sawtooth", 0.032, 0);
   }
-
   playScrub() {
     if (!this.ctx || this.muted) return;
     const now = performance.now();
@@ -193,13 +172,7 @@ class AudioEngine {
     this.lastScrubAt = now;
     this.playTone(920 + Math.random() * 260, 0.04, "sine", 0.045, 0);
   }
-
-  playBite() {
-    this.unlock();
-    this.playTone(880, 0.12, "triangle", 0.16, 0);
-    this.playTone(1174, 0.18, "triangle", 0.16, 0.1);
-  }
-
+  playBite() { this.unlock(); this.playTone(880, 0.12, "triangle", 0.16, 0); this.playTone(1174, 0.18, "triangle", 0.16, 0.1); }
   playReelTick(tensionPct = 40) {
     if (!this.ctx || this.muted) return;
     const now = performance.now();
@@ -208,38 +181,15 @@ class AudioEngine {
     this.lastReelAt = now;
     this.playTone(520 + tensionPct * 6, 0.045, "square", 0.035, 0);
   }
-
   playCatch(rank = "C") {
     this.unlock();
-    const notes = (rank === "S" || rank === "A")
-      ? [523.2, 659.2, 783.9, 1046.5, 1318.5]
-      : [523.2, 659.2, 783.9];
+    const notes = (rank === "S" || rank === "A") ? [523.2, 659.2, 783.9, 1046.5, 1318.5] : [523.2, 659.2, 783.9];
     notes.forEach((n, i) => this.playTone(n, 0.28, "triangle", 0.14, i * 0.09));
   }
-
-  playOk() {
-    this.unlock();
-    this.playTone(784, 0.09, "triangle", 0.11, 0);
-    this.playTone(1046, 0.12, "triangle", 0.11, 0.06);
-  }
-
-  playFail() {
-    this.unlock();
-    this.playTone(300, 0.16, "sawtooth", 0.08, 0);
-    this.playTone(210, 0.24, "sawtooth", 0.08, 0.12);
-  }
-
-  playDig() {
-    this.unlock();
-    this.playTone(190, 0.09, "triangle", 0.12, 0);
-    this.playTone(260, 0.11, "sine", 0.09, 0.08);
-  }
-
-  playCash() {
-    this.unlock();
-    this.playTone(1046, 0.1, "sine", 0.12, 0);
-    this.playTone(1568, 0.22, "sine", 0.12, 0.08);
-  }
+  playOk() { this.unlock(); this.playTone(784, 0.09, "triangle", 0.11, 0); this.playTone(1046, 0.12, "triangle", 0.11, 0.06); }
+  playFail() { this.unlock(); this.playTone(300, 0.16, "sawtooth", 0.08, 0); this.playTone(210, 0.24, "sawtooth", 0.08, 0.12); }
+  playDig() { this.unlock(); this.playTone(190, 0.09, "triangle", 0.12, 0); this.playTone(260, 0.11, "sine", 0.09, 0.08); }
+  playCash() { this.unlock(); this.playTone(1046, 0.1, "sine", 0.12, 0); this.playTone(1568, 0.22, "sine", 0.12, 0.08); }
 }
 
 export const audioEngine = new AudioEngine();

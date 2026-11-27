@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>さかなサン | オープンワールド3D釣り＆漁業シム</title>
+  <title>さかなサン | オープンワールド3D釣り＆漁業経営シム</title>
   <link rel="stylesheet" href="./css/style.css" />
   <script type="importmap">
     {
@@ -80,10 +80,10 @@
       <nav class="menu-bar">
         <button class="btn-mini" id="btn-open-cooler">🧊<span id="hud-cooler-count">0/10</span></button>
         <button class="btn-mini" id="btn-open-dock">🚤 船</button>
-        <button class="btn-mini" id="btn-open-shop">🏪 ショップ</button>
+        <button class="btn-mini" id="btn-open-shop">🏪 道具</button>
         <button class="btn-mini" id="btn-open-jobs">💼 バイト</button>
-        <button class="btn-mini" id="btn-open-bank">🏦 銀行</button>
-        <button class="btn-mini" id="btn-open-dex">📖 図鑑</button>
+        <button class="btn-mini" id="btn-open-orders">📋 依頼</button>
+        <button class="btn-mini" id="btn-open-office">🏢 事務所<span id="office-dot" class="notif-dot hidden"></span></button>
       </nav>
 
       <div class="world-row">
@@ -127,7 +127,7 @@
 
     <div id="status-banner" class="status-banner">左下のスティックで自由に歩こう！桟橋から船に乗れるよ</div>
 
-    <!-- 下部操作ドック（左:ジョイスティック / 右:乗下船＆アクション） -->
+    <!-- 下部操作ドック -->
     <div class="bottom-controls">
       <div id="joy-base" class="joy-base">
         <div id="joy-knob" class="joy-knob"></div>

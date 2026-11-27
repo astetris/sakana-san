@@ -51,10 +51,8 @@ export function getRealWorldEnv(now = new Date()) {
   const marketRate = Number((0.85 + seededRandom(dayKey + "-mkt") * 0.5).toFixed(2));
 
   return {
-    now, month, hour, min,
-    season, seasonJa,
-    weather, weatherJa,
-    wind, windJa,
+    now, month, hour, min, dayKey,
+    season, seasonJa, weather, weatherJa, wind, windJa,
     waterTemp, tideName, timePhase, marketRate,
     clockText: `${now.getFullYear()}/${String(month).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")} (${seasonJa})`
   };

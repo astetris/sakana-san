@@ -7,8 +7,10 @@ export async function loadSpeciesMaster() {
   return speciesCache;
 }
 
-export function getAllSpecies() {
-  return speciesCache;
+export function getAllSpecies() { return speciesCache; }
+
+export function getSpeciesById(id) {
+  return speciesCache.find((s) => s.id === id) || null;
 }
 
 export function getShellMethodForArea(areaId) {
@@ -28,29 +30,19 @@ function buildCatchItem(picked, env, { isNet = false, damageChance = 0, hotspotB
   const spread = picked.maxKg - picked.minKg;
   const biasPower = hotspotBonus ? 0.92 : (baitAttract > 1.3 ? 1.1 : 1.35);
   const weightKg = Number((picked.minKg + spread * Math.pow(Math.random(), biasPower)).toFixed(2));
-
   const tags = [];
   let priceMult = 1.0;
 
   if (weightKg >= picked.trophyKg) { tags.push("トロフィー特大"); priceMult *= 1.6; }
   else if (weightKg < picked.minKg + spread * 0.2) { tags.push("少し小ぶり"); priceMult *= 0.85; }
   if (picked.spawnSeasons?.includes(env.season) && Math.random() < 0.28) { tags.push("抱卵"); priceMult *= 1.35; }
-  if (picked.fatSeasons?.includes(env.season) && env.waterTemp <= (picked.minTemp + picked.maxTemp) / 2 + 1) {
-    tags.push("脂乗り抜群"); priceMult *= 1.4;
-  }
-  if (env.tideName === "大潮" || (picked.coldWaterBonus && env.waterTemp <= picked.minTemp + 4)) {
-    tags.push("身の締まり◎"); priceMult *= 1.2;
-  }
+  if (picked.fatSeasons?.includes(env.season) && env.waterTemp <= (picked.minTemp + picked.maxTemp) / 2 + 1) { tags.push("脂乗り抜群"); priceMult *= 1.4; }
+  if (env.tideName === "大潮" || (picked.coldWaterBonus && env.waterTemp <= picked.minTemp + 4)) { tags.push("身の締まり◎"); priceMult *= 1.2; }
   if (isNet && Math.random() < damageChance) { tags.push("傷あり"); priceMult *= 0.75; }
-  if (env.waterTemp < picked.minTemp - 2 || env.waterTemp > picked.maxTemp + 2) {
-    tags.push("やや痩せ気味"); priceMult *= 0.85;
-  }
+  if (env.waterTemp < picked.minTemp - 2 || env.waterTemp > picked.maxTemp + 2) { tags.push("やや痩せ気味"); priceMult *= 0.85; }
   if (tags.length === 0) tags.push(isNet ? "網揚げ" : "活魚");
 
-  const estimatedPrice = Math.max(
-    120,
-    Math.round(weightKg * picked.basePricePerKg * priceMult * env.marketRate)
-  );
+  const estimatedPrice = Math.max(120, Math.round(weightKg * picked.basePricePerKg * priceMult * env.marketRate));
   return { species: picked, weightKg, tags, estimatedPrice };
 }
 
@@ -69,52 +61,35 @@ function pickWeighted(pool, env, hotspotBonus = false, baitAttract = 1.0) {
   });
   const total = weighted.reduce((sum, x) => sum + x.weight, 0);
   let r = Math.random() * total;
-  for (const item of weighted) {
-    r -= item.weight;
-    if (r <= 0) return item.species;
-  }
+  for (const item of weighted) { r -= item.weight; if (r <= 0) return item.species; }
   return weighted[0].species;
 }
 
 export function rollCatch(areaId, env, hotspotBonus = false, baitAttract = 1.0) {
-  const candidates = speciesCache.filter(
-    (s) => s.speciesType !== "shellfish" && s.areas.includes(areaId)
-  );
+  const candidates = speciesCache.filter((s) => s.speciesType !== "shellfish" && s.areas.includes(areaId));
   const pool = candidates.length ? candidates : speciesCache.filter((s) => s.speciesType !== "shellfish");
-  const picked = pickWeighted(pool, env, hotspotBonus, baitAttract);
-  return buildCatchItem(picked, env, { hotspotBonus, baitAttract });
+  return buildCatchItem(pickWeighted(pool, env, hotspotBonus, baitAttract), env, { hotspotBonus, baitAttract });
 }
 
 export function rollNetHaul(areaId, env, netItem, hotspotBonus = false) {
   const method = netItem.method;
   const allowedMethods = method === "sokobiki" ? ["sokobiki", "ketabiki"] : [method];
-  let candidates = speciesCache.filter(
-    (s) => s.areas.includes(areaId) && (s.captureMethods || []).some((m) => allowedMethods.includes(m))
-  );
-  if (!candidates.length) {
-    candidates = speciesCache.filter((s) => s.areas.includes(areaId) && (s.captureMethods || []).length > 0);
-  }
+  let candidates = speciesCache.filter((s) => s.areas.includes(areaId) && (s.captureMethods || []).some((m) => allowedMethods.includes(m)));
+  if (!candidates.length) candidates = speciesCache.filter((s) => s.areas.includes(areaId) && (s.captureMethods || []).length > 0);
   if (!candidates.length) return [];
 
-  const extra = hotspotBonus ? 1 : 0;
   const minC = netItem.minCount || 2;
-  const maxC = (netItem.maxCount || 3) + extra;
+  const maxC = (netItem.maxCount || 3) + (hotspotBonus ? 1 : 0);
   const haulCount = minC + Math.floor(Math.random() * (maxC - minC + 1));
-
   const results = [];
   for (let i = 0; i < haulCount; i++) {
-    const picked = pickWeighted(candidates, env, hotspotBonus);
-    results.push(buildCatchItem(picked, env, {
-      isNet: true, damageChance: netItem.damageChance || 0.15, hotspotBonus
-    }));
+    results.push(buildCatchItem(pickWeighted(candidates, env, hotspotBonus), env, { isNet: true, damageChance: netItem.damageChance || 0.15, hotspotBonus }));
   }
   return results;
 }
 
 export function rollShellfish(areaId, env, toolBonus = 1.0) {
-  const candidates = speciesCache.filter(
-    (s) => s.speciesType === "shellfish" && s.areas.includes(areaId)
-  );
+  const candidates = speciesCache.filter((s) => s.speciesType === "shellfish" && s.areas.includes(areaId));
   if (!candidates.length) return null;
 
   const isSpringTide = env.tideName === "大潮";
@@ -125,14 +100,10 @@ export function rollShellfish(areaId, env, toolBonus = 1.0) {
     if ((s.rank === "S" || s.rank === "A") && toolBonus > 1.2) w *= toolBonus;
     return { species: s, weight: Math.max(1, w) };
   });
-
   const total = weighted.reduce((sum, x) => sum + x.weight, 0);
   let r = Math.random() * total;
   let picked = weighted[0].species;
-  for (const item of weighted) {
-    r -= item.weight;
-    if (r <= 0) { picked = item.species; break; }
-  }
+  for (const item of weighted) { r -= item.weight; if (r <= 0) { picked = item.species; break; } }
 
   const count = picked.rank === "S" ? 1 : picked.rank === "A" ? (1 + Math.floor(Math.random() * 2)) : (2 + Math.floor(Math.random() * 3));
   const unitSpread = picked.maxKg - picked.minKg;
@@ -141,7 +112,6 @@ export function rollShellfish(areaId, env, toolBonus = 1.0) {
 
   const tags = [];
   let priceMult = 1.0;
-
   if (unitKg >= picked.trophyKg) { tags.push("大粒"); priceMult *= 1.45; }
   if (picked.fatSeasons?.includes(env.season)) { tags.push("身入りパンパン"); priceMult *= 1.35; }
   if (Math.random() < 0.03 * toolBonus) { tags.push("真珠入り"); priceMult *= 3.2; }
@@ -149,9 +119,6 @@ export function rollShellfish(areaId, env, toolBonus = 1.0) {
   else if ((areaId === "sunahama" || areaId === "kakou") && Math.random() < 0.22) { tags.push("砂噛み"); priceMult *= 0.92; }
   if (tags.length === 0) tags.push("活貝");
 
-  const estimatedPrice = Math.max(
-    180,
-    Math.round(weightKg * picked.basePricePerKg * priceMult * env.marketRate)
-  );
+  const estimatedPrice = Math.max(180, Math.round(weightKg * picked.basePricePerKg * priceMult * env.marketRate));
   return { species: picked, weightKg, count, tags, estimatedPrice };
 }

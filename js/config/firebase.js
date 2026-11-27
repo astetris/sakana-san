@@ -34,9 +34,7 @@ export async function initFirebase({ onOnlineCount, onStatus }) {
           try {
             const cred = await signInAnonymously(auth);
             currentUid = cred.user.uid;
-          } catch (e) {
-            console.warn("匿名ログイン失敗:", e);
-          }
+          } catch (e) { console.warn("匿名ログイン失敗:", e); }
           resolve();
         }
       });
@@ -68,13 +66,8 @@ export async function initFirebase({ onOnlineCount, onStatus }) {
 export async function saveCloudSlots(slotsData) {
   if (!ready || !currentUid) return;
   try {
-    await setDoc(doc(db, "users", currentUid), {
-      slots: slotsData,
-      updatedAt: Date.now()
-    }, { merge: true });
-  } catch (e) {
-    console.warn("クラウド保存スキップ:", e);
-  }
+    await setDoc(doc(db, "users", currentUid), { slots: slotsData, updatedAt: Date.now() }, { merge: true });
+  } catch (e) { console.warn("クラウド保存スキップ:", e); }
 }
 
 export async function loadCloudSlots() {
@@ -82,10 +75,7 @@ export async function loadCloudSlots() {
   try {
     const snap = await getDoc(doc(db, "users", currentUid));
     return snap.exists() ? (snap.data().slots || null) : null;
-  } catch (e) {
-    console.warn("クラウド読込スキップ:", e);
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 export function getJstDateKey() {
@@ -101,9 +91,7 @@ export async function fetchDailyRanking() {
     const dateKey = getJstDateKey();
     const snap = await getDoc(doc(db, "daily_rankings", dateKey, "boards", "biggest_weight"));
     return snap.exists() ? (snap.data().topList || []) : [];
-  } catch (e) {
-    return [];
-  }
+  } catch (e) { return []; }
 }
 
 export async function submitDailyRecord({ playerName, fishName, weightKg, rank, condition }) {
@@ -113,26 +101,17 @@ export async function submitDailyRecord({ playerName, fishName, weightKg, rank, 
     const boardRef = doc(db, "daily_rankings", dateKey, "boards", "biggest_weight");
     const snap = await getDoc(boardRef);
     const list = snap.exists() ? (snap.data().topList || []) : [];
-
     const existingIdx = list.findIndex((x) => x.uid === currentUid);
     if (existingIdx >= 0 && list[existingIdx].weightKg >= weightKg) return;
 
     const entry = {
-      uid: currentUid,
-      name: playerName,
-      fishName,
-      weightKg: Number(weightKg.toFixed(2)),
-      rank,
-      condition: condition || "",
-      updatedAt: Date.now()
+      uid: currentUid, name: playerName, fishName,
+      weightKg: Number(weightKg.toFixed(2)), rank, condition: condition || "", updatedAt: Date.now()
     };
-
     if (existingIdx >= 0) list[existingIdx] = entry;
     else list.push(entry);
 
     list.sort((a, b) => b.weightKg - a.weightKg);
     await setDoc(boardRef, { topList: list.slice(0, 20), updatedAt: Date.now() });
-  } catch (e) {
-    console.warn("ランキング更新スキップ:", e);
-  }
+  } catch (e) { console.warn("ランキング更新スキップ:", e); }
 }
