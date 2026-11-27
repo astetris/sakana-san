@@ -306,56 +306,6 @@ function saveWorldPosition(syncCloud = false) {
   persistSlots(slots, syncCloud);
 }
 
-/* ensure-mode-btn-after-init */
-
-function ensurePlayModeButton() {
-  if (typeof playMode === "undefined") {
-    window.playMode = localStorage.getItem("sakana_play_mode") || "multi";
-  }
-  const modeVal = typeof playMode !== "undefined" ? playMode : window.playMode;
-  const label = modeVal === "solo" ? "🧍 ソロ" : "🌐 マルチ";
-
-  const onToggle = () => {
-    if (typeof audioEngine !== "undefined") audioEngine.unlock();
-    if (typeof openPlayModeSelectModal === "function") {
-      openPlayModeSelectModal();
-    } else {
-      alert("モード切替モーダル関数が見つかりません");
-    }
-  };
-
-  const coolerBtn = document.getElementById("btn-open-cooler");
-  if (coolerBtn && coolerBtn.parentElement) {
-    let btn = document.getElementById("btn-play-mode-toggle");
-    if (!btn) {
-      btn = document.createElement("button");
-      btn.id = "btn-play-mode-toggle";
-      btn.className = "btn-mini";
-      btn.type = "button";
-      btn.onclick = onToggle;
-      coolerBtn.parentElement.appendChild(btn);
-    }
-    btn.textContent = label;
-  }
-
-  // プレイ画面でも確実にタップできるようフローティング切替ボタンを配置
-  const playScreen = document.getElementById("play-screen");
-  if (playScreen) {
-    let floatBtn = document.getElementById("btn-play-mode-float");
-    if (!floatBtn) {
-      floatBtn = document.createElement("button");
-      floatBtn.id = "btn-play-mode-float";
-      floatBtn.className = "btn-mini";
-      floatBtn.type = "button";
-      floatBtn.style.cssText = "position:fixed;right:12px;top:118px;z-index:45;padding:6px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,0.45);";
-      floatBtn.onclick = onToggle;
-      playScreen.appendChild(floatBtn);
-    }
-    const isActive = playScreen.classList.contains("active");
-    floatBtn.style.display = isActive ? "inline-flex" : "none";
-    floatBtn.textContent = label;
-  }
-}
 
 function updateHud() {
   const save = currentSave();
@@ -1513,6 +1463,67 @@ function sellCoolerItemAt(index) {
   audioEngine.playCash();
   openCoolerModal();
 }
+
+/* clean-fix-mode-btn-and-boot */
+window.addEventListener("error", (ev) => {
+  const b = document.getElementById("status-banner");
+  if (b && ev?.message) b.textContent = "⚠️ " + ev.message;
+});
+window.addEventListener("unhandledrejection", (ev) => {
+  const b = document.getElementById("status-banner");
+  if (b && ev?.reason) b.textContent = "⚠️ " + (ev.reason?.message || ev.reason);
+});
+
+if (typeof window.playMode === "undefined") {
+  window.playMode = localStorage.getItem("sakana_play_mode") || "multi";
+}
+
+function ensurePlayModeButton() {
+  const modeVal = window.playMode || localStorage.getItem("sakana_play_mode") || "multi";
+  const label = modeVal === "solo" ? "🧍 ソロ" : "🌐 マルチ";
+  const onOpenMode = () => {
+    if (typeof audioEngine !== "undefined" && audioEngine?.unlock) audioEngine.unlock();
+    if (typeof openPlayModeSelectModal === "function") {
+      openPlayModeSelectModal();
+    } else {
+      alert("モード切替モーダルが読み込まれていません。");
+    }
+  };
+
+  const coolerBtn = document.getElementById("btn-open-cooler");
+  if (coolerBtn && coolerBtn.parentElement) {
+    let btn = document.getElementById("btn-play-mode-toggle");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.id = "btn-play-mode-toggle";
+      btn.className = "btn-mini";
+      btn.type = "button";
+      btn.onclick = onOpenMode;
+      coolerBtn.parentElement.appendChild(btn);
+    }
+    btn.textContent = label;
+  }
+
+  const playScreen = document.getElementById("play-screen");
+  if (playScreen) {
+    let floatBtn = document.getElementById("btn-play-mode-float");
+    if (!floatBtn) {
+      floatBtn = document.createElement("button");
+      floatBtn.id = "btn-play-mode-float";
+      floatBtn.className = "btn-mini";
+      floatBtn.type = "button";
+      floatBtn.style.cssText = "position:fixed;right:12px;top:118px;z-index:50;padding:6px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,0.45);";
+      floatBtn.onclick = onOpenMode;
+      playScreen.appendChild(floatBtn);
+    }
+    floatBtn.style.display = playScreen.classList.contains("active") ? "inline-flex" : "none";
+    floatBtn.textContent = label;
+  }
+}
+
+setInterval(() => {
+  try { ensurePlayModeButton(); } catch {}
+}, 1000);
 
 function openCoolerModal() {
   const save = currentSave(), { coolerCap } = getEquippedStats(save);
