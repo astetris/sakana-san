@@ -174,7 +174,33 @@
     </div>
   </div>
 
-    <script>
+      <script>
+    /* module-error-screen-tracer */
+    (function() {
+      function showErr(txt) {
+        try {
+          var clk = document.getElementById("live-clock");
+          var syn = document.getElementById("sync-status");
+          var ban = document.getElementById("status-banner");
+          if (clk) clk.textContent = txt;
+          if (syn) syn.textContent = txt;
+          if (ban) ban.textContent = txt;
+        } catch (e) {}
+      }
+      window.addEventListener("error", function(ev) {
+        var msg = (ev && ev.message) ? ev.message : "Script Error";
+        var src = (ev && ev.filename) ? (" @ " + ev.filename.split("/").pop() + ":" + ev.lineno) : "";
+        showErr("⚠️ " + msg + src);
+      });
+      window.addEventListener("unhandledrejection", function(ev) {
+        var r = ev && ev.reason;
+        var msg = (r && r.message) ? r.message : String(r || "Promise Error");
+        showErr("⚠️ " + msg);
+      });
+      showErr("⏳ モジュール読込中...");
+    })();
+  </script>
+<script>
     (function() {
       /* sakana-auto-cache-bust */
       const ver = "f3af8c9b";
@@ -186,5 +212,30 @@
       document.body.appendChild(s);
     })();
   </script>
+<script>
+/* fast-boot-err-tracer */
+(function(){
+  function putMsg(t){
+    try {
+      var c = document.getElementById('live-clock');
+      var s = document.getElementById('sync-status');
+      var b = document.getElementById('status-banner');
+      if (c) c.textContent = t;
+      if (s) s.textContent = t;
+      if (b) b.textContent = t;
+    } catch(_){}
+  }
+  window.__putBootMsg = putMsg;
+  window.addEventListener('error', function(e){
+    var f = (e && e.filename) ? e.filename.split('/').pop() + ':' + e.lineno : '';
+    putMsg('⚠️ ERR: ' + ((e && e.message) || 'Error') + (f ? ' (' + f + ')' : ''));
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    var r = e && e.reason;
+    putMsg('⚠️ REJECT: ' + ((r && r.message) || String(r || 'Promise')));
+  });
+  putMsg('⏳ 読込中(HTML)...');
+})();
+</script>
 </body>
 </html>
