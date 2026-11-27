@@ -191,3 +191,9 @@ export async function startStripeCheckout({ productId, uid, couponCode = "", pay
   }
   return data.url;
 }
+
+/* pass-extend-remaining-expiry */
+export function computeExtendedPassExpiry(currentExpiresAt, durationMs) {
+  const base = Math.max(Date.now(), Number(currentExpiresAt || 0));
+  return base + Number(durationMs || 0);
+}
