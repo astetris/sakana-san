@@ -1,3 +1,20 @@
+/* step-trace-boot-debug */
+function __traceBoot(msg) {
+  try {
+    console.log("[BOOT]", msg);
+    const clk = document.getElementById("live-clock");
+    if (clk && clk.textContent.includes("読み込み中")) clk.textContent = msg;
+    const st = document.getElementById("sync-status");
+    if (st && st.textContent.includes("接続中")) st.textContent = msg;
+  } catch {}
+}
+window.addEventListener("error", (ev) => {
+  __traceBoot("⚠️ ERR: " + (ev?.message || "unknown"));
+});
+window.addEventListener("unhandledrejection", (ev) => {
+  __traceBoot("⚠️ PROMISE: " + (ev?.reason?.message || ev?.reason || "unknown"));
+});
+
 
 /* visible-mode-btn-and-error-guard */
 window.addEventListener("error", (ev) => {
@@ -1042,6 +1059,7 @@ async function processPendingPurchases() {
 
 
 async function refreshAfterAuthChange(successMsg) {
+  __traceBoot("5/5 セーブ読込中...");
   slots = await syncLoadSlots();
   renderSlots();
   renderHomeRanking();
@@ -1637,6 +1655,7 @@ function setupJoystick() {
 }
 
 async function boot() {
+  __traceBoot("1/5 Scene初期化中...");
   scene3d = new FishingScene($("scene-canvas"));
   scene3d.onFuelConsume = (dist) => {
     audioEngine.playEnginePulse(); fuelMoveAccum += dist;
@@ -1659,8 +1678,11 @@ async function boot() {
   setInterval(() => { if (activeSlotIndex >= 0) updateHud(); }, 10000);
 
   window.addEventListener("pointerdown", () => audioEngine.unlock(), { once: true });
+  __traceBoot("2/5 魚種データ読込中...");
   await loadSpeciesMaster();
+  __traceBoot("3/5 ガチャ読込中...");
   await loadGachaBanners();
+  __traceBoot("4/5 Firebase接続中...");
   await initFirebase({ onOnlineCount: (n) => { $("online-count").textContent = n; }, onStatus: (msg) => { $("sync-status").textContent = msg; } });
 
   // リアルタイム同期購読
