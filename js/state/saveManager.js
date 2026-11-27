@@ -1,4 +1,4 @@
-import { saveCloudSlots, loadCloudSlots } from "../config/firebase.js";
+import { saveCloudSlots, loadCloudSlots, getJstDateKey } from "../config/firebase.js";
 import { applyBankInterest, getActiveBoat } from "../systems/economy.js";
 
 const STORAGE_KEY = "sakana_san_slots_v1";
@@ -31,6 +31,7 @@ export function createNewSave(name = "新人漁師") {
     cooler: [],
     dex: {},
     stats: { totalCaught: 0, totalEarned: 0 },
+    dailyStats: { dateKey: getJstDateKey(), caughtCount: 0, earnedMoney: 0 },
     jobProfile: { totalClears: 0, streak: 0 },
     reputation: 0,
     lastPlayedAt: Date.now()
@@ -67,6 +68,11 @@ export function ensureSaveDefaults(save) {
   }
   if (!save.farm) save.farm = { maxPlots: 2, plots: [null, null] };
   if (!Array.isArray(save.orders)) save.orders = [];
+
+  const today = getJstDateKey();
+  if (!save.dailyStats || save.dailyStats.dateKey !== today) {
+    save.dailyStats = { dateKey: today, caughtCount: 0, earnedMoney: 0 };
+  }
 
   if (!save.bank) save.bank = { ordinary: 0, loan: 0, lastCalcAt: Date.now() };
   if (!save.cooler) save.cooler = [];

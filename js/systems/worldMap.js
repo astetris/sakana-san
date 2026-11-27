@@ -61,7 +61,7 @@ export function clampWorldPosition(nx, nz, isBoating, boatTier) {
   return { x: nx, z: nz, blockedMsg };
 }
 
-export function drawMinimap(canvas, { px, pz, yaw, isBoating, hotspots }) {
+export function drawMinimap(canvas, { px, pz, yaw, isBoating, hotspots, remotePlayers }) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const w = canvas.width, h = canvas.height;
@@ -85,7 +85,20 @@ export function drawMinimap(canvas, { px, pz, yaw, isBoating, hotspots }) {
   if (hotspots?.length) {
     ctx.fillStyle = "#38e59a";
     for (const s of hotspots) {
-      ctx.beginPath(); ctx.arc(toMX(s.x), toMY(s.z), 2.8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(toMX(s.x), toMY(s.z), 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // 他プレイヤー（水色ドット）
+  if (remotePlayers) {
+    ctx.fillStyle = "#38bdf8";
+    for (const p of Object.values(remotePlayers)) {
+      ctx.beginPath();
+      ctx.arc(toMX(p.x || 0), toMY(p.z || 0), 3.0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
     }
   }
 

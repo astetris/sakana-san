@@ -1,6 +1,33 @@
 import * as THREE from "three";
 import { clampWorldPosition } from "../systems/worldMap.js";
 
+function createNameSprite(text) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 72;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "rgba(10, 22, 36, 0.82)";
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(8, 10, 240, 52, 16);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#f8fafc";
+  ctx.font = "bold 24px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text.slice(0, 14), 128, 36);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(4.6, 1.3, 1);
+  sprite.position.set(0, 3.6, 0);
+  return sprite;
+}
+
 export class FishingScene {
   constructor(canvas) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -78,6 +105,11 @@ export class FishingScene {
     this.scene.add(this.hotspotGroup);
     this.spawnWorldHotspots();
 
+    // 他プレイヤー管理（Phase 5 マルチ同期）
+    this.remoteGroup = new THREE.Group();
+    this.scene.add(this.remoteGroup);
+    this.remoteAvatars = new Map();
+
     this.clock = new THREE.Clock();
     this.rodBend = 0; this.bobberDip = 0; this.bobberDist = 18; this.waveAmp = 1.0;
     this.pos = new THREE.Vector2(0, 4); this.yaw = 0;
@@ -141,6 +173,109 @@ export class FishingScene {
     addBuoy(-125, -280, 0x818cf8);
     addBuoy(0, -290, 0xf97316);
     this.scene.add(world);
+  }
+
+  // ===== 他プレイヤー3Dアバター同期 =====
+  createRemoteAvatar(data) {
+    const group = new THREE.Group();
+
+    // 徒歩アバター（漁師シルエット）
+    const person = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.52, 1.5, 10), new THREE.MeshStandardMaterial({ color: 0x0ea5e9 }));
+    body.position.y = 0.8;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 10), new THREE.MeshStandardMaterial({ color: 0xfde68a }));
+    head.position.y = 1.85;
+    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.12, 10), new THREE.MeshStandardMaterial({ color: 0xd49449 }));
+    hat.position.y = 2.15;
+    person.add(body, head, hat);
+
+    // 船アバター（青ラインの僚船）
+    const boat = new THREE.Group();
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.85, 5.6), new THREE.MeshStandardMaterial({ color: 0xf1f5f9 }));
+    hull.position.set(0, 0.3, 0);
+    const bow = new THREE.Mesh(new THREE.ConeGeometry(1.45, 2.4, 4), new THREE.MeshStandardMaterial({ color: 0x0284c7 }));
+    bow.rotation.x = -Math.PI / 2; bow.rotation.y = Math.PI / 4; bow.position.set(0, 0.35, -3.9);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 1.8), new THREE.MeshStandardMaterial({ color: 0x38bdf8 }));
+    cabin.position.set(0, 1.2, 0.4);
+    boat.add(hull, bow, cabin);
+
+    const labelText = this.formatRemoteLabel(data);
+    const labelSprite = createNameSprite(labelText);
+
+    group.add(person, boat, labelSprite);
+    group.position.set(data.x || 0, data.isBoating ? 0.1 : 0.9, data.z || 4);
+    this.remoteGroup.add(group);
+
+    return {
+      group, person, boat, labelSprite, labelText,
+      targetX: data.x || 0,
+      targetZ: data.z || 4,
+      targetYaw: data.yaw || 0,
+      isBoating: !!data.isBoating,
+      name: data.name || "漁師"
+    };
+  }
+
+  formatRemoteLabel(data) {
+    const now = Date.now();
+    if (data.stamp && data.stampTs && now - data.stampTs < 6500) {
+      return `${data.stamp}`;
+    }
+    const icon = data.status === "fighting" ? "🔥" : data.isBoating ? "🚤" : "🎣";
+    return `${icon} ${data.name || "漁師"}`;
+  }
+
+  syncRemotePlayers(playersObj) {
+    const activeIds = new Set(Object.keys(playersObj || {}));
+
+    // いなくなったプレイヤーを削除
+    for (const [uid, av] of this.remoteAvatars.entries()) {
+      if (!activeIds.has(uid)) {
+        av.labelSprite.material.map?.dispose();
+        av.labelSprite.material.dispose();
+        this.remoteGroup.remove(av.group);
+        this.remoteAvatars.delete(uid);
+      }
+    }
+
+    // 新規追加・更新
+    for (const [uid, data] of Object.entries(playersObj || {})) {
+      let av = this.remoteAvatars.get(uid);
+      if (!av) {
+        av = this.createRemoteAvatar(data);
+        this.remoteAvatars.set(uid, av);
+      }
+      av.targetX = data.x ?? av.targetX;
+      av.targetZ = data.z ?? av.targetZ;
+      av.targetYaw = data.yaw ?? av.targetYaw;
+      av.isBoating = !!data.isBoating;
+      av.name = data.name || "漁師";
+      av.boat.visible = av.isBoating;
+      av.person.visible = !av.isBoating;
+
+      const nextLabel = this.formatRemoteLabel(data);
+      if (nextLabel !== av.labelText) {
+        av.labelSprite.material.map?.dispose();
+        av.labelSprite.material.dispose();
+        av.group.remove(av.labelSprite);
+        av.labelSprite = createNameSprite(nextLabel);
+        av.group.add(av.labelSprite);
+        av.labelText = nextLabel;
+      }
+    }
+  }
+
+  clearRemotePlayers() {
+    this.syncRemotePlayers({});
+  }
+
+  getNearbyPlayers(radius = 35) {
+    const near = [];
+    for (const av of this.remoteAvatars.values()) {
+      const d = Math.hypot(av.group.position.x - this.pos.x, av.group.position.z - this.pos.y);
+      if (d <= radius) near.push({ name: av.name, dist: d });
+    }
+    return near;
   }
 
   spawnWorldHotspots() {
@@ -242,6 +377,14 @@ export class FishingScene {
     this.playerRig.position.set(this.pos.x, this.isBoating ? Math.sin(t * 2.1) * 0.08 * this.waveAmp : 0.72, this.pos.y);
     this.playerRig.rotation.y = this.yaw;
     this.playerRig.rotation.z = this.isBoating ? Math.sin(t * 1.6) * 0.025 * this.waveAmp : 0;
+
+    // 他プレイヤーアバターの滑らか補間
+    for (const av of this.remoteAvatars.values()) {
+      av.group.position.x += (av.targetX - av.group.position.x) * Math.min(1, dt * 7);
+      av.group.position.z += (av.targetZ - av.group.position.z) * Math.min(1, dt * 7);
+      av.group.position.y = av.isBoating ? Math.sin(t * 2.1 + av.targetX) * 0.08 * this.waveAmp : 0.85;
+      av.group.rotation.y = av.targetYaw;
+    }
 
     this.sea.position.set(this.pos.x, 0, this.pos.y);
     const posAttr = this.sea.geometry.attributes.position;
