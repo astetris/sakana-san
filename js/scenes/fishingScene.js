@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { clampWorldPosition } from "../systems/worldMap.js?v=20261128_042032";
+import { audioEngine } from "../systems/audioEngine.js?v=20261128_042032";
 
 // ===== リアル海面シェーダー（港内は穏やか・外海はうねり・沖防波堤の白波・夜景映り込み） =====
 const OCEAN_VERTEX_SHADER = `
@@ -1838,6 +1839,14 @@ export class FishingScene {
 
   updateTraffic(dt, t) {
     this.updateTrafficSignals(t);
+    // 歩行者青信号の音響（横断歩道付近で距離減衰）
+    if (this.signalState.ped === 'green') {
+      const dCw = Math.hypot(this.pos.x - 7.0, this.pos.y - 38.0);
+      if (dCw < 42) {
+        const vol = Math.pow(1 - dCw / 42, 1.5);
+        audioEngine.playCrosswalkChime(vol, this.signalState.pedBlink);
+      }
+    }
 
     const playerOnCrosswalk = !this.isBoating && this.pos.y >= 34.4 && this.pos.y <= 41.4 && this.pos.x >= 3.4 && this.pos.x <= 10.6;
     if (playerOnCrosswalk && this.signalState.ped === "red" && performance.now() - this.lastRedWarnAt > 2600) {
@@ -1893,6 +1902,11 @@ export class FishingScene {
 
       if (!paused) {
         v.mesh.position.x += v.dir * v.speed * dt;
+        const dCar = Math.hypot(this.pos.x - v.mesh.position.x, this.pos.y - v.z);
+        if (dCar < 18) {
+          const cVol = Math.pow(1 - dCar / 18, 1.6);
+          audioEngine.playTrafficWhoosh(cVol, v.type === 'bus' || v.type === 'bigtruck' || v.type === 'truck');
+        }
         v.mesh.position.y = 1.0 + Math.sin(t * 22 + v.z) * 0.015;
       } else {
         v.mesh.position.y = 1.0;
@@ -2152,6 +2166,8 @@ export class FishingScene {
       r.timer -= dt;
       if (r.timer <= 0) {
         r.mode = "run";
+        const dSt = Math.hypot(this.pos.x - r.stationX, this.pos.y - r.trackZ);
+        if (dSt < 55) audioEngine.playStationBell(Math.pow(1 - dSt / 55, 1.3));
       }
     } else if (r.mode === "run") {
       // さかな港駅（x = 24）に近づいたら滑らかに減速＆停車
@@ -2199,6 +2215,19 @@ export class FishingScene {
     const offCol = 0x261212;
     r.flashL.forEach((m) => m.color.setHex(nearCrossing && blink ? onCol : offCol));
     r.flashR.forEach((m) => m.color.setHex(nearCrossing && !blink ? onCol : offCol));
+    // 踏切警報音＆電車走行音（距離減衰）
+    if (nearCrossing) {
+      const dGate = Math.hypot(this.pos.x - r.crossX, this.pos.y - r.trackZ);
+      if (dGate < 58) {
+        audioEngine.playCrossingDing(Math.pow(1 - dGate / 58, 1.4));
+      }
+    }
+    if (r.mode === 'run' && r.speed > 3.0) {
+      const dTr = Math.hypot(this.pos.x - r.x, this.pos.y - r.trackZ);
+      if (dTr < 62) {
+        audioEngine.playTrainClack(Math.pow(1 - dTr / 62, 1.4), r.speed);
+      }
+    }
   }
 
   // ===== 他プレイヤー3Dアバター同期 =====

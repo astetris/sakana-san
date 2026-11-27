@@ -13,6 +13,11 @@ class AudioEngine {
     this.lastReelAt = 0;
     this.lastEngineAt = 0;
     this.lastScrubAt = 0;
+    this.lastCrossingAt = 0;
+    this.lastTrainClackAt = 0;
+    this.lastCrosswalkAt = 0;
+    this.lastTrafficSoundAt = 0;
+    this.lastStationBellAt = 0;
   }
 
   unlock() {
@@ -190,6 +195,65 @@ class AudioEngine {
   playFail() { this.unlock(); this.playTone(300, 0.16, "sawtooth", 0.08, 0); this.playTone(210, 0.24, "sawtooth", 0.08, 0.12); }
   playDig() { this.unlock(); this.playTone(190, 0.09, "triangle", 0.12, 0); this.playTone(260, 0.11, "sine", 0.09, 0.08); }
   playCash() { this.unlock(); this.playTone(1046, 0.1, "sine", 0.12, 0); this.playTone(1568, 0.22, "sine", 0.12, 0.08); }
+
+  // ===== 港町・交通の距離減衰つき環境音（vol: 0.0〜1.0） =====
+  playCrossingDing(vol = 0.5) {
+    if (!this.ctx || this.ctx.state !== "running" || this.muted || vol <= 0.02) return;
+    const nowMs = performance.now();
+    if (nowMs - this.lastCrossingAt < 520) return;
+    this.lastCrossingAt = nowMs;
+    const v = Math.min(1, vol) * 0.11;
+    // 日本の踏切らしい2音重ねの金属音（カン・カン）
+    this.playTone(712, 0.34, "triangle", v, 0);
+    this.playTone(754, 0.30, "sine", v * 0.85, 0);
+    this.playTone(1424, 0.14, "sine", v * 0.3, 0);
+  }
+
+  playTrainClack(vol = 0.5, speed = 12) {
+    if (!this.ctx || this.ctx.state !== "running" || this.muted || vol <= 0.02) return;
+    const nowMs = performance.now();
+    const interval = Math.max(360, Math.min(820, 7800 / Math.max(4, speed)));
+    if (nowMs - this.lastTrainClackAt < interval) return;
+    this.lastTrainClackAt = nowMs;
+    const v = Math.min(1, vol) * 0.085;
+    // ガタン・ゴトンの2連リズム
+    this.playTone(95, 0.07, "triangle", v, 0);
+    this.playTone(125, 0.06, "sine", v * 0.75, 0.11);
+  }
+
+  playStationBell(vol = 0.6) {
+    if (!this.ctx || this.ctx.state !== "running" || this.muted || vol <= 0.03) return;
+    const nowMs = performance.now();
+    if (nowMs - this.lastStationBellAt < 4000) return;
+    this.lastStationBellAt = nowMs;
+    const v = Math.min(1, vol) * 0.10;
+    // 海辺のローカル駅風 発車チャイム
+    this.playTone(587.3, 0.24, "sine", v, 0);
+    this.playTone(784.0, 0.24, "sine", v, 0.22);
+    this.playTone(1046.5, 0.42, "triangle", v * 0.9, 0.44);
+  }
+
+  playCrosswalkChime(vol = 0.5, isBlink = false) {
+    if (!this.ctx || this.ctx.state !== "running" || this.muted || vol <= 0.02) return;
+    const nowMs = performance.now();
+    const interval = isBlink ? 620 : 1150;
+    if (nowMs - this.lastCrosswalkAt < interval) return;
+    this.lastCrosswalkAt = nowMs;
+    const v = Math.min(1, vol) * 0.065;
+    // 日本の歩行者青信号「ピヨ・ピヨ」
+    this.playTone(1760, 0.09, "sine", v, 0);
+    this.playTone(2093, 0.11, "sine", v * 0.9, 0.11);
+  }
+
+  playTrafficWhoosh(vol = 0.4, isHeavy = false) {
+    if (!this.ctx || this.ctx.state !== "running" || this.muted || vol <= 0.03) return;
+    const nowMs = performance.now();
+    if (nowMs - this.lastTrafficSoundAt < 260) return;
+    this.lastTrafficSoundAt = nowMs;
+    const v = Math.min(1, vol) * (isHeavy ? 0.055 : 0.035);
+    this.playTone(isHeavy ? 64 : 108, 0.18, "sawtooth", v, 0);
+  }
+
 }
 
 export const audioEngine = new AudioEngine();
