@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>さかなサン | 3Dリアル釣り＆漁業シミュレーション</title>
+  <title>さかなサン | オープンワールド3D釣り＆漁業シム</title>
   <link rel="stylesheet" href="./css/style.css" />
   <script type="importmap">
     {
@@ -59,7 +59,7 @@
     </section>
   </div>
 
-  <!-- ===== プレイ画面 ===== -->
+  <!-- ===== プレイ画面（シームレス・オープンワールド） ===== -->
   <div id="play-screen" class="screen">
     <div class="top-stack">
       <header class="hud-top">
@@ -80,36 +80,31 @@
       <nav class="menu-bar">
         <button class="btn-mini" id="btn-open-cooler">🧊<span id="hud-cooler-count">0/10</span></button>
         <button class="btn-mini" id="btn-open-dock">🚤 船</button>
-        <button class="btn-mini" id="btn-open-shop">🏪 道具</button>
+        <button class="btn-mini" id="btn-open-shop">🏪 ショップ</button>
         <button class="btn-mini" id="btn-open-jobs">💼 バイト</button>
         <button class="btn-mini" id="btn-open-bank">🏦 銀行</button>
         <button class="btn-mini" id="btn-open-dex">📖 図鑑</button>
       </nav>
 
-      <div class="area-bar">
-        <select id="area-select">
-          <option value="teibou">堤防（徒歩OK・定番/投網）</option>
-          <option value="kakou">河口（徒歩OK・スズキ/シジミ）</option>
-          <option value="sunahama">砂浜（徒歩OK・ヒラメ/潮干狩り）</option>
-          <option value="iso">磯（徒歩OK・イシダイ/アワビ）</option>
-          <option value="kinkai">近海 [要:和船〜]（マダイ/ホタテ）</option>
-          <option value="okiai">沖合 [要:中型船〜]（カンパチ/ノドグロ）</option>
-          <option value="shinkai">深海 [要:中型船〜]（リュウグウ/ツブ）</option>
-          <option value="enyou">遠洋 [要:大型船]（クロマグロ/メカジキ）</option>
-          <option value="nangoku">南国 [要:大型船]（ナポレオンフィッシュ）</option>
-        </select>
-        <span class="env-mini" id="hud-env-mini">-</span>
+      <div class="world-row">
+        <div class="area-pill">
+          <strong id="hud-area-name">📍 港・堤防（徒歩）</strong>
+          <span id="hud-env-mini" class="muted">-</span>
+        </div>
+        <div class="minimap-wrap">
+          <canvas id="minimap-canvas" width="96" height="96"></canvas>
+          <button id="btn-return-port" class="btn-tiny" title="港の桟橋へ戻る">⚓港へ</button>
+        </div>
       </div>
 
       <div class="mode-switch">
         <button id="tab-mode-fish" class="mode-btn active">🎣 釣り</button>
-        <button id="tab-mode-shell" class="mode-btn">🐚 貝</button>
+        <button id="tab-mode-shell" class="mode-btn">🐚 貝採取</button>
         <button id="tab-mode-net" class="mode-btn">🕸️ 網漁</button>
-        <button id="tab-mode-steer" class="mode-btn">🚤 操船</button>
       </div>
     </div>
 
-    <!-- ソナー表示（船エリア時） -->
+    <!-- ソナー表示（乗船時） -->
     <div id="sonar-bar" class="sonar-bar hidden">
       <span id="sonar-text">📡 魚群ソナー: 探索中...</span>
       <button id="btn-autopilot" class="btn-sub">🧭 魚群へ自動航行</button>
@@ -130,18 +125,17 @@
       </div>
     </div>
 
-    <div id="status-banner" class="status-banner">キャストボタンを押して釣り開始！</div>
+    <div id="status-banner" class="status-banner">左下のスティックで自由に歩こう！桟橋から船に乗れるよ</div>
 
-    <!-- 操船コントロール（操船モード時のみ表示） -->
-    <div id="steer-dock" class="steer-dock hidden">
-      <button id="btn-steer-left" class="steer-btn">◀ 左舵</button>
-      <button id="btn-steer-fwd" class="steer-btn fwd">▲ 前進</button>
-      <button id="btn-steer-right" class="steer-btn">▶ 右舵</button>
-    </div>
-
-    <!-- 通常アクションボタン -->
-    <div id="action-dock" class="action-dock">
-      <button id="btn-main-action" class="btn-action">🎣 キャスト</button>
+    <!-- 下部操作ドック（左:ジョイスティック / 右:乗下船＆アクション） -->
+    <div class="bottom-controls">
+      <div id="joy-base" class="joy-base">
+        <div id="joy-knob" class="joy-knob"></div>
+      </div>
+      <div class="right-actions">
+        <button id="btn-board-toggle" class="btn-board hidden">🚤 船に乗る</button>
+        <button id="btn-main-action" class="btn-action">🎣 キャスト（⚡2）</button>
+      </div>
     </div>
   </div>
 

@@ -24,40 +24,26 @@ export function getShellMethodForArea(areaId) {
   return map[areaId] || null;
 }
 
-function buildCatchItem(picked, env, { isNet = false, damageChance = 0, hotspotBonus = false } = {}) {
+function buildCatchItem(picked, env, { isNet = false, damageChance = 0, hotspotBonus = false, baitAttract = 1.0 } = {}) {
   const spread = picked.maxKg - picked.minKg;
-  const biasPower = hotspotBonus ? 0.95 : 1.35;
+  const biasPower = hotspotBonus ? 0.92 : (baitAttract > 1.3 ? 1.1 : 1.35);
   const weightKg = Number((picked.minKg + spread * Math.pow(Math.random(), biasPower)).toFixed(2));
 
   const tags = [];
   let priceMult = 1.0;
 
-  if (weightKg >= picked.trophyKg) {
-    tags.push("トロフィー特大");
-    priceMult *= 1.6;
-  } else if (weightKg < picked.minKg + spread * 0.2) {
-    tags.push("少し小ぶり");
-    priceMult *= 0.85;
-  }
-  if (picked.spawnSeasons?.includes(env.season) && Math.random() < 0.28) {
-    tags.push("抱卵");
-    priceMult *= 1.35;
-  }
+  if (weightKg >= picked.trophyKg) { tags.push("トロフィー特大"); priceMult *= 1.6; }
+  else if (weightKg < picked.minKg + spread * 0.2) { tags.push("少し小ぶり"); priceMult *= 0.85; }
+  if (picked.spawnSeasons?.includes(env.season) && Math.random() < 0.28) { tags.push("抱卵"); priceMult *= 1.35; }
   if (picked.fatSeasons?.includes(env.season) && env.waterTemp <= (picked.minTemp + picked.maxTemp) / 2 + 1) {
-    tags.push("脂乗り抜群");
-    priceMult *= 1.4;
+    tags.push("脂乗り抜群"); priceMult *= 1.4;
   }
   if (env.tideName === "大潮" || (picked.coldWaterBonus && env.waterTemp <= picked.minTemp + 4)) {
-    tags.push("身の締まり◎");
-    priceMult *= 1.2;
+    tags.push("身の締まり◎"); priceMult *= 1.2;
   }
-  if (isNet && Math.random() < damageChance) {
-    tags.push("傷あり");
-    priceMult *= 0.75;
-  }
+  if (isNet && Math.random() < damageChance) { tags.push("傷あり"); priceMult *= 0.75; }
   if (env.waterTemp < picked.minTemp - 2 || env.waterTemp > picked.maxTemp + 2) {
-    tags.push("やや痩せ気味");
-    priceMult *= 0.85;
+    tags.push("やや痩せ気味"); priceMult *= 0.85;
   }
   if (tags.length === 0) tags.push(isNet ? "網揚げ" : "活魚");
 
@@ -68,7 +54,7 @@ function buildCatchItem(picked, env, { isNet = false, damageChance = 0, hotspotB
   return { species: picked, weightKg, tags, estimatedPrice };
 }
 
-function pickWeighted(pool, env, hotspotBonus = false) {
+function pickWeighted(pool, env, hotspotBonus = false, baitAttract = 1.0) {
   const weighted = pool.map((s) => {
     let w = s.rarityWeight || 10;
     if (s.seasons.includes(env.season)) w *= 1.5;
@@ -76,7 +62,9 @@ function pickWeighted(pool, env, hotspotBonus = false) {
     if (s.favWeather.includes(env.weather)) w *= 1.3;
     if (s.favWind === env.wind || s.favWind === "any") w *= 1.15;
     if (env.waterTemp < s.minTemp || env.waterTemp > s.maxTemp) w *= 0.45;
-    if (hotspotBonus && (s.rank === "S" || s.rank === "A" || s.rank === "B")) w *= 1.6;
+    if ((hotspotBonus || baitAttract >= 1.4) && (s.rank === "S" || s.rank === "A" || s.rank === "B")) {
+      w *= hotspotBonus ? 1.65 : baitAttract * 0.9;
+    }
     return { species: s, weight: Math.max(1, w) };
   });
   const total = weighted.reduce((sum, x) => sum + x.weight, 0);
@@ -88,23 +76,21 @@ function pickWeighted(pool, env, hotspotBonus = false) {
   return weighted[0].species;
 }
 
-export function rollCatch(areaId, env, hotspotBonus = false) {
+export function rollCatch(areaId, env, hotspotBonus = false, baitAttract = 1.0) {
   const candidates = speciesCache.filter(
     (s) => s.speciesType !== "shellfish" && s.areas.includes(areaId)
   );
   const pool = candidates.length ? candidates : speciesCache.filter((s) => s.speciesType !== "shellfish");
-  const picked = pickWeighted(pool, env, hotspotBonus);
-  return buildCatchItem(picked, env, { hotspotBonus });
+  const picked = pickWeighted(pool, env, hotspotBonus, baitAttract);
+  return buildCatchItem(picked, env, { hotspotBonus, baitAttract });
 }
 
 export function rollNetHaul(areaId, env, netItem, hotspotBonus = false) {
   const method = netItem.method;
-  // 底引き網セットは桁引き網の貝も同時に狙える
   const allowedMethods = method === "sokobiki" ? ["sokobiki", "ketabiki"] : [method];
   let candidates = speciesCache.filter(
     (s) => s.areas.includes(areaId) && (s.captureMethods || []).some((m) => allowedMethods.includes(m))
   );
-  // その海域に対象がいなければ、網で獲れる魚全般から抽選
   if (!candidates.length) {
     candidates = speciesCache.filter((s) => s.areas.includes(areaId) && (s.captureMethods || []).length > 0);
   }
@@ -119,9 +105,7 @@ export function rollNetHaul(areaId, env, netItem, hotspotBonus = false) {
   for (let i = 0; i < haulCount; i++) {
     const picked = pickWeighted(candidates, env, hotspotBonus);
     results.push(buildCatchItem(picked, env, {
-      isNet: true,
-      damageChance: netItem.damageChance || 0.15,
-      hotspotBonus
+      isNet: true, damageChance: netItem.damageChance || 0.15, hotspotBonus
     }));
   }
   return results;

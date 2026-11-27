@@ -102,7 +102,6 @@ export async function fetchDailyRanking() {
     const snap = await getDoc(doc(db, "daily_rankings", dateKey, "boards", "biggest_weight"));
     return snap.exists() ? (snap.data().topList || []) : [];
   } catch (e) {
-    console.warn("ランキング取得スキップ:", e);
     return [];
   }
 }

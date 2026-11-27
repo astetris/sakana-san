@@ -17,9 +17,11 @@ export function createNewSave(name = "新人漁師") {
     stamina: STAMINA_MAX,
     staminaUpdatedAt: Date.now(),
     area: "teibou",
+    worldPos: { x: 0, z: 4, yaw: 0, isBoating: false },
     cooler: [],
     dex: {},
     stats: { totalCaught: 0, totalEarned: 0 },
+    jobProfile: { totalClears: 0, streak: 0 },
     lastPlayedAt: Date.now()
   });
 }
@@ -27,18 +29,26 @@ export function createNewSave(name = "新人漁師") {
 export function ensureSaveDefaults(save) {
   if (!save) return null;
   if (!save.gear) {
-    save.gear = { rod: "rod_1", line: "line_1", cooler: "cooler_1", shellTool: "shell_1", net: "net_toami" };
+    save.gear = { rod: "rod_1", reel: "reel_1", line: "line_1", cooler: "cooler_1", shellTool: "shell_1", net: "net_toami", bait: "bait_free" };
   }
+  if (!save.gear.reel) save.gear.reel = "reel_1";
   if (!save.gear.net) save.gear.net = "net_toami";
+  if (!save.gear.bait) save.gear.bait = "bait_free";
+
   if (!save.ownedGear) {
-    save.ownedGear = ["rod_1", "line_1", "cooler_1", "shell_1", "net_toami"];
+    save.ownedGear = ["rod_1", "reel_1", "line_1", "cooler_1", "shell_1", "net_toami", "bait_free"];
   }
-  if (!save.ownedGear.includes("net_toami")) save.ownedGear.push("net_toami");
+  ["rod_1", "reel_1", "line_1", "cooler_1", "shell_1", "net_toami", "bait_free"].forEach((id) => {
+    if (!save.ownedGear.includes(id)) save.ownedGear.push(id);
+  });
+  if (!save.baitStock) save.baitStock = {};
 
   if (!save.ownedBoats) save.ownedBoats = ["boat_none"];
   if (!save.activeBoatId) save.activeBoatId = "boat_none";
   if (typeof save.fuel !== "number") save.fuel = 0;
   if (typeof save.autoRefuel !== "boolean") save.autoRefuel = true;
+  if (!save.worldPos) save.worldPos = { x: 0, z: 4, yaw: 0, isBoating: false };
+  if (!save.jobProfile) save.jobProfile = { totalClears: 0, streak: 0 };
 
   if (!save.bank) save.bank = { ordinary: 0, loan: 0, lastCalcAt: Date.now() };
   if (!save.cooler) save.cooler = [];

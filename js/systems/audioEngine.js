@@ -12,6 +12,7 @@ class AudioEngine {
     this.weather = "sunny";
     this.lastReelAt = 0;
     this.lastEngineAt = 0;
+    this.lastScrubAt = 0;
   }
 
   unlock() {
@@ -175,7 +176,6 @@ class AudioEngine {
     this.unlock();
     this.playTone(340, 0.14, "triangle", 0.11, 0);
     this.playTone(210, 0.22, "sine", 0.12, 0.12);
-    this.playTone(160, 0.26, "sine", 0.09, 0.28);
   }
 
   playEnginePulse() {
@@ -184,6 +184,14 @@ class AudioEngine {
     if (now - this.lastEngineAt < 180) return;
     this.lastEngineAt = now;
     this.playTone(88, 0.14, "sawtooth", 0.032, 0);
+  }
+
+  playScrub() {
+    if (!this.ctx || this.muted) return;
+    const now = performance.now();
+    if (now - this.lastScrubAt < 90) return;
+    this.lastScrubAt = now;
+    this.playTone(920 + Math.random() * 260, 0.04, "sine", 0.045, 0);
   }
 
   playBite() {
