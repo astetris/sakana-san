@@ -1642,22 +1642,24 @@ function runShellDigMiniGame({ title, methodLabel, onFinish }) {
   phase = "harvesting";
 
   const GOAL = 5;
-  const TIME_LIMIT = 9.5;
+  const TIME_LIMIT = 14.0;
   let hits = 0;
   let misses = 0;
   let timeLeft = TIME_LIMIT;
   let finished = false;
-  let activeSlots = new Map(); // idx -> { type: "shell"|"crab"|"rock", expireAt }
-  let nextSpawnAt = 0;
+  let roundLocked = false;
+  let activeSlots = new Map(); // idx -> { type: "shell"|"crab"|"rock" }
+  let roundExpireAt = 0;
+  let nextRoundAt = performance.now() + 260;
   let lastTick = performance.now();
 
   const cellsHtml = Array.from({ length: 12 }, (_, i) =>
-    `<button type="button" class="shell-cell" data-scell="${i}" style="height:56px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(15,23,42,0.82);font-size:1.35rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;user-select:none;transition:transform 0.08s;">🌊</button>`
+    `<button type="button" class="shell-cell" data-scell="${i}" style="height:56px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(15,23,42,0.82);font-size:1.35rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;user-select:none;transition:transform 0.08s;">·</button>`
   ).join("");
 
   openModal(title || `🐚 ${methodLabel || "貝採取"}チャレンジ`, `
     <div class="bank-box" style="text-align:center;">
-      <div class="muted" style="font-size:12px;">🫧<strong>貝の気泡</strong>だけを素早く${GOAL}回タップ！🦀カニ・🪨岩は時間ペナルティ</div>
+      <div class="muted" style="font-size:12px;">1回ごとに🫧<strong>貝の気泡</strong>を1回タップ！合計${GOAL}回で満額採取</div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 6px;font-size:13px;">
         <span id="sh-progress" style="font-weight:700;color:#38e59a;">採取: 0 / ${GOAL}</span>
         <span id="sh-timer" style="font-weight:700;color:#f3c687;">残り ${TIME_LIMIT.toFixed(1)}s</span>
@@ -1668,7 +1670,7 @@ function runShellDigMiniGame({ title, methodLabel, onFinish }) {
       <div id="sh-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;user-select:none;">
         ${cellsHtml}
       </div>
-      <div id="sh-msg" class="muted" style="margin-top:8px;min-height:18px;font-size:12px;">気泡が出た瞬間に掘り出せ！</div>
+      <div id="sh-msg" class="muted" style="margin-top:8px;min-height:18px;font-size:12px;">🫧が出たら1回だけ落ち着いてタップ！</div>
     </div>
   `);
 
@@ -1702,93 +1704,90 @@ function runShellDigMiniGame({ title, methodLabel, onFinish }) {
         btn.style.borderColor = "rgba(255,255,255,0.10)";
       } else if (item.type === "shell") {
         btn.textContent = "🫧";
-        btn.style.background = "rgba(16,185,129,0.28)";
+        btn.style.background = "rgba(16,185,129,0.32)";
         btn.style.borderColor = "#38e59a";
       } else if (item.type === "crab") {
         btn.textContent = "🦀";
-        btn.style.background = "rgba(239,68,68,0.24)";
+        btn.style.background = "rgba(239,68,68,0.22)";
         btn.style.borderColor = "#f87171";
       } else {
         btn.textContent = "🪨";
-        btn.style.background = "rgba(148,163,184,0.22)";
+        btn.style.background = "rgba(148,163,184,0.20)";
         btn.style.borderColor = "#94a3b8";
       }
     });
   };
 
-  const spawnTargets = (now) => {
-    // 進行度とミス数でどんどん潜るのが速くなる（釣り並みの緊張感）
-    const speedFactor = Math.max(0.55, 1 - hits * 0.08 - misses * 0.05);
-    const shellLifeMs = Math.round((780 + Math.random() * 240) * speedFactor);
-    const fakeLifeMs = Math.round((850 + Math.random() * 260) * speedFactor);
+  const startNewRound = (now) => {
+    activeSlots.clear();
+    roundLocked = false;
+    const pool = Array.from({ length: 12 }, (_, i) => i);
+    const pick = () => pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
 
-    // 本物の気泡が盤面に無ければ必ず1つ出す
-    let hasShell = false;
-    activeSlots.forEach((v) => { if (v.type === "shell") hasShell = true; });
-
-    const freeIdx = [];
-    for (let i = 0; i < 12; i++) if (!activeSlots.has(i)) freeIdx.push(i);
-    if (!freeIdx.length) return;
-
-    const pickFree = () => freeIdx.splice(Math.floor(Math.random() * freeIdx.length), 1)[0];
-
-    if (!hasShell) {
-      const idx = pickFree();
-      activeSlots.set(idx, { type: "shell", expireAt: now + shellLifeMs });
-    }
-    // フェイク（カニ・岩）を1〜2個混ぜて見極めを要求
-    const fakeCount = Math.min(freeIdx.length, hits >= 2 ? 2 : 1);
+    // 1ラウンドにつき本物の気泡を必ず1つだけ配置
+    activeSlots.set(pick(), { type: "shell" });
+    // フェイク（カニ・小石）を1〜2個だけ配置
+    const fakeCount = hits >= 2 ? 2 : 1;
     for (let k = 0; k < fakeCount; k++) {
-      if (Math.random() < 0.85) {
-        const idx = pickFree();
-        const type = Math.random() < 0.6 ? "crab" : "rock";
-        activeSlots.set(idx, { type, expireAt: now + fakeLifeMs });
-      }
+      activeSlots.set(pick(), { type: Math.random() < 0.55 ? "crab" : "rock" });
     }
-    nextSpawnAt = now + Math.round((320 + Math.random() * 220) * speedFactor);
+    // 1回あたりの表示時間はゆっくり1.6〜2.0秒
+    const lifeMs = Math.round(1600 + Math.random() * 400);
+    roundExpireAt = now + lifeMs;
+    nextRoundAt = 0;
+    renderCells();
+  };
+
+  const queueNextRound = (now, delayMs = 340) => {
+    activeSlots.clear();
+    roundLocked = true;
+    roundExpireAt = 0;
+    nextRoundAt = now + delayMs;
+    renderCells();
   };
 
   const gridEl = document.getElementById("sh-grid");
   if (gridEl) {
     gridEl.querySelectorAll("[data-scell]").forEach((btn) => {
-      const onTap = (ev) => {
+      btn.onpointerdown = (ev) => {
         if (ev) ev.preventDefault();
-        if (finished) return;
+        if (finished || roundLocked || activeSlots.size === 0) return;
+
+        const now = performance.now();
         const idx = Number(btn.dataset.scell);
         const item = activeSlots.get(idx);
         const msgEl = document.getElementById("sh-msg");
         const progEl = document.getElementById("sh-progress");
 
         if (item && item.type === "shell") {
-          activeSlots.delete(idx);
           hits += 1;
           audioEngine.playDig?.();
           if (progEl) progEl.textContent = `採取: ${hits} / ${GOAL}`;
-          if (msgEl) { msgEl.style.color = "#38e59a"; msgEl.textContent = `✨ 掘り当てた！（${hits}/${GOAL}）`; }
+          if (msgEl) {
+            msgEl.style.color = "#38e59a";
+            msgEl.textContent = `🐚 ${hits}個目を掘り当てた！（${hits}/${GOAL}）`;
+          }
           if (hits >= GOAL) {
-            const quality = (misses === 0 || timeLeft >= 3.0) ? "great" : "good";
+            const quality = (misses === 0 || timeLeft >= 4.0) ? "great" : "good";
             finishGame(quality);
             return;
           }
-          nextSpawnAt = Math.min(nextSpawnAt, performance.now() + 180);
-          renderCells();
+          queueNextRound(now, 340);
         } else {
           misses += 1;
-          if (item) activeSlots.delete(idx);
-          timeLeft = Math.max(0, timeLeft - (item?.type === "crab" ? 1.5 : 1.0));
+          timeLeft = Math.max(0, timeLeft - (item?.type === "crab" ? 1.0 : 0.7));
           audioEngine.playFail?.();
           if (msgEl) {
             msgEl.style.color = "#ff7b7b";
             msgEl.textContent = item?.type === "crab"
-              ? "🦀 カニに挟まれた！ -1.5秒"
+              ? "🦀 カニだった！ -1.0秒（次の気泡を待とう）"
               : item?.type === "rock"
-                ? "🪨 硬い岩だった… -1.0秒"
-                : "💦 空振り！貝が警戒した… -1.0秒";
+                ? "🪨 小石だった… -0.7秒（次の気泡を待とう）"
+                : "💦 空振り！ -0.7秒（🫧を狙おう）";
           }
-          renderCells();
+          queueNextRound(now, 400);
         }
       };
-      btn.onpointerdown = onTap;
     });
   }
 
@@ -1799,29 +1798,27 @@ function runShellDigMiniGame({ title, methodLabel, onFinish }) {
     lastTick = now;
     timeLeft = Math.max(0, timeLeft - dt);
 
-    let changed = false;
-    activeSlots.forEach((v, k) => {
-      if (now >= v.expireAt) {
-        activeSlots.delete(k);
-        changed = true;
+    if (nextRoundAt > 0 && now >= nextRoundAt) {
+      startNewRound(now);
+    } else if (roundExpireAt > 0 && now >= roundExpireAt) {
+      const msgEl = document.getElementById("sh-msg");
+      if (msgEl) {
+        msgEl.style.color = "#94a3b8";
+        msgEl.textContent = "🌊 貝が潜った…次の気泡を探そう！";
       }
-    });
-    if (now >= nextSpawnAt) {
-      spawnTargets(now);
-      changed = true;
+      queueNextRound(now, 320);
     }
-    if (changed) renderCells();
 
     const tEl = document.getElementById("sh-timer");
     const barEl = document.getElementById("sh-timebar");
     if (tEl) {
       tEl.textContent = `残り ${timeLeft.toFixed(1)}s`;
-      tEl.style.color = timeLeft <= 2.5 ? "#ff7b7b" : "#f3c687";
+      tEl.style.color = timeLeft <= 3.0 ? "#ff7b7b" : "#f3c687";
     }
     if (barEl) barEl.style.width = `${(timeLeft / TIME_LIMIT) * 100}%`;
 
     if (timeLeft <= 0) {
-      finishGame("miss");
+      finishGame(hits > 0 ? "good" : "miss");
     }
   }, 50);
 
@@ -1840,28 +1837,28 @@ function runNetThrowMiniGame({ title, net, onFinish }) {
 
   let finished = false;
   let stage = "aim"; // "aim" -> "pull"
-  let aimResult = "good"; // "great" | "good"
+  let aimResult = "good";
   const netTier = Math.max(1, Number(net?.tier || 1));
 
-  // Phase 1: 動く魚群を狙って投網
-  let fishX = 20 + Math.random() * 60;
-  let fishY = 25 + Math.random() * 50;
-  let vx = (Math.random() < 0.5 ? -1 : 1) * (42 + Math.random() * 24);
-  let vy = (Math.random() < 0.5 ? -1 : 1) * (32 + Math.random() * 22);
-  let turnTimer = 0.7;
-  let aimTime = 6.0;
+  // Phase 1: 魚群を狙って投網（速度控えめ＆広めサークル）
+  let fishX = 22 + Math.random() * 56;
+  let fishY = 26 + Math.random() * 48;
+  let vx = (Math.random() < 0.5 ? -1 : 1) * (24 + Math.random() * 14);
+  let vy = (Math.random() < 0.5 ? -1 : 1) * (18 + Math.random() * 12);
+  let turnTimer = 1.2;
+  let aimTime = 8.5;
   let throwing = false;
   let throwX = 50;
   let throwY = 50;
-  let throwRadius = Math.min(24, 17 + netTier * 1.4);
+  let throwRadius = Math.min(28, 21 + netTier * 1.6);
 
-  // Phase 2: 網引き上げテンションバトル
+  // Phase 2: 引き上げ戦（穏やか -> 黄色の予兆 -> 赤の暴れ）
   let pullProgress = 0;
-  let netTension = 18;
-  let pullTime = 10.5;
+  let netTension = 12;
+  let pullTime = 12.5;
   let holding = false;
-  let fishRage = false;
-  let rageTimer = 1.1;
+  let rageState = "calm"; // "calm" | "warn" | "rage"
+  let stateTimer = 1.3 + Math.random() * 0.6;
   let peakTension = 0;
 
   let lastTick = performance.now();
@@ -1869,19 +1866,19 @@ function runNetThrowMiniGame({ title, net, onFinish }) {
 
   openModal(title || "🕸️ 投網＆引き上げ勝負", `
     <div class="bank-box" style="text-align:center;">
-      <div id="net-stage-desc" class="muted" style="font-size:12px;">【第1段階】泳ぐ🐟魚群が中央の網サークルに入った瞬間に投網！（落下ラグあり）</div>
+      <div id="net-stage-desc" class="muted" style="font-size:12px;">【第1段階】🐟魚群を狙って水面タップ（または下のボタン）で投網！</div>
       <div id="net-aim-wrap">
         <div id="net-water" style="position:relative;height:168px;margin:10px 0;border-radius:12px;background:radial-gradient(circle at 50% 45%, #0c4a6e, #082f49);border:1px solid rgba(56,189,248,0.35);overflow:hidden;touch-action:manipulation;user-select:none;">
-          <div id="net-zone" style="position:absolute;left:50%;top:50%;width:${throwRadius * 2}%;aspect-ratio:1/1;border-radius:50%;border:2px dashed #38bdf8;background:rgba(56,189,248,0.14);transform:translate(-50%,-50%);pointer-events:none;"></div>
+          <div id="net-zone" style="position:absolute;left:50%;top:50%;width:${throwRadius * 2}%;aspect-ratio:1/1;border-radius:50%;border:2px dashed #38bdf8;background:rgba(56,189,248,0.16);transform:translate(-50%,-50%);pointer-events:none;"></div>
           <div id="net-school" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:1.35rem;letter-spacing:-2px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));pointer-events:none;">🐟🐟🐟</div>
           <div id="net-splash" style="position:absolute;left:50%;top:50%;width:0;height:0;border-radius:50%;border:3px solid #f3c687;transform:translate(-50%,-50%);opacity:0;pointer-events:none;"></div>
         </div>
-        <div id="net-aim-timer" style="font-size:13px;font-weight:700;color:#f3c687;margin-bottom:8px;">魚群通過まで 6.0s</div>
+        <div id="net-aim-timer" style="font-size:13px;font-weight:700;color:#f3c687;margin-bottom:8px;">魚群通過まで 8.5s</div>
         <button type="button" class="btn-primary" id="btn-net-cast" style="width:100%;height:50px;font-size:1.05rem;touch-action:manipulation;user-select:none;">🕸️ 今だ！投網を放つ！</button>
       </div>
 
       <div id="net-pull-wrap" style="display:none;margin-top:8px;">
-        <div id="net-rage-badge" style="padding:6px 10px;border-radius:8px;font-weight:800;font-size:13px;margin-bottom:10px;background:rgba(16,185,129,0.2);color:#38e59a;">🌊 落ち着いている！今すぐ長押しで引き上げろ！</div>
+        <div id="net-rage-badge" style="padding:6px 10px;border-radius:8px;font-weight:800;font-size:13px;margin-bottom:10px;background:rgba(16,185,129,0.2);color:#38e59a;">🌊 落ち着いている！長押しで引き上げよう！</div>
         <div style="text-align:left;font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between;">
           <span>🕸️ 引き上げ進捗</span><strong id="net-prog-txt">0%</strong>
         </div>
@@ -1889,13 +1886,13 @@ function runNetThrowMiniGame({ title, net, onFinish }) {
           <div id="net-prog-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#38bdf8,#38e59a);"></div>
         </div>
         <div style="text-align:left;font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between;">
-          <span>⚠️ 網の負荷（100%で破損！）</span><strong id="net-tens-txt">18%</strong>
+          <span>⚠️ 網の負荷（100%で破損）</span><strong id="net-tens-txt">12%</strong>
         </div>
         <div style="height:14px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden;margin-bottom:10px;">
-          <div id="net-tens-bar" style="height:100%;width:18%;background:linear-gradient(90deg,#38e59a,#f59e0b,#ef4444);"></div>
+          <div id="net-tens-bar" style="height:100%;width:12%;background:linear-gradient(90deg,#38e59a,#f59e0b,#ef4444);"></div>
         </div>
-        <div id="net-pull-timer" style="font-size:12px;font-weight:700;color:#f3c687;margin-bottom:8px;">残り 10.5s</div>
-        <button type="button" class="btn-primary" id="btn-net-pull" oncontextmenu="return false;" style="width:100%;height:54px;font-size:1.05rem;touch-action:none;user-select:none;-webkit-user-select:none;">💪 長押しで引き上げ（暴れたら離す！）</button>
+        <div id="net-pull-timer" style="font-size:12px;font-weight:700;color:#f3c687;margin-bottom:8px;">残り 12.5s</div>
+        <button type="button" class="btn-primary" id="btn-net-pull" oncontextmenu="return false;" style="width:100%;height:54px;font-size:1.05rem;touch-action:none;user-select:none;-webkit-user-select:none;">💪 長押しで引き上げ（赤で離す！）</button>
       </div>
     </div>
   `);
@@ -1920,16 +1917,16 @@ function runNetThrowMiniGame({ title, net, onFinish }) {
   const enterPullStage = (hitGrade) => {
     stage = "pull";
     aimResult = hitGrade;
-    pullProgress = hitGrade === "great" ? 16 : 6;
-    netTension = 16;
-    fishRage = false;
-    rageTimer = 0.8 + Math.random() * 0.6;
+    pullProgress = hitGrade === "great" ? 22 : 12;
+    netTension = 12;
+    rageState = "calm";
+    stateTimer = 1.2 + Math.random() * 0.6;
     const desc = document.getElementById("net-stage-desc");
     const aimWrap = document.getElementById("net-aim-wrap");
     const pullWrap = document.getElementById("net-pull-wrap");
     if (desc) desc.innerHTML = hitGrade === "great"
-      ? "🎯 <strong>ド真ん中捕捉！</strong>【第2段階】暴れる赤警告を避けて引き上げろ！"
-      : "🕸️ <strong>魚群を包囲！</strong>【第2段階】暴れる赤警告を避けて引き上げろ！";
+      ? "🎯 <strong>ド真ん中捕捉！</strong>【第2段階】黄色で身構えて、赤くなったら指を離そう！"
+      : "🕸️ <strong>魚群を包囲！</strong>【第2段階】黄色で身構えて、赤くなったら指を離そう！";
     if (aimWrap) aimWrap.style.display = "none";
     if (pullWrap) pullWrap.style.display = "block";
     audioEngine.playOk?.();
@@ -1948,24 +1945,23 @@ function runNetThrowMiniGame({ title, net, onFinish }) {
       splash.style.opacity = "1";
       splash.style.width = `${throwRadius * 2}%`;
       splash.style.aspectRatio = "1/1";
-      splash.style.transition = "all 0.16s ease-out";
+      splash.style.transition = "all 0.1s ease-out";
     }
 
-    // 網が着水する0.16秒後に着水判定（先読みが必要）
     setTimeout(() => {
       if (finished || stage !== "aim") return;
       const dx = fishX - throwX;
       const dy = (fishY - throwY) * 0.72;
       const dist = Math.hypot(dx, dy);
-      if (dist <= throwRadius * 0.58) {
+      if (dist <= throwRadius * 0.72) {
         enterPullStage("great");
-      } else if (dist <= throwRadius * 1.15) {
+      } else if (dist <= throwRadius * 1.32) {
         enterPullStage("good");
       } else {
         audioEngine.playFail?.();
         finishGame("miss");
       }
-    }, 160);
+    }, 100);
   };
 
   const castBtn = document.getElementById("btn-net-cast");
@@ -2006,16 +2002,16 @@ function runNetThrowMiniGame({ title, net, onFinish }) {
       aimTime = Math.max(0, aimTime - dt);
       turnTimer -= dt;
       if (turnTimer <= 0) {
-        turnTimer = 0.45 + Math.random() * 0.65;
+        turnTimer = 1.0 + Math.random() * 0.7;
         const angle = Math.random() * Math.PI * 2;
-        const spd = 48 + Math.random() * 34;
+        const spd = 26 + Math.random() * 16;
         vx = Math.cos(angle) * spd;
         vy = Math.sin(angle) * spd;
       }
       fishX += vx * dt;
       fishY += vy * dt;
-      if (fishX < 10 || fishX > 90) { fishX = Math.max(10, Math.min(90, fishX)); vx *= -1; }
-      if (fishY < 14 || fishY > 86) { fishY = Math.max(14, Math.min(86, fishY)); vy *= -1; }
+      if (fishX < 12 || fishX > 88) { fishX = Math.max(12, Math.min(88, fishX)); vx *= -1; }
+      if (fishY < 16 || fishY > 84) { fishY = Math.max(16, Math.min(84, fishY)); vy *= -1; }
 
       const schoolEl = document.getElementById("net-school");
       if (schoolEl) {
@@ -2024,45 +2020,58 @@ function runNetThrowMiniGame({ title, net, onFinish }) {
         schoolEl.style.transform = `translate(-50%,-50%) scaleX(${vx >= 0 ? -1 : 1})`;
       }
       const tEl = document.getElementById("net-aim-timer");
-      if (tEl) tEl.textContent = `魚群通過まで ${aimTime.toFixed(1)}s（水面直接タップでも投網OK）`;
+      if (tEl) tEl.textContent = `魚群通過まで ${aimTime.toFixed(1)}s（水面を直接タップでも投網OK）`;
       if (aimTime <= 0 && !throwing) {
         finishGame("miss");
       }
     } else if (stage === "pull") {
       pullTime = Math.max(0, pullTime - dt);
-      rageTimer -= dt;
-      if (rageTimer <= 0) {
-        fishRage = !fishRage;
-        rageTimer = fishRage ? (0.75 + Math.random() * 0.75) : (0.85 + Math.random() * 0.85);
+      stateTimer -= dt;
+      if (stateTimer <= 0) {
+        if (rageState === "calm") {
+          rageState = "warn";
+          stateTimer = 0.55;
+        } else if (rageState === "warn") {
+          rageState = "rage";
+          stateTimer = 0.85 + Math.random() * 0.55;
+        } else {
+          rageState = "calm";
+          stateTimer = 1.2 + Math.random() * 0.75;
+        }
       }
 
-      const tierEase = Math.max(0.72, 1 - (netTier - 1) * 0.06);
+      const tierEase = Math.max(0.7, 1 - (netTier - 1) * 0.06);
       if (holding) {
-        if (fishRage) {
-          // 暴れている最中に引くと負荷が急上昇
-          netTension += 54 * tierEase * dt;
+        if (rageState === "rage") {
+          netTension += 34 * tierEase * dt;
           pullProgress += 6 * dt;
-        } else {
-          pullProgress += 26 * dt;
+        } else if (rageState === "warn") {
           netTension += 14 * tierEase * dt;
+          pullProgress += 22 * dt;
+        } else {
+          pullProgress += 33 * dt;
+          netTension += 10 * tierEase * dt;
         }
       } else {
-        // 離している間は負荷が下がるが、少しずつ魚に引き戻される
-        netTension = Math.max(0, netTension - 34 * dt);
-        pullProgress = Math.max(0, pullProgress - (fishRage ? 9 : 4.5) * dt);
+        netTension = Math.max(0, netTension - 42 * dt);
+        pullProgress = Math.max(0, pullProgress - (rageState === "rage" ? 4.0 : 2.0) * dt);
       }
       peakTension = Math.max(peakTension, netTension);
 
       const badge = document.getElementById("net-rage-badge");
       if (badge) {
-        if (fishRage) {
+        if (rageState === "rage") {
           badge.style.background = "rgba(239,68,68,0.28)";
           badge.style.color = "#ff7b7b";
-          badge.textContent = "🚨 魚群が暴れている！！今すぐボタンを離せ！！";
+          badge.textContent = "🚨 暴れている！いったんボタンを離そう！";
+        } else if (rageState === "warn") {
+          badge.style.background = "rgba(245,158,11,0.26)";
+          badge.style.color = "#ffd166";
+          badge.textContent = "⚡ 魚が暴れそうだ！離す準備！";
         } else {
           badge.style.background = "rgba(16,185,129,0.22)";
           badge.style.color = "#38e59a";
-          badge.textContent = "🌊 静まった！長押しで一気に引き上げろ！";
+          badge.textContent = "🌊 静まった！長押しで引き上げよう！";
         }
       }
       const pTxt = document.getElementById("net-prog-txt");
