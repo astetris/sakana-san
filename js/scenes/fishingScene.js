@@ -1617,16 +1617,19 @@ export class FishingScene {
       world.add(dash);
     }
 
+    // ガードレール（二重生成防止のため1回だけ生成・横断歩道 x: 3.4〜10.6 を開口）
     const addGuardSection = (x1, x2, zPos) => {
       if (x2 <= x1 + 0.5) return;
       const len = x2 - x1;
       const cx = (x1 + x2) / 2;
       const rMesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.34, 0.14), guardMat);
       rMesh.position.set(cx, 1.65, zPos);
+      rMesh.name = "guardrail_beam";
       world.add(rMesh);
       for (let x = x1 + 1.2; x <= x2 - 0.8; x += 10) {
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9, 6), guardMat);
         post.position.set(x, 1.35, zPos);
+        post.name = "guardrail_post";
         world.add(post);
       }
     };
@@ -1634,7 +1637,6 @@ export class FishingScene {
     addGuardSection(L.crosswalkMaxX + 0.15, 137, L.roadMinZ);
     addGuardSection(-157, L.crosswalkMinX - 0.15, L.roadMaxZ);
     addGuardSection(L.crosswalkMaxX + 0.15, 137, L.roadMaxZ);
-
     this.buildIntersection(world, roadMat, lineMat, guardMat);
 
     const portLane = new THREE.Mesh(new THREE.BoxGeometry(73, 0.06, 4.2), roadMat);
