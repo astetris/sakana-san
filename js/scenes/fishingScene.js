@@ -1722,7 +1722,7 @@ export class FishingScene {
     world.add(vendBody, vendFront, northBench);
 
     for (let z = 35.1; z <= 40.8; z += 0.92) {
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.02, 0.50), lineMat);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(8.0, 0.02, 0.50), lineMat);
       stripe.position.set(cx, 1.06, z);
       world.add(stripe);
     }

@@ -11,8 +11,8 @@ export const WORLD_LAYOUT = Object.freeze({
   coastOtherZ: -0.35,
   roadMinZ: 34.4,
   roadMaxZ: 41.5,
-  crosswalkMinX: 3.4,
-  crosswalkMaxX: 10.6,
+  crosswalkMinX: 3.0,
+  crosswalkMaxX: 11.0,
   crosswalkCenterX: 7.0,
   trackZ: 51.4,
   trackMinZ: 48.2,
@@ -21,9 +21,9 @@ export const WORLD_LAYOUT = Object.freeze({
   stationMaxX: 35.5,
   stationMinZ: 54.6,
   stationMaxZ: 59.2,
-  vendingX: 16.5,
-  vendingZ: 46.3,
-  northBenchX: 20.5,
+  vendingX: 28.5,
+  vendingZ: 46.2,
+  northBenchX: 25.5,
   northBenchZ: 46.2
 });
 
