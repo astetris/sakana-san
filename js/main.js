@@ -1783,16 +1783,16 @@ async function boot() {
   $("tab-mode-shell").onclick = () => { harvestMode = "shell"; syncHarvestTabs(); resetActionState(); };
   $("tab-mode-net").onclick = () => { harvestMode = "net"; syncHarvestTabs(); resetActionState(); };
   $("btn-autopilot").onclick = () => { audioEngine.unlock(); scene3d.toggleAutopilot(); };
-
-  if ($("btn-open-account-home")) { const mBtn = document.createElement("button"); mBtn.className = "btn-mini"; mBtn.id = "btn-mode-select"; mBtn.textContent = playMode === "solo" ? "🧍 ソロ" : "🌐 マルチ"; mBtn.onclick = () => { openPlayModeSelectModal(); }; $("btn-open-cooler").parentElement.appendChild(mBtn); }
-  
-  if (!document.getElementById("btn-play-mode-toggle") && $("btn-open-cooler")?.parentElement) {
+  if ($("btn-open-cooler")?.parentElement && !document.getElementById("btn-play-mode-toggle")) {
     const modeBtn = document.createElement("button");
     modeBtn.id = "btn-play-mode-toggle";
     modeBtn.className = "btn-mini";
     modeBtn.type = "button";
     modeBtn.textContent = (typeof playMode !== "undefined" && playMode === "solo") ? "🧍 ソロ" : "🌐 マルチ";
-    modeBtn.onclick = () => { audioEngine.unlock(); openPlayModeSelectModal(); };
+    modeBtn.onclick = () => {
+      if (typeof audioEngine !== "undefined" && audioEngine?.unlock) audioEngine.unlock();
+      if (typeof openPlayModeSelectModal === "function") openPlayModeSelectModal();
+    };
     $("btn-open-cooler").parentElement.appendChild(modeBtn);
   }
   $("btn-open-cooler").onclick = openCoolerModal;
