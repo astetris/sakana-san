@@ -36,7 +36,7 @@ import {
 } from "./config/firebase.js?v=20261128_042032";
 import { getRealWorldEnv } from "./systems/environment.js?v=20261128_042032";
 import { audioEngine } from "./systems/audioEngine.js?v=20261128_042032";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS } from "./systems/worldMap.js?v=20261128_042032";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_042032";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
@@ -455,6 +455,12 @@ function checkCoolerSpace(save, minNeed = 1) {
 function doNetHarvest() {
   const save = currentSave();
   if (!save || phase !== "idle") return;
+  const netCastCheck = canCastFrom(scene3d.pos.x, scene3d.pos.y, scene3d.yaw, scene3d.isBoating);
+  if (!netCastCheck.ok) {
+    $("status-banner").textContent = netCastCheck.msg.replace("釣れません", "投網できません");
+    audioEngine.playFail();
+    return;
+  }
   const { coolerCap } = getEquippedStats(save);
   if (save.cooler.length >= coolerCap) { $("status-banner").textContent = "🧊 クーラーボックスがいっぱいです！"; audioEngine.playFail(); return; }
   const { net } = getEquippedStats(save);
@@ -520,6 +526,12 @@ function doNetHarvest() {
 function doShellHarvest() {
   const save = currentSave();
   if (!save || phase !== "idle") return;
+  const shellPosCheck = canHarvestShellAt(scene3d.pos.x, scene3d.pos.y, scene3d.isBoating);
+  if (!shellPosCheck.ok) {
+    $("status-banner").textContent = shellPosCheck.msg;
+    audioEngine.playFail();
+    return;
+  }
   const { coolerCap } = getEquippedStats(save);
   if (save.cooler.length >= coolerCap) { $("status-banner").textContent = "🧊 クーラーボックスがいっぱいです！"; audioEngine.playFail(); return; }
   if (save.stamina < 3) { $("status-banner").textContent = "⚡ スタミナ不足（貝採取は⚡3必要）！"; audioEngine.playFail(); return; }
@@ -577,6 +589,12 @@ function doShellHarvest() {
 function startCast() {
   const save = currentSave();
   if (!save || !checkCoolerSpace(save, 1)) return;
+  const castCheck = canCastFrom(scene3d.pos.x, scene3d.pos.y, scene3d.yaw, scene3d.isBoating);
+  if (!castCheck.ok) {
+    $("status-banner").textContent = castCheck.msg;
+    audioEngine.playFail();
+    return;
+  }
   if (save.stamina < 2) { $("status-banner").textContent = "スタミナ不足です（🍜憩いの食堂や休憩所で回復！）"; audioEngine.playFail(); return; }
   const { bait, baitAttract } = getEquippedStats(save);
   if (bait.pack > 0 && save.baitStock[bait.id] > 0) save.baitStock[bait.id] -= 1;
