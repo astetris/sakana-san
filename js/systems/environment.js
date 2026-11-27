@@ -12,8 +12,7 @@ export function getRealWorldEnv(now = new Date()) {
   const hour = now.getHours();
   const min = now.getMinutes();
 
-  let season = "spring";
-  let seasonJa = "春";
+  let season = "spring", seasonJa = "春";
   if (month >= 6 && month <= 8) { season = "summer"; seasonJa = "夏"; }
   else if (month >= 9 && month <= 11) { season = "autumn"; seasonJa = "秋"; }
   else if (month === 12 || month <= 2) { season = "winter"; seasonJa = "冬"; }
@@ -30,14 +29,12 @@ export function getRealWorldEnv(now = new Date()) {
 
   const rWind = seededRandom(blockKey + "-wind");
   const wind = rWind < 0.45 ? "onshore" : rWind < 0.85 ? "offshore" : "any";
-  const windJa = wind === "onshore" ? "向かい風(ベイト寄)" : wind === "offshore" ? "追い風(遠投◎)" : "無風";
+  const windJa = wind === "onshore" ? "向かい風" : wind === "offshore" ? "追い風" : "無風";
 
-  // 季節ベースの水温 + 日変動
   const baseTemps = { spring: 16, summer: 24, autumn: 19, winter: 11 };
   const tempOffset = (seededRandom(dayKey + "-temp") - 0.5) * 4;
   const waterTemp = Number((baseTemps[season] + tempOffset).toFixed(1));
 
-  // 潮回り（簡易月齢周期）
   const dayNum = Math.floor(now.getTime() / 86400000);
   const tideCycle = dayNum % 15;
   let tideName = "中潮";
@@ -46,13 +43,11 @@ export function getRealWorldEnv(now = new Date()) {
   else if (tideCycle === 9) tideName = "長潮";
   else if (tideCycle === 10) tideName = "若潮";
 
-  // 時間帯フェーズ
   let timePhase = "day";
   if (hour >= 5 && hour < 7) timePhase = "dawn";
   else if (hour >= 16 && hour < 19) timePhase = "dusk";
   else if (hour >= 19 || hour < 5) timePhase = "night";
 
-  // 日替わり市場相場（0.85x 〜 1.35x）
   const marketRate = Number((0.85 + seededRandom(dayKey + "-mkt") * 0.5).toFixed(2));
 
   return {

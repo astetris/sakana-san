@@ -1,0 +1,225 @@
+class AudioEngine {
+  constructor() {
+    this.ctx = null;
+    this.master = null;
+    this.muted = localStorage.getItem("sakana_muted") === "1";
+    this.ambientStarted = false;
+    this.rainGain = null;
+    this.waveGain = null;
+    this.bgmTimer = null;
+    this.bgmStep = 0;
+    this.timePhase = "day";
+    this.weather = "sunny";
+    this.lastReelAt = 0;
+  }
+
+  unlock() {
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.muted ? 0 : 0.7;
+      this.master.connect(this.ctx.destination);
+      this.startAmbient();
+      this.startBgm();
+    }
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume();
+    }
+  }
+
+  toggleMute() {
+    this.muted = !this.muted;
+    localStorage.setItem("sakana_muted", this.muted ? "1" : "0");
+    if (this.master && this.ctx) {
+      this.master.gain.setTargetAtTime(this.muted ? 0 : 0.7, this.ctx.currentTime, 0.08);
+    }
+    if (!this.muted) this.unlock();
+    return this.muted;
+  }
+
+  updateEnvironment(env) {
+    this.timePhase = env.timePhase;
+    this.weather = env.weather;
+    if (!this.ctx || !this.rainGain || !this.waveGain) return;
+    const now = this.ctx.currentTime;
+    const isRain = env.weather === "rain" || env.weather === "rough";
+    this.rainGain.gain.setTargetAtTime(isRain ? 0.065 : 0.0, now, 0.8);
+    this.waveGain.gain.setTargetAtTime(env.weather === "rough" ? 0.16 : 0.09, now, 0.8);
+  }
+
+  createNoiseBuffer(seconds = 3) {
+    const sr = this.ctx.sampleRate;
+    const buf = this.ctx.createBuffer(1, sr * seconds, sr);
+    const data = buf.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < data.length; i++) {
+      const white = Math.random() * 2 - 1;
+      b0 = 0.997 * b0 + white * 0.029;
+      b1 = 0.985 * b1 + white * 0.032;
+      b2 = 0.950 * b2 + white * 0.048;
+      data[i] = (b0 + b1 + b2 + white * 0.08) * 0.45;
+    }
+    return buf;
+  }
+
+  startAmbient() {
+    if (this.ambientStarted || !this.ctx) return;
+    this.ambientStarted = true;
+    const noiseBuf = this.createNoiseBuffer(4);
+
+    // 波の音（ローパスフィルタ＋ゆっくりLFO）
+    const waveSrc = this.ctx.createBufferSource();
+    waveSrc.buffer = noiseBuf;
+    waveSrc.loop = true;
+
+    const waveFilter = this.ctx.createBiquadFilter();
+    waveFilter.type = "lowpass";
+    waveFilter.frequency.value = 340;
+
+    this.waveGain = this.ctx.createGain();
+    this.waveGain.gain.value = 0.09;
+
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 0.14; // 約7秒周期の寄せて返す波
+    const lfoGain = this.ctx.createGain();
+    lfoGain.gain.value = 180;
+    lfo.connect(lfoGain).connect(waveFilter.frequency);
+    lfo.start();
+
+    waveSrc.connect(waveFilter).connect(this.waveGain).connect(this.master);
+    waveSrc.start();
+
+    // 雨音（バンドパス）
+    const rainSrc = this.ctx.createBufferSource();
+    rainSrc.buffer = noiseBuf;
+    rainSrc.loop = true;
+    const rainFilter = this.ctx.createBiquadFilter();
+    rainFilter.type = "bandpass";
+    rainFilter.frequency.value = 1800;
+    this.rainGain = this.ctx.createGain();
+    this.rainGain.gain.value = 0;
+    rainSrc.connect(rainFilter).connect(this.rainGain).connect(this.master);
+    rainSrc.start();
+  }
+
+  startBgm() {
+    if (this.bgmTimer) return;
+    // 昼は明るいCメジャーペンタトニック、夕・夜は落ち着いたAm9系チルコード
+    const dayChords = [
+      [261.6, 329.6, 392.0, 493.9],
+      [220.0, 261.6, 329.6, 392.0],
+      [174.6, 220.0, 261.6, 329.6],
+      [196.0, 246.9, 293.7, 392.0]
+    ];
+    const nightChords = [
+      [220.0, 261.6, 329.6, 493.9],
+      [174.6, 220.0, 261.6, 329.6],
+      [146.8, 220.0, 261.6, 329.6],
+      [164.8, 246.9, 293.7, 392.0]
+    ];
+
+    this.bgmTimer = setInterval(() => {
+      if (!this.ctx || this.ctx.state !== "running" || this.muted) return;
+      const isNight = this.timePhase === "night" || this.timePhase === "dusk";
+      const chords = isNight ? nightChords : dayChords;
+      const chord = chords[this.bgmStep % chords.length];
+      this.bgmStep++;
+
+      const now = this.ctx.currentTime;
+      chord.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = idx === 0 ? "sine" : "triangle";
+        osc.frequency.value = freq;
+        const start = now + idx * 0.14;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(isNight ? 0.024 : 0.03, start + 0.25);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 3.4);
+        osc.connect(gain).connect(this.master);
+        osc.start(start);
+        osc.stop(start + 3.5);
+      });
+    }, 3600);
+  }
+
+  playTone(freq, dur = 0.15, type = "sine", vol = 0.12, delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.linearRampToValueAtTime(vol, now + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.connect(g).connect(this.master);
+    osc.start(now);
+    osc.stop(now + dur + 0.02);
+  }
+
+  playCast() {
+    this.unlock();
+    if (!this.ctx || this.muted) return;
+    // ヒュッという風切り音 → 0.35秒後にポチャン
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(680, now);
+    osc.frequency.exponentialRampToValueAtTime(210, now + 0.22);
+    g.gain.setValueAtTime(0.08, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+    osc.connect(g).connect(this.master);
+    osc.start(now);
+    osc.stop(now + 0.25);
+
+    this.playTone(280, 0.14, "sine", 0.1, 0.32);
+    this.playTone(420, 0.12, "sine", 0.07, 0.36);
+  }
+
+  playBite() {
+    this.unlock();
+    this.playTone(880, 0.12, "triangle", 0.16, 0);
+    this.playTone(1174, 0.18, "triangle", 0.16, 0.1);
+  }
+
+  playReelTick(tensionPct = 40) {
+    if (!this.ctx || this.muted) return;
+    const now = performance.now();
+    const interval = tensionPct > 75 ? 90 : 140;
+    if (now - this.lastReelAt < interval) return;
+    this.lastReelAt = now;
+    const pitch = 520 + tensionPct * 6;
+    this.playTone(pitch, 0.045, "square", 0.035, 0);
+  }
+
+  playCatch(rank = "C") {
+    this.unlock();
+    const notes = (rank === "S" || rank === "A")
+      ? [523.2, 659.2, 783.9, 1046.5, 1318.5]
+      : [523.2, 659.2, 783.9];
+    notes.forEach((n, i) => this.playTone(n, 0.28, "triangle", 0.14, i * 0.09));
+  }
+
+  playFail() {
+    this.unlock();
+    this.playTone(300, 0.18, "sawtooth", 0.09, 0);
+    this.playTone(210, 0.28, "sawtooth", 0.09, 0.14);
+  }
+
+  playDig() {
+    this.unlock();
+    this.playTone(190, 0.09, "triangle", 0.12, 0);
+    this.playTone(260, 0.11, "sine", 0.09, 0.08);
+  }
+
+  playCash() {
+    this.unlock();
+    this.playTone(1046, 0.1, "sine", 0.12, 0);
+    this.playTone(1568, 0.22, "sine", 0.12, 0.08);
+  }
+}
+
+export const audioEngine = new AudioEngine();

@@ -18,7 +18,6 @@ export class FishingScene {
     this.sun.position.set(18, 28, -20);
     this.scene.add(this.sun);
 
-    // 海面
     const seaGeo = new THREE.PlaneGeometry(240, 240, 48, 48);
     seaGeo.rotateX(-Math.PI / 2);
     this.seaMat = new THREE.MeshStandardMaterial({
@@ -31,7 +30,6 @@ export class FishingScene {
     this.scene.add(this.sea);
     this.baseY = Float32Array.from(seaGeo.attributes.position.array);
 
-    // 堤防/桟橋の足場
     const pier = new THREE.Mesh(
       new THREE.BoxGeometry(8, 1.2, 4),
       new THREE.MeshStandardMaterial({ color: 0x3b424c, roughness: 0.9 })
@@ -39,12 +37,10 @@ export class FishingScene {
     pier.position.set(0, 0.5, 6.2);
     this.scene.add(pier);
 
-    // 夜の港ライト
     this.portLight = new THREE.PointLight(0xffb85c, 0, 22);
     this.portLight.position.set(-3.2, 4.5, 4.5);
     this.scene.add(this.portLight);
 
-    // 釣り竿
     this.rodGroup = new THREE.Group();
     this.rodGroup.position.set(0.85, 1.8, 5.4);
     const rodMesh = new THREE.Mesh(
@@ -56,7 +52,6 @@ export class FishingScene {
     this.rodGroup.add(rodMesh);
     this.scene.add(this.rodGroup);
 
-    // ウキ
     this.bobber = new THREE.Mesh(
       new THREE.SphereGeometry(0.16, 12, 12),
       new THREE.MeshStandardMaterial({ color: 0xff4d4d, emissive: 0x550000 })
@@ -64,13 +59,35 @@ export class FishingScene {
     this.bobber.visible = false;
     this.scene.add(this.bobber);
 
+    // 雨パーティクル
+    const rainCount = 300;
+    const rainPositions = new Float32Array(rainCount * 3);
+    for (let i = 0; i < rainCount; i++) {
+      rainPositions[i * 3] = (Math.random() - 0.5) * 34;
+      rainPositions[i * 3 + 1] = Math.random() * 16;
+      rainPositions[i * 3 + 2] = (Math.random() - 0.5) * 30 - 6;
+    }
+    const rainGeo = new THREE.BufferGeometry();
+    rainGeo.setAttribute("position", new THREE.BufferAttribute(rainPositions, 3));
+    this.rain = new THREE.Points(
+      rainGeo,
+      new THREE.PointsMaterial({ color: 0xcbe8ff, size: 0.09, transparent: true, opacity: 0.6 })
+    );
+    this.rain.visible = false;
+    this.scene.add(this.rain);
+
     this.clock = new THREE.Clock();
     this.rodBend = 0;
     this.bobberDip = 0;
     this.bobberDist = 18;
+    this.waveAmp = 1.0;
 
     window.addEventListener("resize", () => this.resize());
     this.animate();
+  }
+
+  setMode(mode) {
+    this.rodGroup.visible = mode === "fish";
   }
 
   applyEnvironment(env) {
@@ -94,6 +111,8 @@ export class FishingScene {
     this.sun.color.setHex(p.sun);
     this.ambient.intensity = p.amb;
     this.portLight.intensity = p.port;
+    this.rain.visible = env.weather === "rain" || env.weather === "rough";
+    this.waveAmp = env.weather === "rough" ? 2.1 : 1.0;
   }
 
   setBobber(visible, dist = 18, dip = 0) {
@@ -116,17 +135,25 @@ export class FishingScene {
     requestAnimationFrame(() => this.animate());
     const t = this.clock.getElapsedTime();
 
-    // 波の揺れ
     const pos = this.sea.geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       const x = this.baseY[i * 3];
       const z = this.baseY[i * 3 + 2];
-      const y = Math.sin(x * 0.18 + t * 1.6) * 0.16 + Math.cos(z * 0.15 + t * 1.3) * 0.14;
+      const y = (Math.sin(x * 0.18 + t * 1.6) * 0.16 + Math.cos(z * 0.15 + t * 1.3) * 0.14) * this.waveAmp;
       pos.setY(i, y);
     }
     pos.needsUpdate = true;
 
-    // ウキと竿の動き
+    if (this.rain.visible) {
+      const rp = this.rain.geometry.attributes.position;
+      for (let i = 0; i < rp.count; i++) {
+        let y = rp.getY(i) - 0.35;
+        if (y < 0) y = 16;
+        rp.setY(i, y);
+      }
+      rp.needsUpdate = true;
+    }
+
     if (this.bobber.visible) {
       this.bobber.position.set(0, Math.sin(t * 4) * 0.08 - this.bobberDip, 4 - this.bobberDist * 0.65);
     }

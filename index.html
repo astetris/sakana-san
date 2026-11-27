@@ -14,7 +14,6 @@
   </script>
 </head>
 <body>
-  <!-- 背景3Dキャンバス（ホーム画面・釣り画面共通） -->
   <canvas id="scene-canvas"></canvas>
 
   <!-- ===== ホーム画面（ダッシュボード） ===== -->
@@ -24,9 +23,12 @@
         <h1 class="game-title">さかなサン</h1>
         <p class="subtitle" id="live-clock">読み込み中...</p>
       </div>
-      <div class="online-badge">
-        <span class="dot"></span>
-        <span>オンライン: <strong id="online-count">-</strong>人</span>
+      <div class="header-right">
+        <button class="btn-icon" id="btn-sound-home" title="音量切替">🔊</button>
+        <div class="online-badge">
+          <span class="dot"></span>
+          <span><strong id="online-count">-</strong>人</span>
+        </div>
       </div>
     </header>
 
@@ -57,36 +59,50 @@
     </section>
   </div>
 
-  <!-- ===== プレイ画面（釣り＋港HUD） ===== -->
+  <!-- ===== プレイ画面（釣り＋貝採取＋港メニュー） ===== -->
   <div id="play-screen" class="screen">
-    <header class="hud-top">
-      <div class="hud-left">
-        <button class="btn-icon" id="btn-back-home">🏠</button>
-        <div class="player-meta">
-          <strong id="hud-name">漁師</strong>
-          <span id="hud-money">¥0</span>
+    <div class="top-stack">
+      <header class="hud-top">
+        <div class="hud-left">
+          <button class="btn-icon" id="btn-back-home">🏠</button>
+          <div class="player-meta">
+            <strong id="hud-name">漁師</strong>
+            <span id="hud-money">¥0</span>
+          </div>
         </div>
-      </div>
-      <div class="hud-right">
-        <div class="stamina-pill">⚡ <span id="hud-stamina">100</span>/100</div>
-        <button class="btn-mini" id="btn-open-cooler">🧊 <span id="hud-cooler-count">0</span></button>
-        <button class="btn-mini" id="btn-open-dex">📖</button>
-      </div>
-    </header>
+        <div class="hud-right">
+          <div class="stamina-pill">⚡<span id="hud-stamina">100</span></div>
+          <button class="btn-icon" id="btn-sound-play" title="音量切替">🔊</button>
+        </div>
+      </header>
 
-    <div class="area-bar">
-      <select id="area-select">
-        <option value="teibou">堤防（無料・定番）</option>
-        <option value="kakou">河口（汽水・スズキ/クロダイ）</option>
-        <option value="sunahama">砂浜（ヒラメ/マゴチ/シロギス）</option>
-        <option value="iso">磯（イシダイ/アオリイカ/メジナ）</option>
-        <option value="kinkai">近海（マダイ/ブリ/タチウオ）</option>
-        <option value="okiai">沖合（カンパチ/カツオ/ノドグロ）</option>
-        <option value="enyou">遠洋（クロマグロ/メカジキ）</option>
-        <option value="shinkai">深海（リュウグウノツカイ/アブラボウズ）</option>
-        <option value="nangoku">南国（ナポレオンフィッシュ）</option>
-      </select>
-      <span class="env-mini" id="hud-env-mini">-</span>
+      <nav class="menu-bar">
+        <button class="btn-mini" id="btn-open-cooler">🧊 <span id="hud-cooler-count">0/10</span></button>
+        <button class="btn-mini" id="btn-open-shop">🏪 ショップ</button>
+        <button class="btn-mini" id="btn-open-jobs">💼 バイト</button>
+        <button class="btn-mini" id="btn-open-bank">🏦 銀行</button>
+        <button class="btn-mini" id="btn-open-dex">📖 図鑑</button>
+      </nav>
+
+      <div class="area-bar">
+        <select id="area-select">
+          <option value="teibou">堤防（無料・定番/磯貝）</option>
+          <option value="kakou">河口（スズキ/シジミ/アサリ）</option>
+          <option value="sunahama">砂浜（ヒラメ/アサリ/ハマグリ）</option>
+          <option value="iso">磯（イシダイ/サザエ/アワビ）</option>
+          <option value="kinkai">近海（マダイ/ホタテ/アカガイ）</option>
+          <option value="okiai">沖合（カンパチ/ツブガイ/ホタテ）</option>
+          <option value="enyou">遠洋（クロマグロ/メカジキ）</option>
+          <option value="shinkai">深海（リュウグウ/ツブガイ）</option>
+          <option value="nangoku">南国（ナポレオンフィッシュ）</option>
+        </select>
+        <span class="env-mini" id="hud-env-mini">-</span>
+      </div>
+
+      <div class="mode-switch">
+        <button id="tab-mode-fish" class="mode-btn active">🎣 釣り</button>
+        <button id="tab-mode-shell" class="mode-btn">🐚 貝採取</button>
+      </div>
     </div>
 
     <!-- ファイト中3本ゲージ -->
@@ -99,21 +115,19 @@
       <div class="gauge-row"><span>糸</span><div class="bar"><div id="bar-line" class="fill"></div></div></div>
       <div class="gauge-row"><span>リール</span><div class="bar"><div id="bar-reel" class="fill"></div></div></div>
       <div class="drag-control">
-        <label>ドラグ強さ: <strong id="drag-val">50%</strong></label>
+        <label>ドラグ強さ: <strong id="drag-val">50%</strong> <span id="gear-power-hint" class="muted"></span></label>
         <input type="range" id="drag-slider" min="15" max="95" value="50" />
       </div>
     </div>
 
-    <!-- 中央ステータスメッセージ -->
     <div id="status-banner" class="status-banner">キャストボタンを押して釣り開始！</div>
 
-    <!-- 下部アクション操作 -->
     <div class="action-dock">
       <button id="btn-main-action" class="btn-action">🎣 キャスト</button>
     </div>
   </div>
 
-  <!-- ===== モーダル（釣果 / クーラー / 図鑑） ===== -->
+  <!-- ===== 汎用モーダル ===== -->
   <div id="modal-overlay" class="modal-overlay hidden">
     <div class="modal-card">
       <div class="modal-head">

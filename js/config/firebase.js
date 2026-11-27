@@ -45,7 +45,6 @@ export async function initFirebase({ onOnlineCount, onStatus }) {
     if (currentUid) {
       ready = true;
       onStatus?.("クラウド同期OK");
-      // オンライン人数登録（切断時に自動削除）
       const myOnlineRef = ref(rtdb, `online/${currentUid}`);
       onDisconnect(myOnlineRef).remove();
       await set(myOnlineRef, { ts: Date.now() });
@@ -92,7 +91,6 @@ export async function loadCloudSlots() {
 export function getJstDateKey() {
   const now = new Date();
   const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  // 毎朝5:00に日付切替
   if (jst.getUTCHours() < 5) jst.setUTCDate(jst.getUTCDate() - 1);
   return jst.toISOString().slice(0, 10);
 }
@@ -134,8 +132,7 @@ export async function submitDailyRecord({ playerName, fishName, weightKg, rank, 
     else list.push(entry);
 
     list.sort((a, b) => b.weightKg - a.weightKg);
-    const trimmed = list.slice(0, 20);
-    await setDoc(boardRef, { topList: trimmed, updatedAt: Date.now() });
+    await setDoc(boardRef, { topList: list.slice(0, 20), updatedAt: Date.now() });
   } catch (e) {
     console.warn("ランキング更新スキップ:", e);
   }
