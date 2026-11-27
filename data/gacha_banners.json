@@ -1,0 +1,373 @@
+{
+  "version": 1,
+  "banners": [
+    {
+      "id": "tackle_fes",
+      "name": "⚡ 電動リール＆極上タックルガチャ",
+      "subtitle": "10連で★4以上1枠確定＋🐚黄金の貝殻×10！多種多様な電動リール＆限定装備が登場",
+      "active": true,
+      "singleCost": 150,
+      "tenCost": 1500,
+      "paidOnly": false,
+      "shellBonusOnTen": 10,
+      "pool": [
+        {
+          "id": "g_reel_e1",
+          "name": "電動リール『雷神 12000』",
+          "rarity": 5,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 2.0,
+          "exchangeCost": 80,
+          "desc": "巻速度 x2.85 ・超高速ハイパワー電動",
+          "stats": {
+            "speed": 2.85
+          }
+        },
+        {
+          "id": "g_reel_e2",
+          "name": "深海電動『アビスマスター 20000』",
+          "rarity": 5,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 2.0,
+          "exchangeCost": 80,
+          "desc": "巻速度 x2.70 ・深海大物に特化した高トルク電動",
+          "stats": {
+            "speed": 2.7
+          }
+        },
+        {
+          "id": "g_reel_e3",
+          "name": "双発電動『ツインターボ GT』",
+          "rarity": 5,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 1.6,
+          "exchangeCost": 100,
+          "desc": "巻速度 x3.10 ・マグロ＆GT決戦用デュアルモーター",
+          "stats": {
+            "speed": 3.1
+          }
+        },
+        {
+          "id": "g_rod_s1",
+          "name": "伝説カーボン『龍宮の剛竿』",
+          "rarity": 5,
+          "type": "gear",
+          "slot": "rod",
+          "weight": 1.8,
+          "exchangeCost": 90,
+          "desc": "竿パワー x4.0 ・どんな超大型もねじ伏せる",
+          "stats": {
+            "power": 4.0
+          }
+        },
+        {
+          "id": "g_line_s1",
+          "name": "極糸『チタンブレイド PE30号』",
+          "rarity": 5,
+          "type": "gear",
+          "slot": "line",
+          "weight": 1.8,
+          "exchangeCost": 80,
+          "desc": "糸強度 x4.5 ・ラインブレイク知らずの極限強度",
+          "stats": {
+            "strength": 4.5
+          }
+        },
+        {
+          "id": "g_net_s1",
+          "name": "電動ソナー巻き網『大漁丸』",
+          "rarity": 5,
+          "type": "gear",
+          "slot": "net",
+          "weight": 1.6,
+          "exchangeCost": 90,
+          "desc": "4〜8匹同時水揚げ＆傷率ほぼゼロ",
+          "stats": {
+            "method": "makiami",
+            "minCount": 4,
+            "maxCount": 8,
+            "fuelCost": 8,
+            "damageChance": 0.03
+          }
+        },
+        {
+          "id": "g_reel_e4",
+          "name": "軽量電動『ライトニング 4000』",
+          "rarity": 4,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 6.0,
+          "exchangeCost": 30,
+          "desc": "巻速度 x2.10 ・堤防〜近海で扱いやすい小型電動",
+          "stats": {
+            "speed": 2.1
+          }
+        },
+        {
+          "id": "g_reel_e5",
+          "name": "静音電動『サイレント 6000』",
+          "rarity": 4,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 6.0,
+          "exchangeCost": 30,
+          "desc": "巻速度 x2.30 ・滑らかドラグ搭載の中型電動",
+          "stats": {
+            "speed": 2.3
+          }
+        },
+        {
+          "id": "g_reel_e6",
+          "name": "防塩電動『タイドマスター 8000』",
+          "rarity": 4,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 5.5,
+          "exchangeCost": 35,
+          "desc": "巻速度 x2.45 ・荒波・遠征に強い耐塩電動",
+          "stats": {
+            "speed": 2.45
+          }
+        },
+        {
+          "id": "g_rod_a1",
+          "name": "精密チタン『海王ロッド』",
+          "rarity": 4,
+          "type": "gear",
+          "slot": "rod",
+          "weight": 5.5,
+          "exchangeCost": 30,
+          "desc": "竿パワー x2.75 ・しなりと剛性を両立",
+          "stats": {
+            "power": 2.75
+          }
+        },
+        {
+          "id": "g_shell_a1",
+          "name": "黄金ジェット磯金＆採貝機",
+          "rarity": 4,
+          "type": "gear",
+          "slot": "shellTool",
+          "weight": 5.0,
+          "exchangeCost": 30,
+          "desc": "貝ボーナス x2.4 ・大粒＆真珠入り確率大幅UP",
+          "stats": {
+            "bonus": 2.4
+          }
+        },
+        {
+          "id": "g_cooler_a1",
+          "name": "超低温冷凍コンテナ(120枠)",
+          "rarity": 4,
+          "type": "gear",
+          "slot": "cooler",
+          "weight": 4.5,
+          "exchangeCost": 35,
+          "desc": "積載120枠 ・遠洋連戦も余裕",
+          "stats": {
+            "cap": 120
+          }
+        },
+        {
+          "id": "g_title_1",
+          "name": "限定称号『蒼海の覇者』",
+          "rarity": 4,
+          "type": "title",
+          "weight": 4.5,
+          "exchangeCost": 25,
+          "desc": "プロフィールに設定できる★4限定称号",
+          "title": "蒼海の覇者"
+        },
+        {
+          "id": "g_bait_aji",
+          "name": "特選 活きアジ×15パック",
+          "rarity": 3,
+          "type": "bait",
+          "weight": 18.0,
+          "exchangeCost": 10,
+          "desc": "大物特効の活きアジ15回分",
+          "baitId": "bait_live_aji",
+          "qty": 15
+        },
+        {
+          "id": "g_bait_saba",
+          "name": "極上サバ切り身×25パック",
+          "rarity": 3,
+          "type": "bait",
+          "weight": 18.0,
+          "exchangeCost": 8,
+          "desc": "深海＆根魚に効くサバ切り身25回分",
+          "baitId": "bait_saba",
+          "qty": 25
+        },
+        {
+          "id": "g_item_sta",
+          "name": "漁師の極みドリンク(⚡全回復)",
+          "rarity": 3,
+          "type": "item",
+          "weight": 16.0,
+          "exchangeCost": 10,
+          "desc": "体力を100まで即回復",
+          "effect": "stamina_full"
+        },
+        {
+          "id": "g_item_charm",
+          "name": "幸運の大潮チャーム(30分)",
+          "rarity": 3,
+          "type": "item",
+          "weight": 12.0,
+          "exchangeCost": 12,
+          "desc": "30分間レア率UP＆査定+25%",
+          "effect": "charm_30"
+        },
+        {
+          "id": "g_money_20k",
+          "name": "大漁祝儀袋（¥25,000）",
+          "rarity": 3,
+          "type": "money",
+          "weight": 14.0,
+          "exchangeCost": 0,
+          "desc": "ゲーム内通貨 ¥25,000 を獲得",
+          "amount": 25000
+        }
+      ]
+    },
+    {
+      "id": "paid_special",
+      "name": "💎 有償真珠限定・★5電動リール厳選ガチャ",
+      "subtitle": "有償真珠💎限定！★5電動リール＆伝説装備の出現率が大幅アップ（10連で🐚×15）",
+      "active": true,
+      "singleCost": 120,
+      "tenCost": 1200,
+      "paidOnly": true,
+      "shellBonusOnTen": 15,
+      "pool": [
+        {
+          "id": "g_reel_e1",
+          "name": "電動リール『雷神 12000』",
+          "rarity": 5,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 6.0,
+          "exchangeCost": 80,
+          "desc": "巻速度 x2.85 ・超高速ハイパワー電動",
+          "stats": {
+            "speed": 2.85
+          }
+        },
+        {
+          "id": "g_reel_e2",
+          "name": "深海電動『アビスマスター 20000』",
+          "rarity": 5,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 6.0,
+          "exchangeCost": 80,
+          "desc": "巻速度 x2.70 ・深海大物に特化した高トルク電動",
+          "stats": {
+            "speed": 2.7
+          }
+        },
+        {
+          "id": "g_reel_e3",
+          "name": "双発電動『ツインターボ GT』",
+          "rarity": 5,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 5.0,
+          "exchangeCost": 100,
+          "desc": "巻速度 x3.10 ・マグロ＆GT決戦用デュアルモーター",
+          "stats": {
+            "speed": 3.1
+          }
+        },
+        {
+          "id": "g_rod_s1",
+          "name": "伝説カーボン『龍宮の剛竿』",
+          "rarity": 5,
+          "type": "gear",
+          "slot": "rod",
+          "weight": 5.0,
+          "exchangeCost": 90,
+          "desc": "竿パワー x4.0 ・どんな超大型もねじ伏せる",
+          "stats": {
+            "power": 4.0
+          }
+        },
+        {
+          "id": "g_reel_e4",
+          "name": "軽量電動『ライトニング 4000』",
+          "rarity": 4,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 15.0,
+          "exchangeCost": 30,
+          "desc": "巻速度 x2.10 ・小型電動リール",
+          "stats": {
+            "speed": 2.1
+          }
+        },
+        {
+          "id": "g_reel_e5",
+          "name": "静音電動『サイレント 6000』",
+          "rarity": 4,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 15.0,
+          "exchangeCost": 30,
+          "desc": "巻速度 x2.30 ・中型電動リール",
+          "stats": {
+            "speed": 2.3
+          }
+        },
+        {
+          "id": "g_reel_e6",
+          "name": "防塩電動『タイドマスター 8000』",
+          "rarity": 4,
+          "type": "gear",
+          "slot": "reel",
+          "weight": 14.0,
+          "exchangeCost": 35,
+          "desc": "巻速度 x2.45 ・耐塩電動リール",
+          "stats": {
+            "speed": 2.45
+          }
+        },
+        {
+          "id": "g_title_2",
+          "name": "限定称号『黄金の釣り神』",
+          "rarity": 5,
+          "type": "title",
+          "weight": 4.0,
+          "exchangeCost": 60,
+          "desc": "プロフィールに設定できる★5限定称号",
+          "title": "黄金の釣り神"
+        },
+        {
+          "id": "g_bait_aji",
+          "name": "特選 活きアジ×20パック",
+          "rarity": 3,
+          "type": "bait",
+          "weight": 15.0,
+          "exchangeCost": 10,
+          "desc": "大物特効の活きアジ20回分",
+          "baitId": "bait_live_aji",
+          "qty": 20
+        },
+        {
+          "id": "g_item_charm",
+          "name": "幸運の大潮チャーム(30分)",
+          "rarity": 3,
+          "type": "item",
+          "weight": 15.0,
+          "exchangeCost": 12,
+          "desc": "30分間レア率UP＆査定+25%",
+          "effect": "charm_30"
+        }
+      ]
+    }
+  ]
+}
