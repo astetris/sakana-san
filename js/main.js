@@ -1,3 +1,14 @@
+
+/* visible-mode-btn-and-error-guard */
+window.addEventListener("error", (ev) => {
+  const b = document.getElementById("status-banner");
+  if (b && ev?.message) b.textContent = "⚠️ エラー: " + ev.message;
+});
+window.addEventListener("unhandledrejection", (ev) => {
+  const b = document.getElementById("status-banner");
+  if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
+});
+
 import {
   initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail,
   fetchDailyRanking, submitDailyBoard,
@@ -302,26 +313,48 @@ function ensurePlayModeButton() {
     window.playMode = localStorage.getItem("sakana_play_mode") || "multi";
   }
   const modeVal = typeof playMode !== "undefined" ? playMode : window.playMode;
-  const coolerBtn = document.getElementById("btn-open-cooler");
-  if (!coolerBtn || !coolerBtn.parentElement) return;
+  const label = modeVal === "solo" ? "🧍 ソロ" : "🌐 マルチ";
 
-  let btn = document.getElementById("btn-play-mode-toggle");
-  if (!btn) {
-    btn = document.createElement("button");
-    btn.id = "btn-play-mode-toggle";
-    btn.className = "btn-mini";
-    btn.type = "button";
-    btn.onclick = () => {
-      if (typeof audioEngine !== "undefined") audioEngine.unlock();
-      if (typeof openPlayModeSelectModal === "function") {
-        openPlayModeSelectModal();
-      } else {
-        alert("モード切替モーダル関数が見つかりません");
-      }
-    };
-    coolerBtn.parentElement.appendChild(btn);
+  const onToggle = () => {
+    if (typeof audioEngine !== "undefined") audioEngine.unlock();
+    if (typeof openPlayModeSelectModal === "function") {
+      openPlayModeSelectModal();
+    } else {
+      alert("モード切替モーダル関数が見つかりません");
+    }
+  };
+
+  const coolerBtn = document.getElementById("btn-open-cooler");
+  if (coolerBtn && coolerBtn.parentElement) {
+    let btn = document.getElementById("btn-play-mode-toggle");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.id = "btn-play-mode-toggle";
+      btn.className = "btn-mini";
+      btn.type = "button";
+      btn.onclick = onToggle;
+      coolerBtn.parentElement.appendChild(btn);
+    }
+    btn.textContent = label;
   }
-  btn.textContent = modeVal === "solo" ? "🧍 ソロ" : "🌐 マルチ";
+
+  // プレイ画面でも確実にタップできるようフローティング切替ボタンを配置
+  const playScreen = document.getElementById("play-screen");
+  if (playScreen) {
+    let floatBtn = document.getElementById("btn-play-mode-float");
+    if (!floatBtn) {
+      floatBtn = document.createElement("button");
+      floatBtn.id = "btn-play-mode-float";
+      floatBtn.className = "btn-mini";
+      floatBtn.type = "button";
+      floatBtn.style.cssText = "position:fixed;right:12px;top:118px;z-index:45;padding:6px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,0.45);";
+      floatBtn.onclick = onToggle;
+      playScreen.appendChild(floatBtn);
+    }
+    const isActive = playScreen.classList.contains("active");
+    floatBtn.style.display = isActive ? "inline-flex" : "none";
+    floatBtn.textContent = label;
+  }
 }
 
 function updateHud() {
