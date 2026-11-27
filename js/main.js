@@ -1711,6 +1711,16 @@ async function boot() {
   $("btn-autopilot").onclick = () => { audioEngine.unlock(); scene3d.toggleAutopilot(); };
 
   if ($("btn-open-account-home")) { const mBtn = document.createElement("button"); mBtn.className = "btn-mini"; mBtn.id = "btn-mode-select"; mBtn.textContent = playMode === "solo" ? "🧍 ソロ" : "🌐 マルチ"; mBtn.onclick = () => { openPlayModeSelectModal(); }; $("btn-open-cooler").parentElement.appendChild(mBtn); }
+  
+  if (!document.getElementById("btn-play-mode-toggle") && $("btn-open-cooler")?.parentElement) {
+    const modeBtn = document.createElement("button");
+    modeBtn.id = "btn-play-mode-toggle";
+    modeBtn.className = "btn-mini";
+    modeBtn.type = "button";
+    modeBtn.textContent = (typeof playMode !== "undefined" && playMode === "solo") ? "🧍 ソロ" : "🌐 マルチ";
+    modeBtn.onclick = () => { audioEngine.unlock(); openPlayModeSelectModal(); };
+    $("btn-open-cooler").parentElement.appendChild(modeBtn);
+  }
   $("btn-open-cooler").onclick = openCoolerModal;
   $("btn-open-dock").onclick = openDockModal;
   $("btn-open-shop").onclick = openShopModal;
