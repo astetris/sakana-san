@@ -1,3 +1,13 @@
+let envOverride = null;
+
+export function setEnvOverride(overrideObj) {
+  envOverride = overrideObj ? { ...overrideObj } : null;
+}
+
+export function getEnvOverride() {
+  return envOverride;
+}
+
 function seededRandom(seedStr) {
   let h = 2166136261;
   for (let i = 0; i < seedStr.length; i++) {
@@ -9,13 +19,18 @@ function seededRandom(seedStr) {
 
 export function getRealWorldEnv(now = new Date()) {
   const month = now.getMonth() + 1;
-  const hour = now.getHours();
+  const hour = envOverride && typeof envOverride.hour === "number" ? envOverride.hour : now.getHours();
   const min = now.getMinutes();
 
   let season = "spring", seasonJa = "春";
   if (month >= 6 && month <= 8) { season = "summer"; seasonJa = "夏"; }
   else if (month >= 9 && month <= 11) { season = "autumn"; seasonJa = "秋"; }
   else if (month === 12 || month <= 2) { season = "winter"; seasonJa = "冬"; }
+
+  if (envOverride?.season) {
+    season = envOverride.season;
+    seasonJa = { spring: "春", summer: "夏", autumn: "秋", winter: "冬" }[season] || seasonJa;
+  }
 
   const dayKey = `${now.getFullYear()}-${month}-${now.getDate()}`;
   const blockKey = `${dayKey}-${Math.floor(hour / 3)}`;
@@ -26,6 +41,11 @@ export function getRealWorldEnv(now = new Date()) {
   else if (rWeather > 0.76) { weather = "fog"; weatherJa = "霧 🌫️"; }
   else if (rWeather > 0.58) { weather = "rain"; weatherJa = "雨 🌧️"; }
   else if (rWeather > 0.34) { weather = "cloudy"; weatherJa = "曇り ☁️"; }
+
+  if (envOverride?.weather) {
+    weather = envOverride.weather;
+    weatherJa = { sunny: "晴れ ☀️", cloudy: "曇り ☁️", rain: "雨 🌧️", fog: "霧 🌫️", rough: "シケ 🌊" }[weather] || weatherJa;
+  }
 
   const rWind = seededRandom(blockKey + "-wind");
   const wind = rWind < 0.45 ? "onshore" : rWind < 0.85 ? "offshore" : "any";
@@ -42,18 +62,21 @@ export function getRealWorldEnv(now = new Date()) {
   else if (tideCycle >= 6 && tideCycle <= 8) tideName = "小潮";
   else if (tideCycle === 9) tideName = "長潮";
   else if (tideCycle === 10) tideName = "若潮";
+  if (envOverride?.tideName) tideName = envOverride.tideName;
 
   let timePhase = "day";
   if (hour >= 5 && hour < 7) timePhase = "dawn";
   else if (hour >= 16 && hour < 19) timePhase = "dusk";
   else if (hour >= 19 || hour < 5) timePhase = "night";
 
-  const marketRate = Number((0.85 + seededRandom(dayKey + "-mkt") * 0.5).toFixed(2));
+  let marketRate = Number((0.85 + seededRandom(dayKey + "-mkt") * 0.5).toFixed(2));
+  if (envOverride && typeof envOverride.marketRate === "number") marketRate = envOverride.marketRate;
 
+  const overrideTag = envOverride ? " [🔧上書中]" : "";
   return {
     now, month, hour, min, dayKey,
     season, seasonJa, weather, weatherJa, wind, windJa,
     waterTemp, tideName, timePhase, marketRate,
-    clockText: `${now.getFullYear()}/${String(month).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")} (${seasonJa})`
+    clockText: `${now.getFullYear()}/${String(month).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")} (${seasonJa})${overrideTag}`
   };
 }

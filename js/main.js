@@ -2,7 +2,11 @@ import {
   initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS,
   fetchDailyRanking, submitDailyBoard,
   updateWorldPresence, clearWorldPresence, subscribeWorldPlayers,
-  pushWorldFeed, subscribeWorldFeed
+  pushWorldFeed, subscribeWorldFeed,
+  publishMyProfile, fetchPublicProfile,
+  sendChatMessage, subscribeChatRoom,
+  sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend,
+  subscribeFriends, subscribeFriendRequests, consumeRedeemCode
 } from "./config/firebase.js";
 import { getRealWorldEnv } from "./systems/environment.js";
 import { audioEngine } from "./systems/audioEngine.js";
@@ -17,6 +21,12 @@ import {
   autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders
 } from "./systems/business.js";
 import { startShopView, stopShopView } from "./systems/shopView.js";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js";
+import {
+  PAYMENT_URLS, PAYMENT_METHODS, PEARL_PACKS, MONTHLY_PASS_DEF, PEARL_USES,
+  isMonthlyPassActive, canClaimDailyPass, grantMonthlyPass, claimMonthlyPassDaily
+} from "./systems/pearlShop.js";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js";
 import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
@@ -40,10 +50,21 @@ let fuelMoveAccum = 0;
 let currentArea = null;
 let shopTab = "rod_reel";
 let activeBizTab = "fishmonger";
-
-// Phase 5: 5部門ランキング＆マルチプレイ状態
 let activeRankBoard = "biggest_weight";
+
+// Phase 5 & 6 マルチ・チャット・フレンド・休憩所・課金状態
 let remotePlayersCache = {};
+let globalChatCache = [];
+let loungeChatCache = [];
+let friendsCache = {};
+let friendReqsCache = {};
+let activeChatTab = "global";   // global | lounge | friends
+let activeLoungeTab = "canteen"; // canteen | rest
+let activePearlTab = "buy";     // buy | use
+let selectedPayMethod = "paypay";
+let restTimer = null;
+let activeModalType = null;
+
 let myLastStamp = "";
 let myLastStampTs = 0;
 let tickerTimer = null;
@@ -57,6 +78,26 @@ function getSpeciesMap() {
   return map;
 }
 
+function escapeHtml(str) {
+  return String(str || "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+}
+
+function syncMyPublicProfile() {
+  const save = currentSave();
+  if (!save) return;
+  const { lv } = getPortLevel(save.reputation);
+  publishMyProfile({
+    name: save.name,
+    title: save.profile?.title || "見習い漁師",
+    bio: save.profile?.bio || "",
+    favSpecies: save.profile?.favSpecies || "マダイ",
+    portLv: lv,
+    dexCount: Object.keys(save.dex || {}).length,
+    totalCaught: save.stats?.totalCaught || 0,
+    isVip: isMonthlyPassActive(save)
+  });
+}
+
 function recordDailyProgress(save, { caughtDelta = 0, earnedDelta = 0 } = {}) {
   const today = getJstDateKey();
   if (!save.dailyStats || save.dailyStats.dateKey !== today) {
@@ -64,19 +105,11 @@ function recordDailyProgress(save, { caughtDelta = 0, earnedDelta = 0 } = {}) {
   }
   if (caughtDelta > 0) {
     save.dailyStats.caughtCount += caughtDelta;
-    submitDailyBoard("daily_count", {
-      playerName: save.name,
-      score: save.dailyStats.caughtCount,
-      detail: `本日累計`
-    });
+    submitDailyBoard("daily_count", { playerName: save.name, score: save.dailyStats.caughtCount, detail: "本日累計" });
   }
   if (earnedDelta > 0) {
     save.dailyStats.earnedMoney += earnedDelta;
-    submitDailyBoard("daily_earned", {
-      playerName: save.name,
-      score: save.dailyStats.earnedMoney,
-      detail: `本日の総売上`
-    });
+    submitDailyBoard("daily_earned", { playerName: save.name, score: save.dailyStats.earnedMoney, detail: "本日の総売上" });
   }
 }
 
@@ -118,8 +151,8 @@ function renderSlots() {
       const boat = getActiveBoat(s);
       item.innerHTML = `
         <div class="slot-info">
-          <strong>スロット${idx + 1}: ${s.name}</strong>
-          <span>¥${s.money.toLocaleString()} / ${boat.name} / 図鑑${dexCount}種</span>
+          <strong>スロット${idx + 1}: ${escapeHtml(s.name)}</strong>
+          <span>¥${s.money.toLocaleString()} / 💎${s.pearls || 0} / ${boat.name} / 図鑑${dexCount}種</span>
         </div>
         <div class="slot-actions">
           <button class="btn-primary" data-play="${idx}">続きから</button>
@@ -158,16 +191,12 @@ function renderSlots() {
   });
 }
 
-// ===== 5部門ランキング描画（ホーム & モーダル共通） =====
 function renderRankTabs(container, onChange) {
   container.innerHTML = RANKING_BOARDS.map((b) =>
     `<button class="rank-tab ${b.id === activeRankBoard ? "active" : ""}" data-board="${b.id}">${b.label}</button>`
   ).join("");
   container.querySelectorAll("[data-board]").forEach((btn) => {
-    btn.onclick = () => {
-      activeRankBoard = btn.dataset.board;
-      onChange();
-    };
+    btn.onclick = () => { activeRankBoard = btn.dataset.board; onChange(); };
   });
 }
 
@@ -185,12 +214,15 @@ async function renderRankingInto(ulEl, limit = 8) {
     const sub = r.detail || r.fishName || "";
     const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
     return `
-      <li class="${r.uid === myUid ? "me" : ""}">
-        <span><strong>${medal}</strong> ${r.name}${sub ? `（${sub}）` : ""}</span>
+      <li class="${r.uid === myUid ? "me" : ""}" data-view-uid="${r.uid}" style="cursor:pointer;">
+        <span><strong>${medal}</strong> ${escapeHtml(r.name)}${sub ? `（${escapeHtml(sub)}）` : ""}</span>
         <strong>${board.format(val)}</strong>
       </li>
     `;
   }).join("");
+  ulEl.querySelectorAll("[data-view-uid]").forEach((li) => {
+    li.onclick = () => { if (activeSlotIndex >= 0) openOtherProfileModal(li.dataset.viewUid); };
+  });
 }
 
 async function renderHomeRanking() {
@@ -202,6 +234,7 @@ async function openRankingModal() {
   openModal("🏆 今日のランキング（毎朝5:00リセット）", `
     <div id="modal-rank-tabs" class="rank-tabs"></div>
     <ol id="modal-rank-list" class="ranking-list"><li class="muted">読み込み中...</li></ol>
+    <div class="muted">※名前をタップするとプロフィールを見られます</div>
     <button class="btn-mini" id="rank-back-office" style="padding:8px;">← 事務所へ戻る</button>
   `);
   $("rank-back-office").onclick = openOfficeModal;
@@ -220,12 +253,18 @@ function startSlot(idx) {
     z: canBoat ? Math.min(-12, save.worldPos.z) : Math.max(-2, save.worldPos.z || 4),
     yaw: save.worldPos.yaw || 0, isBoating: canBoat, boatSpeed: boat.speed || 1.2, boatTier: boat.tier
   });
+  syncMyPublicProfile();
   updateHud();
   syncWorldStatus();
   broadcastPresence();
   $("home-screen").classList.remove("active");
   $("play-screen").classList.add("active");
   resetActionState();
+
+  // 月額パスの毎日ログイン受け取り通知
+  if (canClaimDailyPass(save)) {
+    showLiveTicker("🌙 月額パスの毎日💎100が受け取れます！右上の💎ボタンから受取ろう");
+  }
 }
 
 function broadcastPresence() {
@@ -233,11 +272,12 @@ function broadcastPresence() {
   if (!save || !scene3d || activeSlotIndex < 0) return;
   updateWorldPresence({
     name: save.name,
+    title: save.profile?.title || "見習い漁師",
     x: Number(scene3d.pos.x.toFixed(1)),
     z: Number(scene3d.pos.y.toFixed(1)),
     yaw: Number(scene3d.yaw.toFixed(2)),
     isBoating: scene3d.isBoating,
-    status: phase,
+    status: activeModalType === "lounge_rest" ? "resting" : phase,
     stamp: myLastStamp,
     stampTs: myLastStampTs
   });
@@ -255,16 +295,22 @@ function updateHud() {
   const save = currentSave();
   if (!save) return;
   ensureSaveDefaults(save);
-  const hasOfficeNotif = syncBusinessProgress(save);
+  const hasOfficeNotif = syncBusinessProgress(save) || Object.keys(friendReqsCache).length > 0;
   const stats = getEquippedStats(save);
   const boat = getActiveBoat(save);
 
-  $("hud-name").textContent = save.name;
+  $("hud-name").textContent = `${isMonthlyPassActive(save) ? "🌙" : ""}${save.name}`;
   $("hud-money").textContent = `¥${save.money.toLocaleString()}`;
+  $("hud-pearls").textContent = (save.pearls || 0).toLocaleString();
   $("hud-stamina").textContent = save.stamina;
   $("hud-cooler-count").textContent = `${save.cooler.length}/${stats.coolerCap}`;
   $("gear-power-hint").textContent = `(竿x${stats.rodPower} / リールx${stats.reelSpeed} / 糸x${stats.lineStrength})`;
   $("office-dot").classList.toggle("hidden", !hasOfficeNotif);
+
+  const buff = getActiveBuff(save);
+  const bEl = $("buff-badge");
+  if (buff) { bEl.textContent = buff.text; bEl.classList.remove("hidden"); }
+  else bEl.classList.add("hidden");
 
   const fuelPill = $("hud-fuel-pill");
   if (boat.maxFuel > 0) { fuelPill.classList.remove("hidden"); $("hud-fuel").textContent = Math.floor(save.fuel); }
@@ -283,22 +329,19 @@ function syncWorldStatus() {
   $("hud-area-name").textContent = `📍 ${area.name}（${modeLabel}）`;
   $("sonar-bar").classList.toggle("hidden", !scene3d.isBoating);
 
-  // 一緒に釣りボーナス判定（近くに他プレイヤーがいるか）
   const nearby = scene3d.getNearbyPlayers(35);
   const tBadge = $("together-badge");
   if (nearby.length > 0) {
     const names = nearby.slice(0, 2).map((p) => p.name).join("・");
     tBadge.textContent = `🤝 ${names}さんと一緒に釣り中！（レアUP＆査定+10%）`;
     tBadge.classList.remove("hidden");
-  } else {
-    tBadge.classList.add("hidden");
-  }
+  } else tBadge.classList.add("hidden");
 
   const near = isNearPier(scene3d.pos.x, scene3d.pos.y);
   const boardBtn = $("btn-board-toggle");
   if (near) {
     boardBtn.classList.remove("hidden");
-    boardBtn.textContent = scene3d.isBoating ? "🚶 桟橋へ下船" : "🚤 船に乗る";
+    boardBtn.textContent = scene3d.isBoating ? "🚶 下船" : "🚤 乗船";
   } else boardBtn.classList.add("hidden");
 
   if (scene3d.isBoating) {
@@ -385,34 +428,36 @@ function doNetHarvest() {
   if (!scene3d.isBoating && net.method !== "toami" && net.method !== "kago") {
     $("status-banner").textContent = `${net.name}は船で沖へ出て使おう`; audioEngine.playFail(); return;
   }
-  if (save.stamina < 5) { $("status-banner").textContent = "スタミナ不足です（⚡5必要）"; audioEngine.playFail(); return; }
+  if (save.stamina < 5) { $("status-banner").textContent = "スタミナ不足です（🍜憩いで回復できるよ）"; audioEngine.playFail(); return; }
   if (net.fuelCost > 0 && !tryConsumeFuel(net.fuelCost)) { $("status-banner").textContent = "⛽ 燃料不足！"; audioEngine.playFail(); return; }
 
   save.stamina -= 5; save.lastPlayedAt = Date.now(); audioEngine.playNetThrow();
   const inHotspot = scene3d.getNearestHotspot().inSpot;
   const together = scene3d.getNearbyPlayers(35).length > 0;
-  const haul = rollNetHaul(areaId, env, net, inHotspot || together);
+  const buff = getActiveBuff(save);
+  const haul = rollNetHaul(areaId, env, net, inHotspot || together || buff?.rareBonus);
   if (!haul.length) { $("status-banner").textContent = "ここでは網に入らなかった…"; updateHud(); return; }
 
   const kept = haul.slice(0, Math.max(0, coolerCap - save.cooler.length));
   let totalPrice = 0;
   kept.forEach((item) => {
     const sp = item.species;
-    const price = together ? Math.round(item.estimatedPrice * 1.1) : item.estimatedPrice;
-    const tags = together ? [...item.tags, "一緒に釣り+10%"] : item.tags;
-    item.estimatedPrice = price;
-    item.tags = tags;
+    let mult = (together ? 1.1 : 1) * (buff?.priceMult || 1);
+    const price = Math.round(item.estimatedPrice * mult);
+    const tags = [...item.tags];
+    if (together) tags.push("一緒に釣り+10%");
+    item.estimatedPrice = price; item.tags = tags;
 
     save.cooler.push({ id: sp.id, name: sp.name, rank: sp.rank, weightKg: item.weightKg, tags, price });
     if (!save.dex[sp.id]) save.dex[sp.id] = { count: 0, maxKg: 0 };
     save.dex[sp.id].count += 1; save.dex[sp.id].maxKg = Math.max(save.dex[sp.id].maxKg, item.weightKg);
     save.stats.totalCaught += 1; totalPrice += price;
-
     submitDailyBoard("biggest_weight", { playerName: save.name, score: item.weightKg, detail: sp.name });
     submitDailyBoard("highest_price", { playerName: save.name, score: price, detail: sp.name });
   });
 
   recordDailyProgress(save, { caughtDelta: kept.length });
+  syncMyPublicProfile();
   if (kept.length >= 4 || kept.some((x) => x.species.rank === "S")) {
     pushWorldFeed({ text: `🕸️ ${save.name}さんが ${net.name}で ${kept.length}匹 を大漁水揚げ！` });
   }
@@ -430,17 +475,18 @@ function doShellHarvest() {
   const save = currentSave();
   if (!save || !checkCoolerSpace(save, 1)) return;
   const areaId = currentArea?.id || "teibou";
-  if (save.stamina < 3) { $("status-banner").textContent = "スタミナ不足です"; audioEngine.playFail(); return; }
+  if (save.stamina < 3) { $("status-banner").textContent = "スタミナ不足です（🍜憩いで回復できるよ）"; audioEngine.playFail(); return; }
   const m = getShellMethodForArea(areaId);
   if (areaId === "iso" && env.weather === "rough") { $("status-banner").textContent = "シケで磯が危険なため今日は磯採り不可！"; audioEngine.playFail(); return; }
 
   save.stamina -= 3; save.lastPlayedAt = Date.now(); audioEngine.playDig();
-  const res = rollShellfish(areaId, env, getEquippedStats(save).shellBonus);
+  const buff = getActiveBuff(save);
+  const res = rollShellfish(areaId, env, getEquippedStats(save).shellBonus * (buff?.rareBonus ? 1.25 : 1));
   if (!res) { $("status-banner").textContent = "ここでは貝が見つからなかった…"; updateHud(); return; }
 
   const sp = res.species;
   const together = scene3d.getNearbyPlayers(35).length > 0;
-  const price = together ? Math.round(res.estimatedPrice * 1.1) : res.estimatedPrice;
+  const price = Math.round(res.estimatedPrice * (together ? 1.1 : 1) * (buff?.priceMult || 1));
   const tags = together ? [...res.tags, "一緒に釣り+10%"] : res.tags;
 
   save.cooler.push({ id: sp.id, name: `${sp.name}×${res.count}`, rank: sp.rank, weightKg: res.weightKg, tags, price });
@@ -449,6 +495,7 @@ function doShellHarvest() {
   save.stats.totalCaught += res.count;
 
   recordDailyProgress(save, { caughtDelta: res.count });
+  syncMyPublicProfile();
   submitDailyBoard("biggest_shell", { playerName: save.name, score: res.weightKg, detail: `${sp.name}×${res.count}` });
   submitDailyBoard("highest_price", { playerName: save.name, score: price, detail: `${sp.name}×${res.count}` });
   if (sp.rank === "S" || tags.includes("真珠入り")) {
@@ -471,7 +518,7 @@ function doShellHarvest() {
 function startCast() {
   const save = currentSave();
   if (!save || !checkCoolerSpace(save, 1)) return;
-  if (save.stamina < 2) { $("status-banner").textContent = "スタミナ不足です"; audioEngine.playFail(); return; }
+  if (save.stamina < 2) { $("status-banner").textContent = "スタミナ不足です（🍜憩いの食堂や休憩所で回復！）"; audioEngine.playFail(); return; }
   const { bait, baitAttract } = getEquippedStats(save);
   if (bait.pack > 0 && save.baitStock[bait.id] > 0) save.baitStock[bait.id] -= 1;
 
@@ -498,11 +545,12 @@ function startFight() {
   const save = currentSave();
   const inSpot = scene3d.getNearestHotspot().inSpot;
   const together = scene3d.getNearbyPlayers(35).length > 0;
-  const caught = rollCatch(currentArea?.id || "teibou", env, inSpot || together, getEquippedStats(save).baitAttract);
-  if (together) {
-    caught.estimatedPrice = Math.round(caught.estimatedPrice * 1.1);
-    caught.tags.push("一緒に釣り+10%");
-  }
+  const buff = getActiveBuff(save);
+  const caught = rollCatch(currentArea?.id || "teibou", env, inSpot || together || buff?.rareBonus, getEquippedStats(save).baitAttract);
+  const mult = (together ? 1.1 : 1) * (buff?.priceMult || 1);
+  if (mult > 1) caught.estimatedPrice = Math.round(caught.estimatedPrice * mult);
+  if (together) caught.tags.push("一緒に釣り+10%");
+
   phase = "fighting";
   fightState = { caught, distance: 19 + Math.random() * 10, fishStamina: 100, tension: 24 };
   $("fight-panel").classList.remove("hidden");
@@ -549,9 +597,9 @@ function onCatchSuccess(caught) {
   save.stats.totalCaught += 1; save.lastPlayedAt = Date.now();
 
   recordDailyProgress(save, { caughtDelta: 1 });
+  syncMyPublicProfile();
   submitDailyBoard("biggest_weight", { playerName: save.name, score: caught.weightKg, detail: sp.name });
   submitDailyBoard("highest_price", { playerName: save.name, score: caught.estimatedPrice, detail: sp.name });
-
   if (sp.rank === "S" || sp.rank === "A" || caught.tags.includes("トロフィー特大")) {
     pushWorldFeed({ text: `🎣 ${save.name}さんが [${sp.rank}]${sp.name}（${caught.weightKg}kg）を釣り上げた！` });
   }
@@ -569,9 +617,15 @@ function onCatchSuccess(caught) {
   resetActionState();
 }
 
-function openModal(title, html) {
+function stopLoungeRest() {
+  if (restTimer) { clearInterval(restTimer); restTimer = null; }
+}
+
+function openModal(title, html, modalType = null) {
   stopActiveJobGame();
   stopShopView();
+  stopLoungeRest();
+  activeModalType = modalType;
   $("modal-title").textContent = title;
   $("modal-body").innerHTML = html;
   $("modal-overlay").classList.remove("hidden");
@@ -580,255 +634,585 @@ function openModal(title, html) {
 function closeModal() {
   stopActiveJobGame();
   stopShopView();
+  stopLoungeRest();
+  activeModalType = null;
   $("modal-overlay").classList.add("hidden");
 }
 
-// ===== 事務所ハブ（5部門ランキングへの導線追加） =====
+// ===== Phase 6: 港の食堂 ＆ 休憩所（憩いの場） =====
+function openLoungeModal() {
+  const save = currentSave();
+  const vipSpeed = isMonthlyPassActive(save);
+  const tabsHtml = `
+    <div class="shop-tabs">
+      <button class="shop-tab ${activeLoungeTab === "canteen" ? "active" : ""}" data-ltab="canteen">🍜 港の食堂（料理）</button>
+      <button class="shop-tab ${activeLoungeTab === "rest" ? "active" : ""}" data-ltab="rest">♨️ 憩いの場（休憩＆交流）</button>
+    </div>
+  `;
+
+  if (activeLoungeTab === "canteen") {
+    const buff = getActiveBuff(save);
+    const rows = CANTEEN_MENU.map((m) => `
+      <div class="list-row">
+        <div>
+          <strong>${m.icon} ${m.name}</strong>
+          <div class="muted">${m.desc}</div>
+        </div>
+        <button class="btn-primary" data-eat="${m.id}">¥${m.price.toLocaleString()}</button>
+      </div>
+    `).join("");
+
+    openModal(`🍜 港の食堂（⚡${save.stamina}/100 / ¥${save.money.toLocaleString()}）`, `
+      ${tabsHtml}
+      ${buff ? `<div class="bank-box"><strong>発動中バフ:</strong> ${buff.text}</div>` : ""}
+      ${rows}
+    `, "lounge_canteen");
+
+    $("modal-body").querySelectorAll("[data-eat]").forEach((btn) => {
+      btn.onclick = () => {
+        const m = CANTEEN_MENU.find((x) => x.id === btn.dataset.eat);
+        if (!m) return;
+        if (save.money < m.price) { audioEngine.playFail(); alert("お金が足りません！憩いの場で無料休憩もできます。"); return; }
+        save.money -= m.price;
+        save.stamina = Math.min(100, save.stamina + m.heal);
+        if (m.buff) {
+          save.mealBuff = { label: m.buff.label, priceMult: m.buff.priceMult, rareBonus: m.buff.rareBonus, expiresAt: Date.now() + m.buff.mins * 60000 };
+        }
+        save.lastPlayedAt = Date.now();
+        persistSlots(slots, true); updateHud(); audioEngine.playCatch("B");
+        openLoungeModal();
+      };
+    });
+  } else {
+    // 休憩所（憩いの場）：滞在中に体力が自動回復＋憩いの場チャット＋同席プレイヤー
+    const onlineOthers = Object.entries(remotePlayersCache);
+    const guestPills = onlineOthers.length
+      ? onlineOthers.map(([uid, p]) => `<button class="btn-sub" data-prof="${uid}">${p.status === "resting" ? "♨️" : "🎣"} ${escapeHtml(p.name)}</button>`).join("")
+      : `<span class="muted">今はあなたが一番乗り！全体チャットも使えます。</span>`;
+
+    openModal("♨️ 港の休憩所『憩いの場』", `
+      ${tabsHtml}
+      <div class="bank-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong>☕ ゆったり休憩中… ⚡<span id="rest-sta">${save.stamina}</span>/100</strong>
+          <span class="tag">${vipSpeed ? "🌙パス2倍回復" : "5秒ごとに⚡+1"}</span>
+        </div>
+        <div class="muted">お茶を飲みながら他の漁師さんとチャット交流！タップでプロフ閲覧・フレ申OK</div>
+        <div class="btn-row">${guestPills}</div>
+      </div>
+      <div id="lounge-chat-box" class="chat-box"></div>
+      <div class="chat-input-row">
+        <input id="lounge-chat-input" class="field-input" maxlength="120" placeholder="憩いの場チャットにメッセージ..." />
+        <button id="lounge-chat-send" class="btn-primary">送信</button>
+      </div>
+    `, "lounge_rest");
+
+    paintChatInto($("lounge-chat-box"), loungeChatCache);
+    const send = async () => {
+      const inp = $("lounge-chat-input");
+      if (!inp || !inp.value.trim()) return;
+      const txt = inp.value; inp.value = "";
+      await sendChatMessage("lounge", { name: save.name, title: save.profile?.title, text: txt });
+      audioEngine.playOk();
+    };
+    $("lounge-chat-send").onclick = send;
+    $("lounge-chat-input").onkeydown = (e) => { if (e.key === "Enter") send(); };
+    $("modal-body").querySelectorAll("[data-prof]").forEach((b) => { b.onclick = () => openOtherProfileModal(b.dataset.prof); });
+
+    // 滞在中の自動体力回復ループ（通常5秒で+1、月額パス加入中は2.5秒で+1）
+    restTimer = setInterval(() => {
+      if (save.stamina < 100) {
+        save.stamina = Math.min(100, save.stamina + 1);
+        persistSlots(slots, false);
+        updateHud();
+        const el = $("rest-sta"); if (el) el.textContent = save.stamina;
+      }
+    }, vipSpeed ? 2500 : 5000);
+  }
+
+  $("modal-body").querySelectorAll("[data-ltab]").forEach((btn) => {
+    btn.onclick = () => { activeLoungeTab = btn.dataset.ltab; openLoungeModal(); };
+  });
+}
+
+// ===== Phase 6: どこでもチャット＆フレンドモーダル =====
+function paintChatInto(boxEl, messages) {
+  if (!boxEl) return;
+  if (!messages.length) {
+    boxEl.innerHTML = `<div class="muted">まだ発言がありません。挨拶してみよう！</div>`;
+    return;
+  }
+  boxEl.innerHTML = messages.map((m) => {
+    const t = new Date(m.ts || Date.now());
+    const hm = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+    return `
+      <div class="chat-msg">
+        <span class="chat-author" data-chat-uid="${m.uid}">${escapeHtml(m.name)}</span>
+        ${m.title ? `<span class="tag">${escapeHtml(m.title)}</span>` : ""}
+        <span class="muted">${hm}</span>
+        <div>${escapeHtml(m.text)}</div>
+      </div>
+    `;
+  }).join("");
+  boxEl.scrollTop = boxEl.scrollHeight;
+  boxEl.querySelectorAll("[data-chat-uid]").forEach((el) => {
+    el.onclick = () => openOtherProfileModal(el.dataset.chatUid);
+  });
+}
+
+function openChatAndFriendsModal() {
+  const save = currentSave();
+  const reqCount = Object.keys(friendReqsCache).length;
+  const tabsHtml = `
+    <div class="shop-tabs">
+      <button class="shop-tab ${activeChatTab === "global" ? "active" : ""}" data-ctab="global">🌊 全体チャット</button>
+      <button class="shop-tab ${activeChatTab === "lounge" ? "active" : ""}" data-ctab="lounge">♨️ 憩いの場</button>
+      <button class="shop-tab ${activeChatTab === "friends" ? "active" : ""}" data-ctab="friends">🤝 フレンド${reqCount ? `(${reqCount})` : ""}</button>
+    </div>
+  `;
+
+  if (activeChatTab === "friends") {
+    const reqList = Object.values(friendReqsCache);
+    const reqHtml = reqList.length ? reqList.map((r) => `
+      <div class="list-row">
+        <div>
+          <strong class="chat-author" data-fprof="${r.uid}">${escapeHtml(r.name)}</strong>
+          <div class="muted">フレンド申請が届いています</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-sub" data-acc="${r.uid}">承認</button>
+          <button class="btn-danger" data-rej="${r.uid}">拒否</button>
+        </div>
+      </div>
+    `).join("") : `<div class="muted">届いているフレンド申請はありません。</div>`;
+
+    const frList = Object.values(friendsCache);
+    const frHtml = frList.length ? frList.map((f) => {
+      const online = !!remotePlayersCache[f.uid];
+      return `
+        <div class="list-row">
+          <div>
+            <strong class="chat-author" data-fprof="${f.uid}">${online ? "🟢" : "⚪"} ${escapeHtml(f.name)}</strong>
+            <div class="muted">${online ? "現在オンライン中！" : "オフライン"}</div>
+          </div>
+          <button class="btn-danger" data-rmf="${f.uid}">解除</button>
+        </div>
+      `;
+    }).join("") : `<div class="muted">まだフレンドがいません。チャットや周囲の人の名前をタップして申請しよう！</div>`;
+
+    const nearbyOthers = Object.entries(remotePlayersCache);
+    const onlineHtml = nearbyOthers.length ? nearbyOthers.map(([uid, p]) => `
+      <div class="list-row">
+        <div><strong class="chat-author" data-fprof="${uid}">🟢 ${escapeHtml(p.name)}</strong> <span class="muted">${escapeHtml(p.title || "")}</span></div>
+        <button class="btn-sub" data-fprof="${uid}">プロフを見る</button>
+      </div>
+    `).join("") : `<div class="muted">現在オンライン中の他プレイヤーはいません</div>`;
+
+    openModal("🤝 フレンド ＆ オンライン漁師", `
+      ${tabsHtml}
+      <div class="bank-box"><strong>📩 届いた申請（${reqList.length}）</strong>${reqHtml}</div>
+      <div class="bank-box"><strong>👥 フレンド一覧（${frList.length}）</strong>${frHtml}</div>
+      <div class="bank-box"><strong>🌊 オンライン中の漁師</strong>${onlineHtml}</div>
+    `, "chat_friends");
+
+    $("modal-body").querySelectorAll("[data-fprof]").forEach((b) => { b.onclick = () => openOtherProfileModal(b.dataset.fprof); });
+    $("modal-body").querySelectorAll("[data-acc]").forEach((b) => {
+      b.onclick = async () => {
+        const uid = b.dataset.acc;
+        await acceptFriendRequest(uid, friendReqsCache[uid] || {}, { name: save.name });
+        audioEngine.playCash(); openChatAndFriendsModal();
+      };
+    });
+    $("modal-body").querySelectorAll("[data-rej]").forEach((b) => {
+      b.onclick = async () => { await rejectFriendRequest(b.dataset.rej); openChatAndFriendsModal(); };
+    });
+    $("modal-body").querySelectorAll("[data-rmf]").forEach((b) => {
+      b.onclick = async () => { if (confirm("フレンドを解除しますか？")) { await removeFriend(b.dataset.rmf); openChatAndFriendsModal(); } };
+    });
+  } else {
+    const room = activeChatTab;
+    const msgs = room === "global" ? globalChatCache : loungeChatCache;
+    openModal(room === "global" ? "💬 港の全体チャット" : "♨️ 憩いの場チャット", `
+      ${tabsHtml}
+      <div class="muted">※名前をタップするとプロフィール閲覧・フレンド申請ができます</div>
+      <div id="main-chat-box" class="chat-box"></div>
+      <div class="chat-input-row">
+        <input id="main-chat-input" class="field-input" maxlength="120" placeholder="メッセージを入力..." />
+        <button id="main-chat-send" class="btn-primary">送信</button>
+      </div>
+    `, `chat_${room}`);
+
+    paintChatInto($("main-chat-box"), msgs);
+    const send = async () => {
+      const inp = $("main-chat-input");
+      if (!inp || !inp.value.trim()) return;
+      const txt = inp.value; inp.value = "";
+      await sendChatMessage(room, { name: save.name, title: save.profile?.title, text: txt });
+      audioEngine.playOk();
+    };
+    $("main-chat-send").onclick = send;
+    $("main-chat-input").onkeydown = (e) => { if (e.key === "Enter") send(); };
+  }
+
+  $("modal-body").querySelectorAll("[data-ctab]").forEach((btn) => {
+    btn.onclick = () => { activeChatTab = btn.dataset.ctab; openChatAndFriendsModal(); };
+  });
+}
+
+// ===== Phase 6: プロフィール編集 ＆ 他プレイヤーのプロフィール閲覧 =====
+function openMyProfileEditModal() {
+  const save = currentSave();
+  const { lv } = getPortLevel(save.reputation);
+  const dexGot = Object.keys(save.dex || {}).length;
+  const titleOpts = PROFILE_TITLES.map((t) => `<option value="${t}" ${save.profile?.title === t ? "selected" : ""}>${t}</option>`).join("");
+  const favOpts = getAllSpecies().map((s) => `<option value="${s.name}" ${save.profile?.favSpecies === s.name ? "selected" : ""}>${s.name}</option>`).join("");
+
+  openModal("👤 マイプロフィール編集", `
+    <div class="bank-box">
+      <div class="muted">港の評価 Lv${lv} / 図鑑 ${dexGot}種 / 累計釣果 ${save.stats.totalCaught}匹 ${isMonthlyPassActive(save) ? '<span class="tag purple">🌙パス会員</span>' : ""}</div>
+      <label class="muted">表示名（最大12文字）</label>
+      <input id="prof-name" class="field-input" maxlength="12" value="${escapeHtml(save.name)}" />
+      <label class="muted">称号</label>
+      <select id="prof-title" class="field-input">${titleOpts}</select>
+      <label class="muted">推しの魚・貝</label>
+      <select id="prof-fav" class="field-input">${favOpts}</select>
+      <label class="muted">自己紹介（最大60文字）</label>
+      <input id="prof-bio" class="field-input" maxlength="60" value="${escapeHtml(save.profile?.bio || "")}" />
+      <button id="prof-save" class="btn-primary" style="margin-top:4px;">💾 プロフィールを保存して公開</button>
+    </div>
+    <button class="btn-mini" id="prof-back" style="padding:8px;">← 閉じる</button>
+  `);
+
+  $("prof-back").onclick = closeModal;
+  $("prof-save").onclick = () => {
+    const newName = ($("prof-name").value || "").trim().slice(0, 12);
+    if (newName) save.name = newName;
+    save.profile = {
+      title: $("prof-title").value,
+      favSpecies: $("prof-fav").value,
+      bio: ($("prof-bio").value || "").trim().slice(0, 60)
+    };
+    save.lastPlayedAt = Date.now();
+    persistSlots(slots, true);
+    syncMyPublicProfile();
+    broadcastPresence();
+    updateHud();
+    audioEngine.playCash();
+    alert("プロフィールを更新しました！");
+    closeModal();
+  };
+}
+
+async function openOtherProfileModal(targetUid) {
+  if (!targetUid) return;
+  if (targetUid === getCurrentUid()) { openMyProfileEditModal(); return; }
+
+  openModal("👤 プロフィール読み込み中...", `<p class="muted">取得中...</p>`);
+  const prof = await fetchPublicProfile(targetUid);
+  const live = remotePlayersCache[targetUid];
+  if (!prof && !live) {
+    openModal("👤 プロフィール", `<p class="muted">このプレイヤーの公開プロフィールはまだありません。</p>`);
+    return;
+  }
+
+  const name = prof?.name || live?.name || "名無しの漁師";
+  const title = prof?.title || live?.title || "見習い漁師";
+  const bio = prof?.bio || "よろしくお願いします！";
+  const isFriend = !!friendsCache[targetUid];
+
+  openModal(`👤 ${escapeHtml(name)} さんのプロフィール`, `
+    <div class="bank-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong style="font-size:1.05rem;">${prof?.isVip ? "🌙 " : ""}${escapeHtml(name)}</strong>
+        <span class="tag gold">${escapeHtml(title)}</span>
+      </div>
+      <div style="padding:8px;background:rgba(255,255,255,0.05);border-radius:8px;">${escapeHtml(bio)}</div>
+      <div class="office-stats">
+        <div><span class="muted">港の評価</span><strong>Lv ${prof?.portLv || 1}</strong></div>
+        <div><span class="muted">図鑑記録</span><strong>${prof?.dexCount || 0} 種</strong></div>
+        <div><span class="muted">累計釣果</span><strong>${prof?.totalCaught || 0} 匹</strong></div>
+        <div><span class="muted">推しの魚</span><strong>${escapeHtml(prof?.favSpecies || "-")}</strong></div>
+      </div>
+      <div class="btn-row" style="margin-top:4px;">
+        ${isFriend
+          ? `<span class="tag">🤝 フレンドです</span>`
+          : `<button class="btn-primary" id="btn-send-freq" style="flex:1;">🤝 フレンド申請を送る</button>`
+        }
+        <button class="btn-sub" id="btn-prof-chat">💬 チャットへ戻る</button>
+      </div>
+    </div>
+  `);
+
+  if ($("btn-send-freq")) {
+    $("btn-send-freq").onclick = async () => {
+      const save = currentSave();
+      const ok = await sendFriendRequest(targetUid, { name: save.name, title: save.profile?.title });
+      if (ok) { audioEngine.playCash(); alert(`${name}さんにフレンド申請を送りました！`); closeModal(); }
+      else { audioEngine.playFail(); alert("申請に失敗しました（オンライン状態を確認してください）"); }
+    };
+  }
+  $("btn-prof-chat").onclick = openChatAndFriendsModal;
+}
+
+// ===== Phase 6: 💎真珠ショップ ＆ 月額パス（PayPay・クレカ等選択UI＋コード引換） =====
+function openPearlShopModal() {
+  const save = currentSave();
+  const passActive = isMonthlyPassActive(save);
+  const passDaysLeft = passActive ? Math.ceil((save.monthlyPass.expiresAt - Date.now()) / 86400000) : 0;
+  const canClaim = canClaimDailyPass(save);
+
+  const tabsHtml = `
+    <div class="shop-tabs">
+      <button class="shop-tab ${activePearlTab === "buy" ? "active" : ""}" data-ptab="buy">💎 真珠・月額パス購入</button>
+      <button class="shop-tab ${activePearlTab === "use" ? "active" : ""}" data-ptab="use">✨ 真珠を使う (残${save.pearls || 0})</button>
+    </div>
+  `;
+
+  if (activePearlTab === "use") {
+    const useRows = PEARL_USES.map((u) => `
+      <div class="list-row">
+        <div>
+          <strong>${u.icon} ${u.name}</strong>
+          <div class="muted">${u.desc}</div>
+        </div>
+        <button class="btn-primary" data-puse="${u.id}">💎${u.cost}</button>
+      </div>
+    `).join("");
+
+    openModal(`💎 真珠の使い道（所持 💎${(save.pearls || 0).toLocaleString()}）`, `${tabsHtml}${useRows}`);
+    $("modal-body").querySelectorAll("[data-puse]").forEach((btn) => {
+      btn.onclick = () => {
+        const u = PEARL_USES.find((x) => x.id === btn.dataset.puse);
+        if (!u) return;
+        if ((save.pearls || 0) < u.cost) { audioEngine.playFail(); alert("真珠が足りません！"); return; }
+        save.pearls -= u.cost;
+        if (u.id === "use_stamina") save.stamina = 100;
+        else if (u.id === "use_hotspot") {
+          scene3d.hotspots.forEach((h, i) => {
+            if (i === 0) { h.x = scene3d.pos.x; h.z = Math.min(-18, scene3d.pos.y - 4); h.mesh.position.set(h.x, 0.25, h.z); }
+          });
+        } else if (u.id === "use_farm") {
+          (save.farm?.plots || []).forEach((p) => { if (p) p.readyAt = Date.now() - 1000; });
+        } else if (u.id === "use_charm") {
+          save.pearlBuff = { label: "🍀真珠チャーム", priceMult: 1.25, rareBonus: true, expiresAt: Date.now() + 30 * 60000 };
+        }
+        persistSlots(slots, true); updateHud(); audioEngine.playCatch("A");
+        alert(`✨「${u.name}」を発動しました！`);
+        openPearlShopModal();
+      };
+    });
+  } else {
+    const payOpts = PAYMENT_METHODS.map((m) => `
+      <button class="pay-opt ${selectedPayMethod === m.id ? "selected" : ""}" data-paym="${m.id}">
+        <div>${m.label}</div>
+        <div class="muted" style="font-size:0.66rem;">${m.note}</div>
+      </button>
+    `).join("");
+
+    const packRows = PEARL_PACKS.map((pk) => `
+      <div class="list-row">
+        <div>
+          <strong>💎 ${pk.name}（${pk.pearls + pk.bonus}個）</strong>
+          <span class="tag purple">${pk.tag}</span>
+          <div class="muted">基本${pk.pearls}${pk.bonus ? `＋おまけ${pk.bonus}` : ""} / 課金専用真珠</div>
+        </div>
+        <button class="btn-primary" data-buy-pack="${pk.id}">¥${pk.jpy.toLocaleString()}</button>
+      </div>
+    `).join("");
+
+    openModal(`💎 真珠ショップ（所持 💎${(save.pearls || 0).toLocaleString()}）`, `
+      ${tabsHtml}
+      <div class="bank-box" style="border-color:rgba(192,132,252,0.6);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong>${MONTHLY_PASS_DEF.name}</strong>
+          <span class="tag purple">${passActive ? `加入中(残${passDaysLeft}日)` : `¥${MONTHLY_PASS_DEF.jpy}/月`}</span>
+        </div>
+        <div class="muted">${MONTHLY_PASS_DEF.desc}</div>
+        <div class="btn-row">
+          ${canClaim ? `<button class="btn-sub" id="btn-claim-pass" style="flex:1;">🎁 今日のログイン報酬 💎100 を受け取る！</button>` : ""}
+          <button class="btn-primary" data-buy-pack="monthly_pass">${passActive ? "30日延長する" : `購入 ¥${MONTHLY_PASS_DEF.jpy}`}</button>
+        </div>
+      </div>
+
+      <div class="bank-box">
+        <strong>💳 お支払い方法を選択</strong>
+        <div class="pay-grid">${payOpts}</div>
+      </div>
+
+      ${packRows}
+
+      <div class="bank-box">
+        <strong>🎫 引換コードで受け取る（決済後 / サポーターコード）</strong>
+        <div class="chat-input-row">
+          <input id="redeem-input" class="field-input" placeholder="コードを入力 (例: PASS30-XXXX)" />
+          <button id="btn-redeem" class="btn-sub">引換</button>
+        </div>
+      </div>
+    `);
+
+    if ($("btn-claim-pass")) {
+      $("btn-claim-pass").onclick = () => {
+        const gain = claimMonthlyPassDaily(save);
+        if (gain > 0) {
+          persistSlots(slots, true); updateHud(); audioEngine.playCatch("A");
+          alert(`🌙 毎日ログイン特典 💎${gain} を受け取りました！`);
+          openPearlShopModal();
+        }
+      };
+    }
+
+    $("modal-body").querySelectorAll("[data-paym]").forEach((btn) => {
+      btn.onclick = () => { selectedPayMethod = btn.dataset.paym; openPearlShopModal(); };
+    });
+
+    $("modal-body").querySelectorAll("[data-buy-pack]").forEach((btn) => {
+      btn.onclick = () => {
+        const pid = btn.dataset.buyPack;
+        const payLabel = PAYMENT_METHODS.find((m) => m.id === selectedPayMethod)?.label || "選択決済";
+        const url = PAYMENT_URLS[pid];
+        if (url) {
+          window.open(url, "_blank", "noopener");
+          alert(`${payLabel}の決済ページを開きました。完了後に届く引換コードを下へ入力してください。`);
+        } else {
+          alert(`【${payLabel}】外部決済リンク（Stripe/KOMOJU/BOOTH等）は未接続です。\nテスト付与する場合は、下の「引換コード」欄に管理人ページで発行したコードを入力してください！`);
+        }
+      };
+    });
+
+    $("btn-redeem").onclick = async () => {
+      const code = $("redeem-input").value;
+      const res = await consumeRedeemCode(code);
+      if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
+      if (res.data.type === "monthly_pass") {
+        grantMonthlyPass(save);
+        alert("🌙 月額『真珠の恵みパス(30日)』＋即時💎300 を受け取りました！");
+      } else {
+        const gain = res.data.pearls || 0;
+        save.pearls = (save.pearls || 0) + gain;
+        alert(`💎 真珠 ${gain}個 を受け取りました！`);
+      }
+      syncMyPublicProfile();
+      persistSlots(slots, true); updateHud(); audioEngine.playCatch("S"); openPearlShopModal();
+    };
+  }
+
+  $("modal-body").querySelectorAll("[data-ptab]").forEach((btn) => {
+    btn.onclick = () => { activePearlTab = btn.dataset.ptab; openPearlShopModal(); };
+  });
+}
+
+// ===== 事務所ハブ =====
 function openOfficeModal() {
   const save = currentSave();
   syncBusinessProgress(save);
   const { lv, rep } = getPortLevel(save.reputation);
-  const dexAll = getAllSpecies().length;
-  const dexGot = Object.keys(save.dex || {}).length;
+  const dexAll = getAllSpecies().length, dexGot = Object.keys(save.dex || {}).length;
   const pct = dexAll ? Math.round((dexGot / dexAll) * 100) : 0;
-
   const totalPending = BUSINESS_DEFS.reduce((s, d) => s + (save.businesses[d.id]?.pendingRevenue || 0), 0);
   const readyFarms = (save.farm?.plots || []).filter((p) => p && Date.now() >= p.readyAt).length;
-  const otherCount = Object.keys(remotePlayersCache).length;
+  const reqCount = Object.keys(friendReqsCache).length;
 
   openModal("🏢 港の事務所", `
     <div class="office-stats">
       <div><span class="muted">港の評価</span><strong>Lv ${lv}</strong></div>
       <div><span class="muted">評判</span><strong>${rep} pt</strong></div>
       <div><span class="muted">図鑑記録</span><strong>${dexGot}/${dexAll} (${pct}%)</strong></div>
-      <div><span class="muted">同じ海の仲間</span><strong>${otherCount + 1} 人</strong></div>
+      <div><span class="muted">同じ海の仲間</span><strong>${Object.keys(remotePlayersCache).length + 1} 人</strong></div>
     </div>
     <div class="office-grid">
-      <button class="office-btn accent" id="off-biz">
-        🏪 店舗経営
-        <span>${totalPending > 0 ? `💰 未回収 ¥${totalPending.toLocaleString()}` : "魚屋・寿司・水族館"}</span>
-      </button>
-      <button class="office-btn" id="off-farm">
-        🐟 養殖場
-        <span>${readyFarms > 0 ? `✨ 収穫OK ${readyFarms}枠！` : `生け簀 ${save.farm.maxPlots}枠`}</span>
-      </button>
-      <button class="office-btn" id="off-bank">
-        🏦 漁協バンク
-        <span>預金 ¥${(save.bank?.ordinary || 0).toLocaleString()}</span>
-      </button>
-      <button class="office-btn" id="off-dex">
-        📖 生き物図鑑
-        <span>全${dexAll}種コレクション</span>
-      </button>
-      <button class="office-btn wide" id="off-rank">
-        🏆 今日のランキング（全5部門）
-        <span>大物・最高額・匹数・貝・売上王をチェック</span>
-      </button>
+      <button class="office-btn accent" id="off-biz">🏪 店舗経営<span>${totalPending > 0 ? `💰 未回収 ¥${totalPending.toLocaleString()}` : "魚屋・寿司・水族館"}</span></button>
+      <button class="office-btn" id="off-farm">🐟 養殖場<span>${readyFarms > 0 ? `✨ 収穫OK ${readyFarms}枠！` : `生け簀 ${save.farm.maxPlots}枠`}</span></button>
+      <button class="office-btn" id="off-orders">📋 納品依頼<span>高単価で評判UP</span></button>
+      <button class="office-btn" id="off-bank">🏦 漁協バンク<span>預金 ¥${(save.bank?.ordinary || 0).toLocaleString()}</span></button>
+      <button class="office-btn" id="off-prof">👤 プロフ編集<span>称号・自己紹介${reqCount ? ` / 申請${reqCount}` : ""}</span></button>
+      <button class="office-btn" id="off-dex">📖 生き物図鑑<span>全${dexAll}種コレクション</span></button>
+      <button class="office-btn wide" id="off-rank">🏆 今日のランキング（全5部門）<span>大物・最高額・匹数・貝・売上王をチェック</span></button>
     </div>
   `);
 
   $("off-biz").onclick = openBusinessModal;
   $("off-farm").onclick = openFarmModal;
+  $("off-orders").onclick = openOrdersModal;
   $("off-bank").onclick = openBankModal;
+  $("off-prof").onclick = openMyProfileEditModal;
   $("off-dex").onclick = openDexModal;
   $("off-rank").onclick = openRankingModal;
 }
 
-// ===== 4業態店舗経営 =====
+// ===== 4業態店舗経営・養殖・依頼・船・ショップ・バイト・クーラー・銀行・図鑑 =====
 function openBusinessModal() {
-  const save = currentSave();
-  syncBusinessProgress(save);
+  const save = currentSave(); syncBusinessProgress(save);
   const def = BUSINESS_DEFS.find((b) => b.id === activeBizTab) || BUSINESS_DEFS[0];
-  const st = save.businesses[def.id];
-  const open = isBusinessOpen(st);
+  const st = save.businesses[def.id], open = isBusinessOpen(st);
   const remainH = st.rentExpiresAt > Date.now() ? Math.ceil((st.rentExpiresAt - Date.now()) / 3600000) : 0;
-
-  const tabsHtml = BUSINESS_DEFS.map((b) => {
-    const bst = save.businesses[b.id];
-    const mark = (bst?.pendingRevenue || 0) >= 500 ? "●" : "";
-    return `<button class="shop-tab ${b.id === def.id ? "active" : ""}" data-biz-tab="${b.id}">${b.icon}${b.name.slice(0, 3)}${mark}</button>`;
-  }).join("");
+  const tabsHtml = BUSINESS_DEFS.map((b) => `<button class="shop-tab ${b.id === def.id ? "active" : ""}" data-biz-tab="${b.id}">${b.icon}${b.name.slice(0, 3)}${(save.businesses[b.id]?.pendingRevenue || 0) >= 500 ? "●" : ""}</button>`).join("");
 
   let bodyHtml = "";
   if (!open) {
-    bodyHtml = `
-      <div class="bank-box">
-        <strong>${def.icon} ${def.name}（未開業）</strong>
-        <div class="muted">${def.desc}</div>
-        <div class="btn-row" style="margin-top:4px;">
-          <button class="btn-warn" id="biz-rent">1日賃貸 ¥${def.rentPrice.toLocaleString()}</button>
-          <button class="btn-primary" id="biz-buy">店舗を購入 ¥${def.buyPrice.toLocaleString()}</button>
-        </div>
-      </div>
-    `;
+    bodyHtml = `<div class="bank-box"><strong>${def.icon} ${def.name}（未開業）</strong><div class="muted">${def.desc}</div><div class="btn-row" style="margin-top:4px;"><button class="btn-warn" id="biz-rent">1日賃貸 ¥${def.rentPrice.toLocaleString()}</button><button class="btn-primary" id="biz-buy">店舗を購入 ¥${def.buyPrice.toLocaleString()}</button></div></div>`;
   } else {
     const statusBadge = st.owned ? `<span class="tag gold">所有店舗</span>` : `<span class="tag">賃貸中(残${remainH}h)</span>`;
     const totalPop = def.isAquarium ? st.stock.reduce((s, x) => s + (x.pop || 20), 0) : 0;
-    const stockListHtml = st.stock.slice(0, 8).map((x) =>
-      `<span class="tag">${x.name}${def.isAquarium ? `(人気${x.pop})` : `(¥${x.salePrice.toLocaleString()})`}</span>`
-    ).join("") || `<span class="muted">まだ在庫がありません。「大将のおまかせ」で仕込もう！</span>`;
-
+    const stockListHtml = st.stock.slice(0, 8).map((x) => `<span class="tag">${x.name}${def.isAquarium ? `(人気${x.pop})` : `(¥${x.salePrice.toLocaleString()})`}</span>`).join("") || `<span class="muted">まだ在庫がありません。「大将のおまかせ」で仕込もう！</span>`;
     bodyHtml = `
-      <div class="shop-canvas-wrap">
-        <canvas id="shop-view-canvas" width="420" height="175"></canvas>
-        <div class="shop-view-overlay">
-          <span>${def.icon} ${def.name}</span>
-          <span>${def.isAquarium ? `人気度 ${totalPop} / 展示 ${st.stock.length}/${def.stockCap}` : `在庫 ${st.stock.length}/${def.stockCap}`}</span>
-        </div>
-      </div>
+      <div class="shop-canvas-wrap"><canvas id="shop-view-canvas" width="420" height="175"></canvas><div class="shop-view-overlay"><span>${def.icon} ${def.name}</span><span>${def.isAquarium ? `人気度 ${totalPop} / 展示 ${st.stock.length}/${def.stockCap}` : `在庫 ${st.stock.length}/${def.stockCap}`}</span></div></div>
       <div class="bank-box">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>${statusBadge} 売上金庫: <strong style="color:#f3c687;">¥${st.pendingRevenue.toLocaleString()}</strong></div>
-          <button class="btn-primary" id="biz-collect" ${st.pendingRevenue <= 0 ? "disabled" : ""}>💰 回収</button>
-        </div>
-        <div class="btn-row">
-          <button class="btn-primary" id="biz-omakase" style="flex:1;">🍣 ${def.isAquarium ? "おまかせ展示" : "大将のおまかせ仕込み"}</button>
-          <button class="btn-warn" id="biz-rush">⚡ ラッシュ営業(12秒)</button>
-        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;"><div>${statusBadge} 売上金庫: <strong style="color:#f3c687;">¥${st.pendingRevenue.toLocaleString()}</strong></div><button class="btn-primary" id="biz-collect" ${st.pendingRevenue <= 0 ? "disabled" : ""}>💰 回収</button></div>
+        <div class="btn-row"><button class="btn-primary" id="biz-omakase" style="flex:1;">🍣 ${def.isAquarium ? "おまかせ展示" : "大将のおまかせ仕込み"}</button><button class="btn-warn" id="biz-rush">⚡ ラッシュ営業(12秒)</button></div>
         <div class="muted">クーラー内: ${save.cooler.length}点 / 累計売上: ¥${st.totalRevenue.toLocaleString()}</div>
         <div>${stockListHtml}</div>
       </div>
       ${!st.owned ? `<button class="btn-sub" id="biz-buy">この店舗を買い取る（¥${def.buyPrice.toLocaleString()}）</button>` : ""}
     `;
   }
-
-  openModal(`🏪 店舗経営（所持 ¥${save.money.toLocaleString()}）`, `
-    <div class="shop-tabs">${tabsHtml}</div>
-    ${bodyHtml}
-    <button class="btn-mini" id="biz-back-office" style="padding:8px;">← 事務所へ戻る</button>
-  `);
-
+  openModal(`🏪 店舗経営（所持 ¥${save.money.toLocaleString()}）`, `<div class="shop-tabs">${tabsHtml}</div>${bodyHtml}<button class="btn-mini" id="biz-back-office" style="padding:8px;">← 事務所へ戻る</button>`);
   $("biz-back-office").onclick = openOfficeModal;
   $("modal-body").querySelectorAll("[data-biz-tab]").forEach((btn) => { btn.onclick = () => { activeBizTab = btn.dataset.bizTab; openBusinessModal(); }; });
-
-  if ($("biz-rent")) {
-    $("biz-rent").onclick = () => {
-      if (save.money < def.rentPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; }
-      save.money -= def.rentPrice; st.rentExpiresAt = Date.now() + 86400000; st.lastTickAt = Date.now();
-      persistSlots(slots, true); updateHud(); audioEngine.playCash(); openBusinessModal();
-    };
-  }
-  if ($("biz-buy")) {
-    $("biz-buy").onclick = () => {
-      if (save.money < def.buyPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; }
-      save.money -= def.buyPrice; st.owned = true; st.lastTickAt = Date.now(); save.reputation += 12;
-      pushWorldFeed({ text: `🏪 ${save.name}さんが「${def.name}」のオーナーになった！` });
-      persistSlots(slots, true); updateHud(); audioEngine.playCatch("S"); openBusinessModal();
-    };
-  }
-
+  if ($("biz-rent")) $("biz-rent").onclick = () => { if (save.money < def.rentPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; } save.money -= def.rentPrice; st.rentExpiresAt = Date.now() + 86400000; st.lastTickAt = Date.now(); persistSlots(slots, true); updateHud(); audioEngine.playCash(); openBusinessModal(); };
+  if ($("biz-buy")) $("biz-buy").onclick = () => { if (save.money < def.buyPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; } save.money -= def.buyPrice; st.owned = true; st.lastTickAt = Date.now(); save.reputation += 12; pushWorldFeed({ text: `🏪 ${save.name}さんが「${def.name}」のオーナーになった！` }); persistSlots(slots, true); updateHud(); audioEngine.playCatch("S"); openBusinessModal(); };
   if (open) {
     const viewCtrl = startShopView($("shop-view-canvas"), {
-      bizDef: def,
-      bizState: st,
+      bizDef: def, bizState: st,
       onRushSale: () => {
-        if (def.isAquarium) {
-          const totalPop = st.stock.reduce((s, x) => s + (x.pop || 20), 0);
-          if (totalPop <= 0) return 0;
-          const ticket = Math.round(totalPop * 16 + 300);
-          st.pendingRevenue += ticket; st.totalRevenue += ticket; save.reputation += 0.3;
-          persistSlots(slots, false); return ticket;
-        } else {
-          if (!st.stock.length) return 0;
-          const item = st.stock.shift();
-          const rev = Math.round((item.salePrice || 500) * 1.15);
-          st.pendingRevenue += rev; st.totalRevenue += rev; save.reputation += 0.6;
-          persistSlots(slots, false); return rev;
-        }
+        if (def.isAquarium) { const p = st.stock.reduce((s, x) => s + (x.pop || 20), 0); if (p <= 0) return 0; const t = Math.round(p * 16 + 300); st.pendingRevenue += t; st.totalRevenue += t; save.reputation += 0.3; persistSlots(slots, false); return t; }
+        if (!st.stock.length) return 0;
+        const item = st.stock.shift(), rev = Math.round((item.salePrice || 500) * 1.15);
+        st.pendingRevenue += rev; st.totalRevenue += rev; save.reputation += 0.6; persistSlots(slots, false); return rev;
       }
     });
-
-    $("biz-omakase").onclick = () => {
-      const res = autoOmakaseStock(save, def.id, getSpeciesMap());
-      if (res.moved > 0) { persistSlots(slots, true); updateHud(); audioEngine.playOk(); openBusinessModal(); }
-      else { audioEngine.playFail(); alert(res.msg); }
-    };
-    $("biz-collect").onclick = () => {
-      if (st.pendingRevenue <= 0) return;
-      const rev = st.pendingRevenue;
-      save.money += rev; save.stats.totalEarned += rev; st.pendingRevenue = 0;
-      recordDailyProgress(save, { earnedDelta: rev });
-      persistSlots(slots, true); updateHud(); audioEngine.playCash(); openBusinessModal();
-    };
-    $("biz-rush").onclick = () => {
-      if (!st.stock.length) { audioEngine.playFail(); alert("先に「おまかせ」でネタ（または展示魚）を投入しよう！"); return; }
-      audioEngine.playOk(); viewCtrl.triggerRush();
-      setTimeout(() => { if ($("shop-view-canvas")) openBusinessModal(); }, 12400);
-    };
+    $("biz-omakase").onclick = () => { const res = autoOmakaseStock(save, def.id, getSpeciesMap()); if (res.moved > 0) { persistSlots(slots, true); updateHud(); audioEngine.playOk(); openBusinessModal(); } else { audioEngine.playFail(); alert(res.msg); } };
+    $("biz-collect").onclick = () => { if (st.pendingRevenue <= 0) return; const rev = st.pendingRevenue; save.money += rev; save.stats.totalEarned += rev; st.pendingRevenue = 0; recordDailyProgress(save, { earnedDelta: rev }); persistSlots(slots, true); updateHud(); audioEngine.playCash(); openBusinessModal(); };
+    $("biz-rush").onclick = () => { if (!st.stock.length) { audioEngine.playFail(); alert("先に「おまかせ」でネタを投入しよう！"); return; } audioEngine.playOk(); viewCtrl.triggerRush(); setTimeout(() => { if ($("shop-view-canvas")) openBusinessModal(); }, 12400); };
   }
 }
 
-// ===== サクサク養殖場 =====
 function openFarmModal() {
   const save = currentSave(), farm = save.farm, now = Date.now();
   const farmable = getAllSpecies().filter((s) => s.farmHours > 0 && s.farmSeedPrice > 0);
   const nextExpandPrice = FARM_EXPAND_PRICES[farm.maxPlots] || 0;
-
   const plotCards = farm.plots.map((p, idx) => {
-    if (!p) {
-      return `<div class="bank-box"><strong>🌊 生け簀 #${idx + 1}（空き）</strong><div class="muted">稚魚・稚貝を投入して現実時間でサクサク育成！</div><button class="btn-primary" data-seed-slot="${idx}">🌱 稚魚・稚貝を仕入れる</button></div>`;
-    }
-    const sp = getSpeciesById(p.speciesId);
-    const pct = Math.min(100, Math.round(((now - p.startedAt) / Math.max(1, p.readyAt - p.startedAt)) * 100));
-    const remMin = Math.max(0, Math.ceil((p.readyAt - now) / 60000));
-    const ready = now >= p.readyAt, isShell = sp?.speciesType === "shellfish";
-    return `
-      <div class="bank-box">
-        <div style="display:flex;justify-content:space-between;">
-          <strong>${isShell ? "🦪 垂下養殖" : "🐟 生け簀"} #${idx + 1}: ${sp ? sp.name : p.speciesId}</strong>
-          <span class="tag ${ready ? "gold" : ""}">${ready ? "✨ 収穫OK！" : `残 ${remMin}分 (${pct}%)`}</span>
-        </div>
-        <div class="prog-track"><div class="prog-fill" style="width:${pct}%"></div></div>
-        ${ready ? `<div class="btn-row" style="margin-top:4px;"><button class="btn-sub" data-harv-cooler="${idx}">🧊 クーラーへ収穫</button><button class="btn-primary" data-harv-sell="${idx}">💰 市場へ直送売却</button></div>`
-          : `<div class="muted">${isShell ? "貝の垂下養殖はエサ不要で自動成長中" : "すくすく育成中（放置OK）"}</div>`}
-      </div>
-    `;
+    if (!p) return `<div class="bank-box"><strong>🌊 生け簀 #${idx + 1}（空き）</strong><div class="muted">稚魚・稚貝を投入して現実時間でサクサク育成！</div><button class="btn-primary" data-seed-slot="${idx}">🌱 稚魚・稚貝を仕入れる</button></div>`;
+    const sp = getSpeciesById(p.speciesId), pct = Math.min(100, Math.round(((now - p.startedAt) / Math.max(1, p.readyAt - p.startedAt)) * 100));
+    const remMin = Math.max(0, Math.ceil((p.readyAt - now) / 60000)), ready = now >= p.readyAt, isShell = sp?.speciesType === "shellfish";
+    return `<div class="bank-box"><div style="display:flex;justify-content:space-between;"><strong>${isShell ? "🦪 垂下養殖" : "🐟 生け簀"} #${idx + 1}: ${sp ? sp.name : p.speciesId}</strong><span class="tag ${ready ? "gold" : ""}">${ready ? "✨ 収穫OK！" : `残 ${remMin}分 (${pct}%)`}</span></div><div class="prog-track"><div class="prog-fill" style="width:${pct}%"></div></div>${ready ? `<div class="btn-row" style="margin-top:4px;"><button class="btn-sub" data-harv-cooler="${idx}">🧊 クーラーへ収穫</button><button class="btn-primary" data-harv-sell="${idx}">💰 市場へ直送売却</button></div>` : `<div class="muted">${isShell ? "貝の垂下養殖はエサ不要で自動成長中" : "すくすく育成中（放置OK）"}</div>`}</div>`;
   }).join("");
-
-  const expandHtml = farm.maxPlots < 6
-    ? `<button class="btn-warn" id="farm-expand">➕ 生け簀を拡張（${farm.maxPlots} → ${farm.maxPlots + 1}枠 / ¥${nextExpandPrice.toLocaleString()}）</button>`
-    : `<div class="muted" style="text-align:center;">最大規模（6枠）まで拡張済み！</div>`;
-
+  const expandHtml = farm.maxPlots < 6 ? `<button class="btn-warn" id="farm-expand">➕ 生け簀を拡張（${farm.maxPlots} → ${farm.maxPlots + 1}枠 / ¥${nextExpandPrice.toLocaleString()}）</button>` : `<div class="muted" style="text-align:center;">最大規模（6枠）まで拡張済み！</div>`;
   openModal(`🐟 サクサク養殖場（所持 ¥${save.money.toLocaleString()}）`, `${plotCards}${expandHtml}<button class="btn-mini" id="farm-back-office" style="padding:8px;">← 事務所へ戻る</button>`);
   $("farm-back-office").onclick = openOfficeModal;
   if ($("farm-expand")) $("farm-expand").onclick = () => { if (save.money < nextExpandPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; } save.money -= nextExpandPrice; farm.maxPlots += 1; farm.plots.push(null); persistSlots(slots, true); updateHud(); audioEngine.playCash(); openFarmModal(); };
   $("modal-body").querySelectorAll("[data-seed-slot]").forEach((btn) => { btn.onclick = () => openSeedPickerModal(Number(btn.dataset.seedSlot), farmable); });
-  $("modal-body").querySelectorAll("[data-harv-cooler]").forEach((btn) => {
-    btn.onclick = () => {
-      const idx = Number(btn.dataset.harvCooler); if (!checkCoolerSpace(save, 1)) return;
-      const sp = getSpeciesById(farm.plots[idx].speciesId), res = harvestFarmPlot(save, idx, sp, env, false);
-      if (res) { recordDailyProgress(save, { caughtDelta: res.count }); persistSlots(slots, true); updateHud(); audioEngine.playCatch(sp.rank); openFarmModal(); }
-    };
-  });
-  $("modal-body").querySelectorAll("[data-harv-sell]").forEach((btn) => {
-    btn.onclick = () => {
-      const idx = Number(btn.dataset.harvSell); const sp = getSpeciesById(farm.plots[idx].speciesId);
-      const res = harvestFarmPlot(save, idx, sp, env, true);
-      if (res) { recordDailyProgress(save, { caughtDelta: res.count, earnedDelta: res.price }); persistSlots(slots, true); updateHud(); audioEngine.playCash(); alert(`✨ ${res.name}×${res.count}を直送売却！（+¥${res.price.toLocaleString()}）`); openFarmModal(); }
-    };
-  });
+  $("modal-body").querySelectorAll("[data-harv-cooler]").forEach((btn) => { btn.onclick = () => { const idx = Number(btn.dataset.harvCooler); if (!checkCoolerSpace(save, 1)) return; const sp = getSpeciesById(farm.plots[idx].speciesId), res = harvestFarmPlot(save, idx, sp, env, false); if (res) { recordDailyProgress(save, { caughtDelta: res.count }); persistSlots(slots, true); updateHud(); audioEngine.playCatch(sp.rank); openFarmModal(); } }; });
+  $("modal-body").querySelectorAll("[data-harv-sell]").forEach((btn) => { btn.onclick = () => { const idx = Number(btn.dataset.harvSell), sp = getSpeciesById(farm.plots[idx].speciesId), res = harvestFarmPlot(save, idx, sp, env, true); if (res) { recordDailyProgress(save, { caughtDelta: res.count, earnedDelta: res.price }); persistSlots(slots, true); updateHud(); audioEngine.playCash(); alert(`✨ ${res.name}×${res.count}を直送売却！（+¥${res.price.toLocaleString()}）`); openFarmModal(); } }; });
 }
 
 function openSeedPickerModal(slotIdx, farmable) {
   const save = currentSave();
-  const rows = farmable.sort((a, b) => a.farmSeedPrice - b.farmSeedPrice).map((sp) => {
-    const mins = Math.round(getFarmDurationMs(sp) / 60000);
-    return `<div class="list-row"><div><strong class="rank-${sp.rank}">[${sp.rank}] ${sp.name}</strong> <span class="tag">${sp.speciesType === "shellfish" ? "🦪垂下" : "🐟生け簀"}</span><div class="muted">育成時間: 約${mins}分 / 市場目安 ¥${sp.basePricePerKg}/kg</div></div><button class="btn-primary" data-pick-seed="${sp.id}">¥${sp.farmSeedPrice.toLocaleString()}</button></div>`;
-  }).join("");
+  const rows = farmable.sort((a, b) => a.farmSeedPrice - b.farmSeedPrice).map((sp) => `<div class="list-row"><div><strong class="rank-${sp.rank}">[${sp.rank}] ${sp.name}</strong> <span class="tag">${sp.speciesType === "shellfish" ? "🦪垂下" : "🐟生け簀"}</span><div class="muted">育成時間: 約${Math.round(getFarmDurationMs(sp) / 60000)}分 / 市場目安 ¥${sp.basePricePerKg}/kg</div></div><button class="btn-primary" data-pick-seed="${sp.id}">¥${sp.farmSeedPrice.toLocaleString()}</button></div>`).join("");
   openModal(`🌱 生け簀 #${slotIdx + 1} の種苗を選ぶ`, `${rows}<button class="btn-mini" id="seed-back" style="padding:8px;">← 養殖場へ戻る</button>`);
   $("seed-back").onclick = openFarmModal;
-  $("modal-body").querySelectorAll("[data-pick-seed]").forEach((btn) => {
-    btn.onclick = () => {
-      const sp = getSpeciesById(btn.dataset.pickSeed);
-      if (!sp || save.money < sp.farmSeedPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; }
-      save.money -= sp.farmSeedPrice; const now = Date.now();
-      save.farm.plots[slotIdx] = { speciesId: sp.id, startedAt: now, readyAt: now + getFarmDurationMs(sp) };
-      persistSlots(slots, true); updateHud(); audioEngine.playCash(); openFarmModal();
-    };
-  });
+  $("modal-body").querySelectorAll("[data-pick-seed]").forEach((btn) => { btn.onclick = () => { const sp = getSpeciesById(btn.dataset.pickSeed); if (!sp || save.money < sp.farmSeedPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; } save.money -= sp.farmSeedPrice; const now = Date.now(); save.farm.plots[slotIdx] = { speciesId: sp.id, startedAt: now, readyAt: now + getFarmDurationMs(sp) }; persistSlots(slots, true); updateHud(); audioEngine.playCash(); openFarmModal(); }; });
 }
 
-// ===== 納品依頼掲示板 =====
 function openOrdersModal() {
   const save = currentSave(), orders = ensureDailyOrders(save, getAllSpecies(), env.dayKey);
   const rows = orders.map((ord, idx) => {
@@ -836,7 +1220,6 @@ function openOrdersModal() {
     return `<div class="bank-box"><div style="display:flex;justify-content:space-between;align-items:center;"><span class="muted">🏢 ${ord.client}</span><strong style="color:#38e59a;">¥${ord.reward.toLocaleString()} +評判${ord.rep}</strong></div><div><strong class="rank-${ord.rank}">[${ord.rank}] ${ord.speciesName}</strong> を <strong>${ord.qty}点</strong> 納品</div><div class="muted">クーラー所持: ${haveCount} / ${ord.qty}</div><button class="btn-primary" data-deliver="${idx}" ${canDeliver ? "" : "disabled"}>${canDeliver ? "📦 納品して報酬を受け取る" : "対象がクーラーに足りません"}</button></div>`;
   }).join("");
   openModal("📋 港の納品依頼掲示板（市場より高単価！）", rows);
-
   $("modal-body").querySelectorAll("[data-deliver]").forEach((btn) => {
     btn.onclick = () => {
       const idx = Number(btn.dataset.deliver), ord = save.orders[idx]; if (!ord) return;
@@ -851,7 +1234,6 @@ function openOrdersModal() {
   });
 }
 
-// ===== 船・道具ショップ・バイト・クーラー・銀行・図鑑 =====
 function openDockModal() {
   const save = currentSave(), active = getActiveBoat(save);
   const remainH = save.rentalBoat ? Math.max(1, Math.ceil((save.rentalBoat.expiresAt - Date.now()) / 3600000)) : 0;
@@ -865,7 +1247,6 @@ function openDockModal() {
     return `<div class="bank-box"><div><strong>🚤 ${b.name}</strong>（燃料 ${b.maxFuel}L / 速度x${b.speed}）</div><div class="muted">${b.desc}</div>${actions}</div>`;
   }).join("");
   openModal(`🚤 船ドック・レンタル（所持 ¥${save.money.toLocaleString()}）`, `${fuelBox}${boatRows}`);
-
   if ($("btn-refuel-full")) $("btn-refuel-full").onclick = () => { if (needFuel <= 0 || save.money < refuelCost) return; save.money -= refuelCost; save.fuel = active.maxFuel; persistSlots(slots, true); updateHud(); audioEngine.playCash(); openDockModal(); };
   if ($("btn-toggle-autorefuel")) $("btn-toggle-autorefuel").onclick = () => { save.autoRefuel = !save.autoRefuel; persistSlots(slots, true); openDockModal(); };
   $("modal-body").querySelectorAll("[data-rent-boat]").forEach((btn) => { btn.onclick = () => { const b = BOATS.find((x) => x.id === btn.dataset.rentBoat); if (!b || save.money < b.rentPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; } save.money -= b.rentPrice; save.rentalBoat = { boatId: b.id, expiresAt: Date.now() + 86400000 }; save.activeBoatId = b.id; save.fuel = b.maxFuel; scene3d.updateBoatSpec(b.speed, b.tier); persistSlots(slots, true); updateHud(); audioEngine.playCash(); openDockModal(); }; });
@@ -908,9 +1289,7 @@ function openShopModal() {
       save.lastPlayedAt = Date.now(); persistSlots(slots, true); updateHud(); resetActionState(); audioEngine.playCash(); openShopModal();
     };
   });
-  $("modal-body").querySelectorAll("[data-equip]").forEach((btn) => {
-    btn.onclick = () => { const item = SHOP_ITEMS.find((x) => x.id === btn.dataset.equip); if (!item) return; save.gear[item.slot] = item.id; persistSlots(slots, true); updateHud(); resetActionState(); openShopModal(); };
-  });
+  $("modal-body").querySelectorAll("[data-equip]").forEach((btn) => { btn.onclick = () => { const item = SHOP_ITEMS.find((x) => x.id === btn.dataset.equip); if (!item) return; save.gear[item.slot] = item.id; persistSlots(slots, true); updateHud(); resetActionState(); openShopModal(); }; });
 }
 
 function openJobsModal() {
@@ -921,11 +1300,10 @@ function openJobsModal() {
     return `<div class="list-row"><div><strong>${job.icon} ${job.name}</strong> ${isBonus ? `<span class="tag gold">${job.bonusLabel}</span>` : ""}<div class="muted">${job.desc}</div><div class="muted">ノルマ: ${job.quotaText} / ⚡${job.stamina} / 基本¥${job.basePay.toLocaleString()}</div></div><button class="btn-primary" data-job="${job.id}">出勤</button></div>`;
   }).join("");
   openModal(`💼 港のバイト掲示板（全7種 / ⚡${save.stamina}）`, `${headerBox}${rows}`);
-
   $("modal-body").querySelectorAll("[data-job]").forEach((btn) => {
     btn.onclick = () => {
       const job = PART_TIME_JOBS.find((x) => x.id === btn.dataset.job);
-      if (!job || save.stamina < job.stamina) { audioEngine.playFail(); alert("スタミナが足りません！"); return; }
+      if (!job || save.stamina < job.stamina) { audioEngine.playFail(); alert("スタミナが足りません！🍜憩いの食堂や休憩所で回復できます"); return; }
       save.stamina -= job.stamina; persistSlots(slots, false); updateHud();
       $("modal-title").textContent = `${job.icon} 勤務中: ${job.name}`;
       runJobMinigame($("modal-body"), job, ({ passed, perfect, extraMult, detail }) => {
@@ -955,19 +1333,9 @@ function openCoolerModal() {
   if (!save.cooler.length) { openModal(`🧊 クーラーボックス (0/${coolerCap})`, `<p class="muted">まだ魚や貝が入っていません。</p>`); return; }
   const total = save.cooler.reduce((s, x) => s + x.price, 0);
   const rows = save.cooler.map((x) => `<div class="list-row"><div><strong class="rank-${x.rank}">[${x.rank}] ${x.name}</strong> (${x.weightKg}kg)<div class="muted">${x.tags.join(" / ")}</div></div><strong>¥${x.price.toLocaleString()}</strong></div>`).join("");
-  openModal(`🧊 クーラーボックス (${save.cooler.length}/${coolerCap})`, `
-    <div class="btn-row">
-      <button class="btn-primary" id="btn-sell-all" style="flex:1;">市場で売却（¥${total.toLocaleString()}）</button>
-      <button class="btn-sub" id="btn-go-biz">🏪 店舗へ仕込む</button>
-    </div>
-    ${rows}
-  `);
+  openModal(`🧊 クーラーボックス (${save.cooler.length}/${coolerCap})`, `<div class="btn-row"><button class="btn-primary" id="btn-sell-all" style="flex:1;">市場で売却（¥${total.toLocaleString()}）</button><button class="btn-sub" id="btn-go-biz">🏪 店舗へ仕込む</button></div>${rows}`);
   $("btn-go-biz").onclick = openBusinessModal;
-  $("btn-sell-all").onclick = () => {
-    save.money += total; save.stats.totalEarned += total; save.cooler = []; save.lastPlayedAt = Date.now();
-    recordDailyProgress(save, { earnedDelta: total });
-    persistSlots(slots, true); updateHud(); audioEngine.playCash(); closeModal();
-  };
+  $("btn-sell-all").onclick = () => { save.money += total; save.stats.totalEarned += total; save.cooler = []; save.lastPlayedAt = Date.now(); recordDailyProgress(save, { earnedDelta: total }); persistSlots(slots, true); updateHud(); audioEngine.playCash(); closeModal(); };
 }
 
 function openBankModal() {
@@ -999,6 +1367,28 @@ function openDexModal() {
   $("dex-back-office").onclick = openOfficeModal;
 }
 
+function triggerAdminSecret() {
+  if (!verifyAdminAccess()) return;
+  let targetSave = currentSave();
+  if (!targetSave) {
+    // ホーム画面から開いた場合は最初の既存スロットを対象にする
+    const firstIdx = slots.findIndex(Boolean);
+    if (firstIdx >= 0) { activeSlotIndex = firstIdx; targetSave = slots[firstIdx]; }
+  }
+  openAdminPanel({
+    save: targetSave,
+    scene3d,
+    openModal,
+    onSaveAndRefresh: () => {
+      persistSlots(slots, true);
+      updateHud();
+      syncWorldStatus();
+      renderSlots();
+    },
+    onEnvChanged: () => updateEnvironmentUI()
+  });
+}
+
 function setupJoystick() {
   const base = $("joy-base"), knob = $("joy-knob");
   let activeId = null; const maxR = 36;
@@ -1018,7 +1408,7 @@ function setupJoystick() {
 
   const keys = new Set();
   const syncKeys = () => {
-    if (phase !== "idle") { scene3d.moveInput.x = 0; scene3d.moveInput.y = 0; return; }
+    if (phase !== "idle" || document.activeElement?.tagName === "INPUT") { scene3d.moveInput.x = 0; scene3d.moveInput.y = 0; return; }
     scene3d.moveInput.x = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
     scene3d.moveInput.y = (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0) - (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0);
   };
@@ -1052,50 +1442,78 @@ async function boot() {
   await loadSpeciesMaster();
   await initFirebase({ onOnlineCount: (n) => { $("online-count").textContent = n; }, onStatus: (msg) => { $("sync-status").textContent = msg; } });
 
-  // Phase 5: リアルタイム他プレイヤー＆ライブ速報の購読
-  subscribeWorldPlayers((others) => {
-    remotePlayersCache = others;
-    scene3d.syncRemotePlayers(others);
+  // リアルタイム同期購読
+  subscribeWorldPlayers((others) => { remotePlayersCache = others; scene3d.syncRemotePlayers(others); });
+  subscribeWorldFeed((item) => { if (!item || (item.ts || 0) < bootTime - 25000) return; showLiveTicker(`📣 ${item.text}`); });
+  subscribeChatRoom("global", (list) => {
+    globalChatCache = list;
+    if (activeModalType === "chat_global") paintChatInto($("main-chat-box"), list);
+    const last = list[list.length - 1];
+    if (last && last.ts > bootTime && last.uid !== getCurrentUid()) showLiveTicker(`💬 ${last.name}: ${last.text}`);
   });
-  subscribeWorldFeed((item) => {
-    if (!item || (item.ts || 0) < bootTime - 25000) return;
-    showLiveTicker(`📣 ${item.text}`);
+  subscribeChatRoom("lounge", (list) => {
+    loungeChatCache = list;
+    if (activeModalType === "lounge_rest") paintChatInto($("lounge-chat-box"), list);
+    if (activeModalType === "chat_lounge") paintChatInto($("main-chat-box"), list);
+  });
+  subscribeFriends((map) => { friendsCache = map; });
+  subscribeFriendRequests((map) => {
+    friendReqsCache = map;
+    if (Object.keys(map).length > 0 && activeSlotIndex >= 0) {
+      updateHud();
+      showLiveTicker("🤝 フレンド申請が届いています！右下の💬→フレンドから確認");
+    }
   });
 
   slots = await syncLoadSlots();
   renderSlots();
   renderHomeRanking();
 
+  // 秘密の管理人ページトリガー（ホーム画面タイトル5連タップ）
+  let secretTapCount = 0, secretTapTimer = null;
+  $("secret-admin-trigger").onclick = () => {
+    secretTapCount++;
+    clearTimeout(secretTapTimer);
+    secretTapTimer = setTimeout(() => { secretTapCount = 0; }, 1600);
+    if (secretTapCount >= 5) { secretTapCount = 0; triggerAdminSecret(); }
+  };
+
+  // プレイ画面の名前を5連タップでも秘密ページへ入れる（デバッグしやすい）
+  let playTapCount = 0, playTapTimer = null;
+  $("btn-hud-profile").onclick = () => {
+    playTapCount++;
+    clearTimeout(playTapTimer);
+    if (playTapCount >= 5) { playTapCount = 0; triggerAdminSecret(); return; }
+    playTapTimer = setTimeout(() => {
+      if (playTapCount === 1) openMyProfileEditModal();
+      playTapCount = 0;
+    }, 320);
+  };
+
   $("btn-sound-home").onclick = () => { audioEngine.toggleMute(); updateSoundIcons(); };
   $("btn-sound-play").onclick = () => { audioEngine.toggleMute(); updateSoundIcons(); };
   $("btn-refresh-rank").onclick = renderHomeRanking;
   $("btn-back-home").onclick = () => {
-    resetActionState();
-    saveWorldPosition(true);
-    clearWorldPresence();
+    resetActionState(); saveWorldPosition(true); clearWorldPresence();
     $("stamp-bar").classList.add("hidden");
-    $("play-screen").classList.remove("active");
-    $("home-screen").classList.add("active");
-    renderSlots();
-    renderHomeRanking();
+    $("play-screen").classList.remove("active"); $("home-screen").classList.add("active");
+    renderSlots(); renderHomeRanking();
   };
 
-  // マルチスタンプ送信
-  $("btn-stamp-toggle").onclick = () => {
-    audioEngine.unlock();
-    $("stamp-bar").classList.toggle("hidden");
-  };
+  $("btn-open-chat").onclick = () => { audioEngine.unlock(); openChatAndFriendsModal(); };
+  $("btn-open-orders-quick").onclick = () => { audioEngine.unlock(); openOrdersModal(); };
+  $("btn-open-pearls").onclick = () => { audioEngine.unlock(); openPearlShopModal(); };
+  $("btn-open-lounge").onclick = () => { audioEngine.unlock(); openLoungeModal(); };
+
+  $("btn-stamp-toggle").onclick = () => { audioEngine.unlock(); $("stamp-bar").classList.toggle("hidden"); };
   document.querySelectorAll("[data-stamp]").forEach((btn) => {
     btn.onclick = () => {
-      const save = currentSave();
-      if (!save) return;
-      myLastStamp = btn.dataset.stamp;
-      myLastStampTs = Date.now();
+      const save = currentSave(); if (!save) return;
+      myLastStamp = btn.dataset.stamp; myLastStampTs = Date.now();
       broadcastPresence();
       pushWorldFeed({ text: `${save.name}「${myLastStamp}」`, kind: "stamp" });
       showLiveTicker(`💬 あなた「${myLastStamp}」`);
-      audioEngine.playOk();
-      $("stamp-bar").classList.add("hidden");
+      audioEngine.playOk(); $("stamp-bar").classList.add("hidden");
     };
   });
 
@@ -1135,7 +1553,6 @@ async function boot() {
   $("btn-open-dock").onclick = openDockModal;
   $("btn-open-shop").onclick = openShopModal;
   $("btn-open-jobs").onclick = openJobsModal;
-  $("btn-open-orders").onclick = openOrdersModal;
   $("btn-open-office").onclick = openOfficeModal;
   $("btn-close-modal").onclick = closeModal;
 

@@ -24,10 +24,13 @@ export function createNewSave(name = "新人漁師") {
   return ensureSaveDefaults({
     name,
     money: 15000,
+    pearls: 0,
+    monthlyPass: null,
     stamina: STAMINA_MAX,
     staminaUpdatedAt: Date.now(),
     area: "teibou",
     worldPos: { x: 0, z: 4, yaw: 0, isBoating: false },
+    profile: { title: "見習い漁師", bio: "よろしくお願いします！", favSpecies: "マダイ" },
     cooler: [],
     dex: {},
     stats: { totalCaught: 0, totalEarned: 0 },
@@ -40,6 +43,9 @@ export function createNewSave(name = "新人漁師") {
 
 export function ensureSaveDefaults(save) {
   if (!save) return null;
+  if (typeof save.pearls !== "number") save.pearls = 0;
+  if (!save.profile) save.profile = { title: "見習い漁師", bio: "よろしくお願いします！", favSpecies: "マダイ" };
+
   if (!save.gear) {
     save.gear = { rod: "rod_1", reel: "reel_1", line: "line_1", cooler: "cooler_1", shellTool: "shell_1", net: "net_toami", bait: "bait_free" };
   }

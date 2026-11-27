@@ -20,7 +20,7 @@
   <div id="home-screen" class="screen active">
     <header class="home-header">
       <div>
-        <h1 class="game-title">さかなサン</h1>
+        <h1 class="game-title" id="secret-admin-trigger">さかなサン</h1>
         <p class="subtitle" id="live-clock">読み込み中...</p>
       </div>
       <div class="header-right">
@@ -66,12 +66,13 @@
       <header class="hud-top">
         <div class="hud-left">
           <button class="btn-icon" id="btn-back-home">🏠</button>
-          <div class="player-meta">
+          <div class="player-meta" id="btn-hud-profile" title="プロフィールを開く">
             <strong id="hud-name">漁師</strong>
             <span id="hud-money">¥0</span>
           </div>
         </div>
         <div class="hud-right">
+          <button class="pearl-pill" id="btn-open-pearls" title="真珠ショップ">💎<span id="hud-pearls">0</span></button>
           <div class="stamina-pill">⚡<span id="hud-stamina">100</span></div>
           <div id="hud-fuel-pill" class="fuel-pill hidden">⛽<span id="hud-fuel">0</span>L</div>
           <button class="btn-icon" id="btn-sound-play" title="音量切替">🔊</button>
@@ -82,12 +83,12 @@
         <button class="btn-mini" id="btn-open-cooler">🧊<span id="hud-cooler-count">0/10</span></button>
         <button class="btn-mini" id="btn-open-dock">🚤 船</button>
         <button class="btn-mini" id="btn-open-shop">🏪 道具</button>
+        <button class="btn-mini" id="btn-open-lounge">🍜 憩い</button>
         <button class="btn-mini" id="btn-open-jobs">💼 バイト</button>
-        <button class="btn-mini" id="btn-open-orders">📋 依頼</button>
         <button class="btn-mini" id="btn-open-office">🏢 事務所<span id="office-dot" class="notif-dot hidden"></span></button>
       </nav>
 
-      <!-- リアルタイム釣果速報＆マルチ通知ティッカー -->
+      <!-- リアルタイム釣果速報＆チャット通知 -->
       <div id="live-ticker" class="live-ticker hidden">📣 港のライブ速報待機中...</div>
 
       <div class="world-row">
@@ -96,6 +97,7 @@
             <strong id="hud-area-name">📍 港・堤防（徒歩）</strong>
             <span id="hud-env-mini" class="muted">-</span>
           </div>
+          <div id="buff-badge" class="buff-badge hidden">🍱 料理バフ発動中</div>
           <div id="together-badge" class="together-badge hidden">🤝 一緒に釣り中（査定+10%・レアUP）</div>
         </div>
         <div class="minimap-wrap">
@@ -149,7 +151,9 @@
       </div>
       <div class="right-actions">
         <div class="sub-action-row">
-          <button id="btn-stamp-toggle" class="btn-stamp" title="マルチスタンプ">💬</button>
+          <button id="btn-open-chat" class="btn-stamp" title="全体チャット＆フレンド">💬</button>
+          <button id="btn-stamp-toggle" class="btn-stamp" title="ワンタップスタンプ">😊</button>
+          <button id="btn-open-orders-quick" class="btn-stamp" title="納品依頼">📋</button>
           <button id="btn-board-toggle" class="btn-board hidden">🚤 船に乗る</button>
         </div>
         <button id="btn-main-action" class="btn-action">🎣 キャスト（⚡2）</button>
