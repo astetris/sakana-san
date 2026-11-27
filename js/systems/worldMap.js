@@ -1,5 +1,32 @@
 export const PIER_DOCK_POS = { x: 0, z: -10 };
 
+// ===== ワールド全体で共有する精密レイアウト定数（3D描画と当たり判定を完全一致させる） =====
+export const WORLD_LAYOUT = Object.freeze({
+  walkMinX: -157.0,
+  walkMaxX: 137.0,
+  walkMaxZ: 59.2,
+  pierHalfW: 3.5,
+  pierTipZ: -14.2,
+  coastPortZ: 0.75,
+  coastOtherZ: -0.35,
+  roadMinZ: 34.4,
+  roadMaxZ: 41.5,
+  crosswalkMinX: 3.4,
+  crosswalkMaxX: 10.6,
+  crosswalkCenterX: 7.0,
+  trackZ: 51.4,
+  trackMinZ: 48.2,
+  trackMaxZ: 54.6,
+  stationMinX: 12.0,
+  stationMaxX: 35.5,
+  stationMinZ: 54.6,
+  stationMaxZ: 59.2,
+  vendingX: 16.5,
+  vendingZ: 46.3,
+  northBenchX: 20.5,
+  northBenchZ: 46.2
+});
+
 export const AREA_META = {
   teibou:   { id: "teibou",   name: "港・堤防",     minBoatTier: 0, isSea: false, color: "#64748b" },
   sunahama: { id: "sunahama", name: "白砂の砂浜",   minBoatTier: 0, isSea: false, color: "#e9d5a1" },
@@ -12,68 +39,69 @@ export const AREA_META = {
   enyou:    { id: "enyou",    name: "遠洋外海",     minBoatTier: 3, isSea: true,  color: "#0f172a" }
 };
 
-// ===== 建物・港湾設備・自然地形の当たり判定（fishingScene.js と完全一致） =====
+const L = WORLD_LAYOUT;
+
+// 建物・柵・自然障害物の精密リスト（横断歩道と踏切の通路は完全に空ける）
 const LAND_OBSTACLES = (() => {
   const list = [
-    // 港の主要建物
-    { type: "box", minX: -28.4, maxX: -11.6, minZ: 14.5, maxZ: 26.4, label: "魚市場" },
-    { type: "box", minX: -7.5,  maxX: 4.5,   minZ: 21.4, maxZ: 30.4, label: "寿司処 凪" },
-    { type: "circle", x: 17.5, z: 24.0, r: 8.4, label: "岬の水族館" },
-    { type: "circle", x: 28.0, z: 4.0,  r: 3.0, label: "灯台" },
+    // 港の主要建物（z: 15.8〜30.2 の間に配置し、z = 34.4 の道路・横断歩道とは十分に離す）
+    { type: "box", minX: -28.2, maxX: -11.8, minZ: 15.8, maxZ: 26.2, label: "魚市場" },
+    { type: "box", minX: -7.3,  maxX: 4.3,   minZ: 21.8, maxZ: 30.2, label: "寿司処 凪" },
+    { type: "circle", x: 17.5, z: 24.0, r: 8.2, label: "岬の水族館" },
+    { type: "circle", x: 28.0, z: 4.0,  r: 2.8, label: "灯台" },
 
-    // 新規港町設備（軽トラック・自販機コーナー・荷揚げクレーン・漁具の山）
-    { type: "box", minX: -32.4, maxX: -29.6, minZ: 17.4, maxZ: 22.2, label: "漁協の軽トラック" },
-    { type: "box", minX: 5.2,   maxX: 8.8,   minZ: 26.2, maxZ: 28.8, label: "自販機コーナー" },
-    { type: "circle", x: -31.0, z: 3.2,  r: 1.65, label: "荷揚げクレーン" },
-    { type: "circle", x: -16.5, z: 2.3,  r: 1.45, label: "漁具・魚箱" },
-    { type: "circle", x: 15.5,  z: 2.3,  r: 1.35, label: "漁具・浮き玉" },
-
-    // 清流の河口：川の水面は歩けない（木製の橋 z: 14.2〜17.8 のみ通行可）
+    // 清流の河口：川本体（木橋 z: 14.2〜17.8 のみ通行可）
     { type: "box", minX: -142.0, maxX: -126.0, minZ: -4.0, maxZ: 14.2, label: "川（橋を渡ろう）" },
     { type: "box", minX: -142.0, maxX: -126.0, minZ: 17.8, maxZ: 48.0, label: "川（橋を渡ろう）" },
-    // 海沿い道路のガードレール（横断歩道 x = 4.6〜9.4 だけ渡れる）
-    { type: "box", minX: -160.0, maxX: 3.5,   minZ: 34.1, maxZ: 41.6, label: "ガードレール（横断歩道から渡ろう）" },
-    { type: "box", minX: 10.5,   maxX: 140.0, minZ: 34.1, maxZ: 41.6, label: "ガードレール（横断歩道から渡ろう）" },
-    // 向こう側歩道の左右終端＆自販機
-    { type: "box", minX: -160.0, maxX: -36.5, minZ: 41.6, maxZ: 48.0, label: "歩道の端" },
-    { type: "box", minX: 36.5,   maxX: 140.0, minZ: 41.6, maxZ: 48.0, label: "歩道の端" },
-    { type: "box", minX: 0.7,    maxX: 2.3,   minZ: 45.4, maxZ: 46.8, label: "自動販売機" },
-    // 線路の柵（踏切 x = 3.6〜10.4 だけ渡れる）
-    { type: "box", minX: -160.0, maxX: 3.5,   minZ: 47.6, maxZ: 54.4, label: "線路（踏切から渡ろう）" },
-    { type: "box", minX: 10.5,   maxX: 140.0, minZ: 47.6, maxZ: 54.4, label: "線路（踏切から渡ろう）" },
-    // 駅前広場＆さかな港駅の左右境界
-    { type: "box", minX: -160.0, maxX: -12.0, minZ: 54.4, maxZ: 62.0, label: "駅前の端" },
-    { type: "box", minX: 36.5,   maxX: 140.0, minZ: 54.4, maxZ: 62.0, label: "駅の端" }
+
+    // 海沿い道路のガードレール（横断歩道 x: 3.4〜10.6 は完全開放）
+    { type: "box", minX: -162.0, maxX: L.crosswalkMinX - 0.15, minZ: L.roadMinZ - 0.25, maxZ: L.roadMaxZ + 0.25, label: "ガードレール（横断歩道から渡ろう）" },
+    { type: "box", minX: L.crosswalkMaxX + 0.15, maxX: 142.0, minZ: L.roadMinZ - 0.25, maxZ: L.roadMaxZ + 0.25, label: "ガードレール（横断歩道から渡ろう）" },
+
+    // 向こう側歩道（z: 41.5〜47.2）の左右端・自販機・ベンチ（横断歩道正面は避けて配置）
+    { type: "box", minX: -162.0, maxX: -36.5, minZ: 41.5, maxZ: 48.0, label: "歩道の端" },
+    { type: "box", minX: 36.5,   maxX: 142.0, minZ: 41.5, maxZ: 48.0, label: "歩道の端" },
+    { type: "box", minX: L.vendingX - 0.85, maxX: L.vendingX + 0.85, minZ: L.vendingZ - 0.55, maxZ: L.vendingZ + 0.65, label: "自動販売機" },
+    { type: "box", minX: L.northBenchX - 1.2, maxX: L.northBenchX + 1.2, minZ: L.northBenchZ - 0.4, maxZ: L.northBenchZ + 0.4, label: "ベンチ" },
+
+    // 線路の柵（踏切 x: 3.4〜10.6 は完全開放、駅ホーム x: 12〜35.5, z: 54.6〜59.2 は通行可）
+    { type: "box", minX: -162.0, maxX: L.crosswalkMinX - 0.15, minZ: L.trackMinZ - 0.2, maxZ: L.trackMaxZ + 0.2, label: "線路の柵（踏切から渡ろう）" },
+    { type: "box", minX: L.crosswalkMaxX + 0.15, maxX: 11.6, minZ: L.trackMinZ - 0.2, maxZ: L.trackMaxZ + 0.2, label: "線路の柵（踏切から渡ろう）" },
+    { type: "box", minX: 35.8,   maxX: 142.0, minZ: L.trackMinZ - 0.2, maxZ: L.trackMaxZ + 0.2, label: "線路の柵" },
+
+    // 駅前・駅ホームの左右境界（ホーム上は z: 54.6〜59.2, x: 12.0〜35.5 で自由歩行可）
+    { type: "box", minX: -162.0, maxX: 2.8,   minZ: 54.6, maxZ: 62.0, label: "駅前の端" },
+    { type: "box", minX: 36.0,   maxX: 142.0, minZ: 54.6, maxZ: 62.0, label: "駅ホームの端" }
   ];
 
-  // 港の街灯
-  const lamps = [[-26, 2.5], [-10, 2.5], [10, 2.5], [22, 2.5], [-26, 16], [10, 16]];
-  lamps.forEach(([lx, lz]) => list.push({ type: "circle", x: lx, z: lz, r: 0.45, label: "街灯" }));
+  // 港の街灯（道路・横断歩道・踏切の導線から外した位置のみ）
+  const lamps = [[-26, 2.5], [-10, 2.5], [14, 2.5], [22, 2.5], [-26, 14.5], [12, 14.5]];
+  lamps.forEach(([lx, lz]) => list.push({ type: "circle", x: lx, z: lz, r: 0.42, label: "街灯" }));
 
-  // 港の係留ボラード
+  // 係留ボラード
   for (let x = -33; x <= 33; x += 6) {
     if (Math.abs(x) < 6) continue;
-    list.push({ type: "circle", x: x + 2.2, z: 0.75, r: 0.45, label: "係留ボラード" });
+    list.push({ type: "circle", x: x + 2.2, z: 0.75, r: 0.42, label: "係留ボラード" });
   }
 
   // 砂浜のヤシの木
   [-46, -68, -92].forEach((px, i) => {
-    list.push({ type: "circle", x: px, z: 18 + (i % 2) * 7, r: 0.72, label: "ヤシの木" });
+    list.push({ type: "circle", x: px, z: 18 + (i % 2) * 7, r: 0.7, label: "ヤシの木" });
   });
 
   // 河口の松林
   for (let i = 0; i < 7; i++) {
-    list.push({ type: "circle", x: -154 + (i % 3) * 7, z: 8 + i * 4.2, r: 0.75, label: "松の木" });
+    list.push({ type: "circle", x: -154 + (i % 3) * 7, z: 8 + i * 4.2, r: 0.72, label: "松の木" });
   }
 
   // 磯場手前のテトラポッド防波帯
   for (let i = 0; i < 12; i++) {
-    list.push({ type: "circle", x: 35 + i * 2.9, z: -1.6 + (i % 3) * 0.9, r: 1.45, label: "テトラポッド" });
+    list.push({ type: "circle", x: 35 + i * 2.9, z: -1.6 + (i % 3) * 0.9, r: 1.4, label: "テトラポッド" });
   }
 
   // 荒波の磯場の岩礁
   for (let i = 0; i < 18; i++) {
-    const r = (2.2 + (i % 4) * 1.35) * 0.92;
+    const r = (2.2 + (i % 4) * 1.35) * 0.9;
     list.push({ type: "circle", x: 44 + i * 5.6, z: 1 + (i % 4) * 6.5, r, label: "岩礁" });
   }
 
@@ -81,13 +109,9 @@ const LAND_OBSTACLES = (() => {
 })();
 
 const SEA_OBSTACLES = [
-  // 沖防波堤（左右の一文字堤防：中央 x=-21〜+21 が広い出港航路）
-  { type: "box", minX: -78.0, maxX: -21.5, minZ: -46.8, maxZ: -40.2, label: "西・沖防波堤" },
-  { type: "box", minX: 21.5,  maxX: 78.0,  minZ: -46.8, maxZ: -40.2, label: "東・沖防波堤" },
-  // 沖の島々
-  { type: "circle", x: 145,  z: -295, r: 32.5, label: "南国の島" },
+  { type: "circle", x: 145, z: -295, r: 32.5, label: "南国の島" },
   { type: "circle", x: -160, z: -355, r: 34.0, label: "沖の島" },
-  { type: "circle", x: 45,   z: -385, r: 28.0, label: "沖の島" }
+  { type: "circle", x: 45, z: -385, r: 28.0, label: "沖の島" }
 ];
 
 function resolveCircleVsBox(px, pz, pr, ob) {
@@ -143,14 +167,9 @@ export function isNearPier(x, z) {
   return Math.hypot(x - PIER_DOCK_POS.x, z - PIER_DOCK_POS.z) <= 18;
 }
 
-// ===== 指定ワールド座標が「水面（海または川）」かどうか判定 =====
 export function isWaterPoint(wx, wz) {
   for (const ob of SEA_OBSTACLES) {
-    if (ob.type === "box") {
-      if (wx >= ob.minX && wx <= ob.maxX && wz >= ob.minZ && wz <= ob.maxZ) return false;
-    } else if (Math.hypot(wx - ob.x, wz - ob.z) <= ob.r - 1.0) {
-      return false;
-    }
+    if (Math.hypot(wx - ob.x, wz - ob.z) <= ob.r - 1.0) return false;
   }
   if (Math.abs(wx) <= 4.7 && wz >= -15.5 && wz <= 1.2) return false;
   const shoreZ = Math.abs(wx) <= 37 ? -0.4 : -1.2;
@@ -170,7 +189,7 @@ export function canCastFrom(x, z, yaw, isBoating) {
     const okNear = isWaterPoint(x + fx * 8, z + fz * 8);
     const okMid = isWaterPoint(x + fx * 14, z + fz * 14);
     if (!okNear && !okMid) {
-      return { ok: false, msg: "⚠️ 陸地や防波堤側を向いています！海の方を向いて投げよう" };
+      return { ok: false, msg: "⚠️ 陸地側を向いています！海の方を向いて投げよう" };
     }
     return { ok: true, msg: "" };
   }
@@ -208,17 +227,17 @@ export function clampWorldPosition(nx, nz, isBoating, boatTier) {
   let blockedMsg = null;
 
   if (!isBoating) {
-    const PLAYER_R = 0.9;
-    nx = Math.max(-157, Math.min(137, nx));
-    nz = Math.min(59.5, nz);
+    const PLAYER_R = 0.78;
+    nx = Math.max(L.walkMinX, Math.min(L.walkMaxX, nx));
+    nz = Math.min(L.walkMaxZ, nz);
 
-    const onPierEntry = Math.abs(nx) <= 3.6;
-    const coastMinZ = Math.abs(nx) <= 36.5 ? 0.75 : -0.35;
+    const onPierEntry = Math.abs(nx) <= L.pierHalfW;
+    const coastMinZ = Math.abs(nx) <= 36.5 ? L.coastPortZ : L.coastOtherZ;
     if (nz < coastMinZ) {
       if (onPierEntry) {
-        nx = Math.max(-3.5, Math.min(3.5, nx));
-        if (nz < -14.2) {
-          nz = -14.2;
+        nx = Math.max(-L.pierHalfW, Math.min(L.pierHalfW, nx));
+        if (nz < L.pierTipZ) {
+          nz = L.pierTipZ;
           blockedMsg = "桟橋の先端です！船に乗るかここから釣りを楽しもう";
         }
       } else {
@@ -228,7 +247,7 @@ export function clampWorldPosition(nx, nz, isBoating, boatTier) {
     }
 
     let hitLabel = null;
-    for (let iter = 0; iter < 3; iter++) {
+    for (let iter = 0; iter < 4; iter++) {
       for (const ob of LAND_OBSTACLES) {
         const res = ob.type === "box"
           ? resolveCircleVsBox(nx, nz, PLAYER_R, ob)
@@ -239,12 +258,12 @@ export function clampWorldPosition(nx, nz, isBoating, boatTier) {
           hitLabel = ob.label;
         }
       }
-      nx = Math.max(-157, Math.min(137, nx));
-      nz = Math.min(59.5, nz);
+      nx = Math.max(L.walkMinX, Math.min(L.walkMaxX, nx));
+      nz = Math.min(L.walkMaxZ, nz);
       if (nz < coastMinZ) {
-        if (Math.abs(nx) <= 3.6) {
-          nx = Math.max(-3.5, Math.min(3.5, nx));
-          nz = Math.max(-14.2, nz);
+        if (Math.abs(nx) <= L.pierHalfW) {
+          nx = Math.max(-L.pierHalfW, Math.min(L.pierHalfW, nx));
+          nz = Math.max(L.pierTipZ, nz);
         } else {
           nz = coastMinZ;
         }
@@ -257,23 +276,18 @@ export function clampWorldPosition(nx, nz, isBoating, boatTier) {
     return { x: nx, z: nz, blockedMsg };
   }
 
-  // ===== 船での航行エリア＆沖防波堤・島との衝突判定 =====
   nx = Math.max(-210, Math.min(210, nx));
   if (nz > -10) nz = -10;
   if (nz < -365) nz = -365;
 
   const BOAT_R = 2.6;
-  for (let iter = 0; iter < 3; iter++) {
+  for (let iter = 0; iter < 2; iter++) {
     for (const ob of SEA_OBSTACLES) {
-      const res = ob.type === "box"
-        ? resolveCircleVsBox(nx, nz, BOAT_R, ob)
-        : resolveCircleVsCircle(nx, nz, BOAT_R, ob);
+      const res = resolveCircleVsCircle(nx, nz, BOAT_R, ob);
       if (res.hit) {
         nx = res.x;
         nz = res.z;
-        blockedMsg = ob.label.includes("防波堤")
-          ? `⚓ ${ob.label}です！中央の赤白灯台の間から出港しよう`
-          : `🏝️ ${ob.label}の浅瀬には近づけません！`;
+        blockedMsg = `🏝️ ${ob.label}の浅瀬には近づけません！`;
       }
     }
   }
