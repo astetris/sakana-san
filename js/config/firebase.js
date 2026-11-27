@@ -403,18 +403,25 @@ function formatAuthError(e) {
   return e?.message || "認証処理に失敗しました。";
 }
 
-export async function linkOrSignInGoogle() {
+export async function linkOrSignInGoogle(mode = "link") {
   if (!auth?.currentUser) return { ok: false, msg: "認証機能が初期化されていません。" };
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
   try {
     let cred;
-    if (auth.currentUser.isAnonymous) {
+    if (mode === "signin") {
+      cred = await signInWithPopup(auth, provider);
+    } else if (auth.currentUser.isAnonymous) {
       cred = await linkWithPopup(auth.currentUser, provider);
     } else {
       cred = await signInWithPopup(auth, provider);
     }
     currentUid = cred.user.uid;
-    return { ok: true, uid: currentUid, msg: "Googleアカウントと連携しました！" };
+    return {
+      ok: true,
+      uid: currentUid,
+      msg: mode === "signin" ? "Googleアカウントへサインインしました！" : "Googleアカウントと連携しました！"
+    };
   } catch (e) {
     if (e?.code === "auth/provider-already-linked") {
       return { ok: true, uid: auth.currentUser.uid, msg: "すでにGoogleアカウントと連携済みです。" };

@@ -1090,8 +1090,11 @@ function openAccountLinkModal() {
 
     <div class="bank-box">
       <strong>① Googleアカウント連携 / サインイン</strong>
-      <div class="muted">${hasGoogle ? "Googleアカウントと連携済みです。" : "今のセーブデータをGoogleアカウントに紐づけます（別端末での復元にも対応）。"}</div>
-      <button class="btn-primary" id="btn-auth-google">${hasGoogle ? "Googleアカウントで切替・再確認" : "🔵 Googleと連携する"}</button>
+      <div class="muted">${hasGoogle ? "Googleアカウントと連携済みです。" : "新規連携は左、連携済みデータを復元する場合は右を押してください。"}</div>
+      <div class="btn-row">
+        <button class="btn-sub" id="btn-auth-google" style="flex:1;">${hasGoogle ? "Google連携を再確認" : "🔵 今のデータと連携"}</button>
+        <button class="btn-warn" id="btn-auth-google-signin" style="flex:1;">🔑 既存Googleでサインイン</button>
+      </div>
     </div>
 
     <div class="bank-box">
@@ -1108,7 +1111,16 @@ function openAccountLinkModal() {
   $("btn-auth-google").onclick = async () => {
     const btn = $("btn-auth-google");
     btn.disabled = true;
-    const res = await linkOrSignInGoogle();
+    const res = await linkOrSignInGoogle("link");
+    btn.disabled = false;
+    if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
+    await refreshAfterAuthChange(res.msg);
+  };
+
+  $("btn-auth-google-signin").onclick = async () => {
+    const btn = $("btn-auth-google-signin");
+    btn.disabled = true;
+    const res = await linkOrSignInGoogle("signin");
     btn.disabled = false;
     if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
     await refreshAfterAuthChange(res.msg);
