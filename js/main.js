@@ -1059,8 +1059,6 @@ async function processPendingPurchases() {
 
 
 async function refreshAfterAuthChange(successMsg) {
-  __traceBoot("5/5 セーブ読込中...");
-  if (window.__putBootMsg) window.__putBootMsg('⏳ 5/5 セーブ読込...');
   slots = await syncLoadSlots();
   renderSlots();
   renderHomeRanking();
@@ -1069,11 +1067,11 @@ async function refreshAfterAuthChange(successMsg) {
     syncMyPublicProfile();
   }
   audioEngine.playCash();
-  alert(successMsg);
-  openAccountLinkModal();
+  try { alert(successMsg); } catch {}
+  openAccountLinkModal(successMsg);
 }
 
-function openAccountLinkModal() {
+function openAccountLinkModal(noticeMsg = "") {
   const info = getAuthAccountSummary();
   const hasGoogle = info.providers.includes("google.com");
   const hasPassword = info.providers.includes("password");
@@ -1086,6 +1084,7 @@ function openAccountLinkModal() {
       <div><strong>現在の状態:</strong> ${escapeHtml(statusLabel)}</div>
       <div class="muted">セーブデータは本人のアカウントのみアクセスでき、他のプレイヤーからは閲覧できません。</div>
       <div class="muted" style="word-break:break-all;">UID: ${escapeHtml(info.uid || "未接続")}</div>
+      <div id="auth-status-msg" style="margin-top:6px;font-size:12px;color:#ffd166;">${noticeMsg ? escapeHtml(noticeMsg) : ""}</div>
     </div>
 
     <div class="bank-box">
@@ -1108,23 +1107,40 @@ function openAccountLinkModal() {
     </div>
   `);
 
-  $("btn-auth-google").onclick = async () => {
-    const btn = $("btn-auth-google");
-    btn.disabled = true;
-    const res = await linkOrSignInGoogle("link");
-    btn.disabled = false;
-    if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
-    await refreshAfterAuthChange(res.msg);
+  const setAuthMsg = (text, isErr = false) => {
+    const el = $("auth-status-msg");
+    if (!el) return;
+    el.style.color = isErr ? "#ff7b7b" : "#7ef29a";
+    el.textContent = text;
   };
 
-  $("btn-auth-google-signin").onclick = async () => {
-    const btn = $("btn-auth-google-signin");
+  const runGoogleAuth = async (btnId, mode) => {
+    const btn = $(btnId);
+    if (!btn) return;
     btn.disabled = true;
-    const res = await linkOrSignInGoogle("signin");
-    btn.disabled = false;
-    if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
-    await refreshAfterAuthChange(res.msg);
+    setAuthMsg("⏳ Googleログイン処理中...");
+    try {
+      const res = await linkOrSignInGoogle(mode);
+      if (!res.ok) {
+        audioEngine.playFail();
+        setAuthMsg("⚠️ " + res.msg, true);
+        try { alert(res.msg); } catch {}
+        return;
+      }
+      setAuthMsg("⏳ セーブデータを読み込み中...");
+      await refreshAfterAuthChange(res.msg);
+    } catch (err) {
+      const msg = err?.message || String(err);
+      audioEngine.playFail();
+      setAuthMsg("⚠️ エラー: " + msg, true);
+      try { alert("エラー: " + msg); } catch {}
+    } finally {
+      if ($(btnId)) $(btnId).disabled = false;
+    }
   };
+
+  $("btn-auth-google").onclick = () => runGoogleAuth("btn-auth-google", "link");
+  $("btn-auth-google-signin").onclick = () => runGoogleAuth("btn-auth-google-signin", "signin");
 
   $("btn-auth-email-link").onclick = async () => {
     const email = $("auth-email").value;
