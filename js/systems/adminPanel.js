@@ -289,7 +289,7 @@ export function openAdminPanel({ save, scene3d, openModal, onSaveAndRefresh, onE
       const code = randCode(pre);
       const ok = await createCouponCode(code, payload);
       const out = document.getElementById("adm-code-out");
-      if (ok && out) { out.innerHTML = `✅ 配布コード: <strong style="color:#ffd166;user-select:text;">${code}</strong>（上限${maxUses}人・1人1回）`; audioEngine.playCash(); }
+      if (ok && out) { out.innerHTML = `✅ 配布コード: <strong style="color:#ffd166;user-select:text;">${code}</strong> <button class="btn-mini" data-copy-code="${code}">📋 コピー</button>（上限${maxUses}人・1人1回）`; audioEngine.playCash(); }
       else alert("発行失敗（Firebase RTDBルールにcouponsを追加してください）");
     };
 
@@ -297,6 +297,21 @@ export function openAdminPanel({ save, scene3d, openModal, onSaveAndRefresh, onE
       try { await navigator.clipboard.writeText(JSON.stringify(save, null, 2)); alert("コピーしました！"); }
       catch { prompt("コピー:", JSON.stringify(save)); }
     };
+    
+    /* admin-code-one-tap-copy */
+    document.querySelectorAll("[data-copy-code]").forEach((btn) => {
+      btn.onclick = async () => {
+        const codeText = btn.dataset.copyCode || "";
+        if (!codeText) return;
+        try {
+          await navigator.clipboard.writeText(codeText);
+          alert(`コピーしました: ${codeText}`);
+        } catch {
+          prompt("コピーしてください:", codeText);
+        }
+      };
+    });
+    
     document.getElementById("adm-lock").onclick = () => { adminUnlocked = false; sessionStorage.removeItem("sakana_admin_ok"); document.getElementById("btn-close-modal")?.click(); };
   }
 }
