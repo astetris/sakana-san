@@ -1538,7 +1538,7 @@ function ensurePlayModeButton() {
     floatBtn.style.display = playScreen.classList.contains("active") ? "inline-flex" : "none";
     floatBtn.textContent = label;
   }
-// [auto-fix] removed extra brace: }
+}
 
 setInterval(() => {
   try { ensurePlayModeButton(); } catch {}
@@ -1568,14 +1568,6 @@ function openCoolerModal() {
   });
 }
 
-  const save = currentSave(), { coolerCap } = getEquippedStats(save);
-  if (!save.cooler.length) { openModal(`🧊 クーラーボックス (0/${coolerCap})`, `<p class="muted">まだ魚や貝が入っていません。</p>`); return; }
-  const total = save.cooler.reduce((s, x) => s + x.price, 0);
-  const rows = save.cooler.map((x) => `<div class="list-row"><div><strong class="rank-${x.rank}">[${x.rank}] ${x.name}</strong> (${x.weightKg}kg)<div class="muted">${x.tags.join(" / ")}</div></div><strong>¥${x.price.toLocaleString()}</strong></div>`).join("");
-  openModal(`🧊 クーラーボックス (${save.cooler.length}/${coolerCap})`, `<div class="btn-row"><button class="btn-primary" id="btn-sell-all" style="flex:1;">市場で売却（¥${total.toLocaleString()}）</button><button class="btn-sub" id="btn-go-biz">🏪 店舗へ仕込む</button></div>${rows}`);
-  $("btn-go-biz").onclick = openBusinessModal;
-  $("btn-sell-all").onclick = () => { save.money += total; save.stats.totalEarned += total; save.cooler = []; save.lastPlayedAt = Date.now(); recordDailyProgress(save, { earnedDelta: total }); persistSlots(slots, true); updateHud(); audioEngine.playCash(); closeModal(); };
-}
 
 function openBankModal() {
   const save = currentSave(), bank = applyBankInterest(save);
