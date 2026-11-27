@@ -153,7 +153,7 @@ body {
   gap: 6px;
 }
 
-.btn-primary, .btn-mini, .btn-danger, .btn-icon, .btn-sub {
+.btn-primary, .btn-mini, .btn-danger, .btn-icon, .btn-sub, .btn-warn {
   border: none;
   border-radius: 8px;
   color: #fff;
@@ -167,18 +167,24 @@ body {
   font-size: 0.8rem;
 }
 
-.btn-sub {
-  background: rgba(56, 229, 154, 0.22);
-  border: 1px solid rgba(56, 229, 154, 0.5);
-  padding: 7px 11px;
+.btn-warn {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  padding: 8px 12px;
   font-size: 0.78rem;
 }
 
+.btn-sub {
+  background: rgba(56, 229, 154, 0.22);
+  border: 1px solid rgba(56, 229, 154, 0.5);
+  padding: 7px 10px;
+  font-size: 0.75rem;
+}
+
 .btn-mini {
-  background: rgba(8, 22, 38, 0.78);
+  background: rgba(8, 22, 38, 0.82);
   border: 1px solid rgba(140, 210, 255, 0.28);
-  padding: 6px 8px;
-  font-size: 0.73rem;
+  padding: 6px 4px;
+  font-size: 0.7rem;
   white-space: nowrap;
 }
 
@@ -214,7 +220,7 @@ body {
 
 .muted {
   color: #8eb4d4;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
 }
 
 /* プレイ画面HUD */
@@ -230,7 +236,7 @@ body {
 .top-stack {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .hud-top {
@@ -247,7 +253,7 @@ body {
 .hud-left, .hud-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .player-meta strong {
@@ -264,16 +270,26 @@ body {
 .stamina-pill {
   background: rgba(40, 180, 120, 0.28);
   border: 1px solid rgba(60, 220, 150, 0.45);
-  padding: 5px 8px;
+  padding: 5px 7px;
   border-radius: 8px;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 700;
+}
+
+.fuel-pill {
+  background: rgba(245, 158, 11, 0.26);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  padding: 5px 7px;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #fde68a;
 }
 
 .menu-bar {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 5px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
 }
 
 .area-bar {
@@ -285,48 +301,66 @@ body {
 
 #area-select {
   flex: 1;
-  background: rgba(8, 22, 38, 0.86);
+  background: rgba(8, 22, 38, 0.88);
   color: #fff;
   border: 1px solid rgba(140, 210, 255, 0.35);
   border-radius: 10px;
-  padding: 7px 9px;
-  font-size: 0.8rem;
+  padding: 7px 8px;
+  font-size: 0.78rem;
 }
 
 .env-mini {
   background: rgba(8, 22, 38, 0.78);
-  padding: 7px 9px;
+  padding: 7px 8px;
   border-radius: 10px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   white-space: nowrap;
 }
 
 .mode-switch {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
 }
 
 .mode-btn {
-  background: rgba(8, 22, 38, 0.72);
+  background: rgba(8, 22, 38, 0.74);
   color: #a9c7e0;
   border: 1px solid rgba(140, 210, 255, 0.25);
   border-radius: 10px;
-  padding: 7px;
-  font-size: 0.8rem;
+  padding: 6px 4px;
+  font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
 }
 
 .mode-btn.active {
-  background: linear-gradient(135deg, rgba(27, 154, 170, 0.88), rgba(22, 114, 184, 0.88));
+  background: linear-gradient(135deg, rgba(27, 154, 170, 0.9), rgba(22, 114, 184, 0.9));
   color: #fff;
   border-color: #72efdd;
 }
 
 .mode-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.36;
   cursor: not-allowed;
+}
+
+.sonar-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: rgba(8, 24, 42, 0.82);
+  border: 1px solid rgba(56, 229, 154, 0.4);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+}
+
+.sonar-bar.hotspot {
+  border-color: #ffd166;
+  background: rgba(45, 35, 8, 0.84);
+  color: #ffd166;
 }
 
 .fight-panel {
@@ -383,9 +417,9 @@ body {
   align-self: center;
   background: rgba(8, 22, 38, 0.84);
   border: 1px solid rgba(140, 210, 255, 0.32);
-  padding: 9px 15px;
+  padding: 8px 14px;
   border-radius: 999px;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 700;
   text-align: center;
   margin-top: auto;
@@ -399,12 +433,12 @@ body {
 
 .btn-action {
   width: min(320px, 92%);
-  height: 60px;
+  height: 58px;
   border: none;
   border-radius: 18px;
   background: linear-gradient(135deg, #1b9aaa, #1262a8);
   color: #fff;
-  font-size: 1.1rem;
+  font-size: 1.06rem;
   font-weight: 800;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   cursor: pointer;
@@ -414,6 +448,10 @@ body {
   background: linear-gradient(135deg, #d97706, #b45309);
 }
 
+.btn-action.net {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+}
+
 .btn-action.bite {
   background: linear-gradient(135deg, #ff7b00, #e63946);
   animation: pulse 0.5s infinite alternate;
@@ -421,6 +459,32 @@ body {
 
 .btn-action.reeling {
   background: linear-gradient(135deg, #2a9d8f, #1d7a6e);
+}
+
+.steer-dock {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.steer-btn {
+  height: 58px;
+  border: 1px solid rgba(140, 210, 255, 0.45);
+  border-radius: 16px;
+  background: rgba(8, 26, 46, 0.86);
+  color: #fff;
+  font-size: 0.96rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.steer-btn.fwd {
+  background: linear-gradient(135deg, #0d9488, #0284c7);
+}
+
+.steer-btn:active {
+  transform: scale(0.96);
 }
 
 @keyframes pulse {
@@ -437,7 +501,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -446,7 +510,7 @@ body {
 
 .modal-card {
   width: min(460px, 100%);
-  max-height: 84dvh;
+  max-height: 85dvh;
   background: #0d2136;
   border: 1px solid rgba(140, 210, 255, 0.32);
   border-radius: 16px;
@@ -489,6 +553,12 @@ body {
   color: #ffd166;
 }
 
+.tag.warn {
+  background: rgba(248, 113, 113, 0.22);
+  border-color: rgba(248, 113, 113, 0.6);
+  color: #fca5a5;
+}
+
 .rank-S { color: #ffd166; }
 .rank-A { color: #ff7b7b; }
 .rank-B { color: #72efdd; }
@@ -519,4 +589,94 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* バイトミニゲームUI */
+.job-stage {
+  background: rgba(5, 15, 28, 0.75);
+  border: 1px solid rgba(140, 210, 255, 0.28);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+
+.job-hud {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffd166;
+}
+
+.sort-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 18px 10px;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.sort-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sort-btns button {
+  height: 54px;
+  font-size: 0.92rem;
+}
+
+.timing-track {
+  position: relative;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.timing-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(56, 229, 154, 0.45);
+  border-left: 2px solid #38e59a;
+  border-right: 2px solid #38e59a;
+}
+
+.timing-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: #ffd166;
+  border-radius: 4px;
+  box-shadow: 0 0 10px #ffd166;
+}
+
+.patrol-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.patrol-cell {
+  height: 62px;
+  border-radius: 10px;
+  border: 1px solid rgba(140, 210, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.patrol-cell.active {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  border-color: #fde68a;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
 }

@@ -1,5 +1,5 @@
 import { saveCloudSlots, loadCloudSlots } from "../config/firebase.js";
-import { applyBankInterest } from "../systems/economy.js";
+import { applyBankInterest, getActiveBoat } from "../systems/economy.js";
 
 const STORAGE_KEY = "sakana_san_slots_v1";
 export const MAX_SLOTS = 5;
@@ -27,19 +27,27 @@ export function createNewSave(name = "新人漁師") {
 export function ensureSaveDefaults(save) {
   if (!save) return null;
   if (!save.gear) {
-    save.gear = { rod: "rod_1", line: "line_1", cooler: "cooler_1", shellTool: "shell_1" };
+    save.gear = { rod: "rod_1", line: "line_1", cooler: "cooler_1", shellTool: "shell_1", net: "net_toami" };
   }
+  if (!save.gear.net) save.gear.net = "net_toami";
   if (!save.ownedGear) {
-    save.ownedGear = ["rod_1", "line_1", "cooler_1", "shell_1"];
+    save.ownedGear = ["rod_1", "line_1", "cooler_1", "shell_1", "net_toami"];
   }
-  if (!save.bank) {
-    save.bank = { ordinary: 0, loan: 0, lastCalcAt: Date.now() };
-  }
+  if (!save.ownedGear.includes("net_toami")) save.ownedGear.push("net_toami");
+
+  if (!save.ownedBoats) save.ownedBoats = ["boat_none"];
+  if (!save.activeBoatId) save.activeBoatId = "boat_none";
+  if (typeof save.fuel !== "number") save.fuel = 0;
+  if (typeof save.autoRefuel !== "boolean") save.autoRefuel = true;
+
+  if (!save.bank) save.bank = { ordinary: 0, loan: 0, lastCalcAt: Date.now() };
   if (!save.cooler) save.cooler = [];
   if (!save.dex) save.dex = {};
   if (!save.stats) save.stats = { totalCaught: 0, totalEarned: 0 };
+
   applyStaminaRegen(save);
   applyBankInterest(save);
+  getActiveBoat(save);
   return save;
 }
 

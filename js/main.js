@@ -2,13 +2,15 @@ import { initFirebase, fetchDailyRanking, submitDailyRecord } from "./config/fir
 import { getRealWorldEnv } from "./systems/environment.js";
 import { audioEngine } from "./systems/audioEngine.js";
 import {
-  SHOP_ITEMS, PART_TIME_JOBS, getEquippedStats, applyBankInterest
+  AREA_REQUIREMENTS, BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
+  getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
 } from "./systems/economy.js";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js";
 import {
   syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults
 } from "./state/saveManager.js";
 import {
-  loadSpeciesMaster, getAllSpecies, rollCatch, rollShellfish, getShellMethodForArea
+  loadSpeciesMaster, getAllSpecies, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
 } from "./systems/fishingEngine.js";
 import { FishingScene } from "./scenes/fishingScene.js";
 
@@ -19,12 +21,13 @@ let activeSlotIndex = -1;
 let env = getRealWorldEnv();
 let scene3d;
 
-let harvestMode = "fish"; // fish | shell
+let harvestMode = "fish"; // fish | shell | net | steer
 let phase = "idle";       // idle | waiting | bite | fighting
 let waitTimer = null;
 let biteTimer = null;
 let fightState = null;
 let isReeling = false;
+let fuelMoveAccum = 0;
 
 function currentSave() {
   return activeSlotIndex >= 0 ? slots[activeSlotIndex] : null;
@@ -56,10 +59,11 @@ function renderSlots() {
     if (s) {
       ensureSaveDefaults(s);
       const dexCount = Object.keys(s.dex || {}).length;
+      const boat = getActiveBoat(s);
       item.innerHTML = `
         <div class="slot-info">
           <strong>スロット${idx + 1}: ${s.name}</strong>
-          <span>¥${s.money.toLocaleString()} / 図鑑 ${dexCount}種 / ⚡${s.stamina}</span>
+          <span>¥${s.money.toLocaleString()} / ${boat.name} / 図鑑${dexCount}種</span>
         </div>
         <div class="slot-actions">
           <button class="btn-primary" data-play="${idx}">続きから</button>
@@ -123,7 +127,11 @@ function startSlot(idx) {
   activeSlotIndex = idx;
   const save = ensureSaveDefaults(currentSave());
   save.lastPlayedAt = Date.now();
-  $("area-select").value = save.area || "teibou";
+  // レンタル期限切れで沖に居られない場合は堤防へ戻す
+  const req = AREA_REQUIREMENTS[save.area] || AREA_REQUIREMENTS.teibou;
+  if (getBestBoatTier(save) < req.minBoatTier) save.area = "teibou";
+  $("area-select").value = save.area;
+  applyAreaToScene();
   updateHud();
   syncHarvestTabs();
   $("home-screen").classList.remove("active");
@@ -131,33 +139,86 @@ function startSlot(idx) {
   resetActionState();
 }
 
+function applyAreaToScene() {
+  const save = currentSave();
+  if (!save) return;
+  const req = AREA_REQUIREMENTS[save.area] || AREA_REQUIREMENTS.teibou;
+  const boat = getActiveBoat(save);
+  scene3d?.setAreaMode(req.isBoatArea, boat.speed || 1.0);
+  $("sonar-bar").classList.toggle("hidden", !req.isBoatArea);
+}
+
 function updateHud() {
   const save = currentSave();
   if (!save) return;
   ensureSaveDefaults(save);
   const stats = getEquippedStats(save);
+  const boat = getActiveBoat(save);
   $("hud-name").textContent = save.name;
   $("hud-money").textContent = `¥${save.money.toLocaleString()}`;
   $("hud-stamina").textContent = save.stamina;
   $("hud-cooler-count").textContent = `${save.cooler.length}/${stats.coolerCap}`;
   $("gear-power-hint").textContent = `(竿x${stats.rodPower} / 糸x${stats.lineStrength})`;
+
+  const fuelPill = $("hud-fuel-pill");
+  if (boat.maxFuel > 0) {
+    fuelPill.classList.remove("hidden");
+    $("hud-fuel").textContent = Math.floor(save.fuel);
+  } else {
+    fuelPill.classList.add("hidden");
+  }
+}
+
+function tryConsumeFuel(amount) {
+  const save = currentSave();
+  if (!save || amount <= 0) return true;
+  const boat = getActiveBoat(save);
+  if (boat.maxFuel <= 0) return true;
+
+  if (save.fuel >= amount) {
+    save.fuel = Math.max(0, save.fuel - amount);
+    return true;
+  }
+  // 自動給油ONなら満タン補充を試みる
+  if (save.autoRefuel) {
+    const need = Math.ceil(boat.maxFuel - save.fuel);
+    const cost = need * FUEL_PRICE_PER_L;
+    if (save.money >= cost) {
+      save.money -= cost;
+      save.fuel = boat.maxFuel - amount;
+      audioEngine.playCash();
+      $("status-banner").textContent = `⛽ 自動給油しました（-¥${cost.toLocaleString()}）`;
+      updateHud();
+      return true;
+    }
+  }
+  return false;
 }
 
 function syncHarvestTabs() {
   const save = currentSave();
   if (!save) return;
+  const req = AREA_REQUIREMENTS[save.area] || AREA_REQUIREMENTS.teibou;
   const shellMethod = getShellMethodForArea(save.area);
+
   const shellBtn = $("tab-mode-shell");
   if (shellMethod) {
     shellBtn.disabled = false;
     shellBtn.textContent = `🐚 ${shellMethod.label}`;
   } else {
     shellBtn.disabled = true;
-    shellBtn.textContent = "🐚 貝採取なし";
+    shellBtn.textContent = "🐚 貝なし";
     if (harvestMode === "shell") harvestMode = "fish";
   }
+
+  const steerBtn = $("tab-mode-steer");
+  steerBtn.disabled = !req.isBoatArea;
+  if (!req.isBoatArea && harvestMode === "steer") harvestMode = "fish";
+
   $("tab-mode-fish").classList.toggle("active", harvestMode === "fish");
   shellBtn.classList.toggle("active", harvestMode === "shell");
+  $("tab-mode-net").classList.toggle("active", harvestMode === "net");
+  steerBtn.classList.toggle("active", harvestMode === "steer");
   scene3d?.setMode(harvestMode);
 }
 
@@ -172,12 +233,24 @@ function resetActionState() {
   $("fight-panel").classList.add("hidden");
 
   const save = currentSave();
+  const isSteer = harvestMode === "steer";
+  $("steer-dock").classList.toggle("hidden", !isSteer);
+  $("action-dock").classList.toggle("hidden", isSteer);
+
   const btn = $("btn-main-action");
-  if (harvestMode === "shell" && save) {
+  if (isSteer) {
+    $("status-banner").textContent = "手動操船モード！光る魚群リングを目指して進もう";
+  } else if (harvestMode === "shell" && save) {
     const m = getShellMethodForArea(save.area);
     btn.className = "btn-action shell";
-    btn.textContent = `🐚 ${m ? m.label : "貝採取"}する（⚡3）`;
+    btn.textContent = `🐚 ${m ? m.label : "貝採取"}（⚡3）`;
     $("status-banner").textContent = `${m ? m.label : "貝採取"}スポット！大潮の日は大粒チャンス`;
+  } else if (harvestMode === "net" && save) {
+    const { net } = getEquippedStats(save);
+    btn.className = "btn-action net";
+    const fuelTxt = net.fuelCost ? `/⛽${net.fuelCost}L` : "";
+    btn.textContent = `🕸️ ${net.name}を投げる（⚡5${fuelTxt}）`;
+    $("status-banner").textContent = "網漁で複数匹を一網打尽！魚群内なら大漁チャンス";
   } else {
     btn.className = "btn-action";
     btn.textContent = "🎣 キャスト（⚡2）";
@@ -185,19 +258,102 @@ function resetActionState() {
   }
 }
 
-function checkCoolerSpace(save) {
+function checkCoolerSpace(save, minNeed = 1) {
   const { coolerCap } = getEquippedStats(save);
-  if (save.cooler.length >= coolerCap) {
-    $("status-banner").textContent = `クーラー満タン（${coolerCap}枠）！売却かショップ拡張しよう`;
+  if (save.cooler.length + minNeed > coolerCap) {
+    $("status-banner").textContent = `クーラー空き不足（${save.cooler.length}/${coolerCap}）！売却か拡張しよう`;
     audioEngine.playFail();
     return false;
   }
   return true;
 }
 
+function doNetHarvest() {
+  const save = currentSave();
+  if (!save || !checkCoolerSpace(save, 1)) return;
+  const { net, coolerCap } = getEquippedStats(save);
+  const req = AREA_REQUIREMENTS[save.area] || AREA_REQUIREMENTS.teibou;
+
+  if (!req.isBoatArea && net.method !== "toami" && net.method !== "kago") {
+    $("status-banner").textContent = `${net.name}は船エリア向けです（岸では投網か道具変更）`;
+    audioEngine.playFail();
+    return;
+  }
+  if (save.stamina < 5) {
+    $("status-banner").textContent = "スタミナ不足です（⚡5必要）";
+    audioEngine.playFail();
+    return;
+  }
+  if (net.fuelCost > 0 && !tryConsumeFuel(net.fuelCost)) {
+    $("status-banner").textContent = "⛽ 燃料不足！船ドックで給油してください";
+    audioEngine.playFail();
+    return;
+  }
+
+  save.stamina -= 5;
+  save.lastPlayedAt = Date.now();
+  audioEngine.playNetThrow();
+
+  const inHotspot = scene3d.getNearestHotspot().inSpot;
+  const haul = rollNetHaul(save.area, env, net, inHotspot);
+  if (!haul.length) {
+    $("status-banner").textContent = "この海域では網に獲物が入らなかった…";
+    updateHud();
+    return;
+  }
+
+  const room = Math.max(0, coolerCap - save.cooler.length);
+  const kept = haul.slice(0, room);
+  let totalPrice = 0;
+
+  kept.forEach((item) => {
+    const sp = item.species;
+    save.cooler.push({
+      id: sp.id,
+      name: sp.name,
+      rank: sp.rank,
+      weightKg: item.weightKg,
+      tags: item.tags,
+      price: item.estimatedPrice
+    });
+    if (!save.dex[sp.id]) save.dex[sp.id] = { count: 0, maxKg: 0 };
+    save.dex[sp.id].count += 1;
+    save.dex[sp.id].maxKg = Math.max(save.dex[sp.id].maxKg, item.weightKg);
+    save.stats.totalCaught += 1;
+    totalPrice += item.estimatedPrice;
+  });
+
+  if (inHotspot) scene3d.spawnHotspots(scene3d.boatPos.x, scene3d.boatPos.y);
+  persistSlots(slots, true);
+  updateHud();
+  audioEngine.playCatch(kept.some((x) => x.species.rank === "S" || x.species.rank === "A") ? "A" : "C");
+
+  const rows = kept.map((x) => `
+    <div class="list-row">
+      <div>
+        <strong class="rank-${x.species.rank}">[${x.species.rank}] ${x.species.name}</strong> (${x.weightKg}kg)
+        <div>${x.tags.map((t) => `<span class="tag ${t === "傷あり" ? "warn" : ""}">${t}</span>`).join("")}</div>
+      </div>
+      <strong>¥${x.estimatedPrice.toLocaleString()}</strong>
+    </div>
+  `).join("");
+
+  const overflowNote = haul.length > kept.length
+    ? `<p class="muted">※クーラー満タンのため ${haul.length - kept.length}匹 は海へ逃がしました</p>` : "";
+
+  openModal(`🕸️ ${net.name}で ${kept.length}匹 を水揚げ！`, `
+    <div><strong>合計査定:</strong> ¥${totalPrice.toLocaleString()} ${inHotspot ? '<span class="tag gold">🐟 魚群ボーナス</span>' : ""}</div>
+    ${overflowNote}
+    ${rows}
+    <button class="btn-primary" id="btn-net-ok">クーラーにしまう</button>
+  `);
+  $("btn-net-ok").onclick = closeModal;
+  resetActionState();
+}
+
 function doShellHarvest() {
   const save = currentSave();
-  if (!save || !checkCoolerSpace(save)) return;
+  if (!save || !checkCoolerSpace(save, 1)) return;
   if (save.stamina < 3) {
     $("status-banner").textContent = "スタミナ不足です（3分で1回復）";
     audioEngine.playFail();
@@ -213,7 +369,6 @@ function doShellHarvest() {
   save.stamina -= 3;
   save.lastPlayedAt = Date.now();
   audioEngine.playDig();
-  $("status-banner").textContent = `${m.label}中...`;
 
   const { shellBonus } = getEquippedStats(save);
   const res = rollShellfish(save.area, env, shellBonus);
@@ -241,24 +396,21 @@ function doShellHarvest() {
   updateHud();
   audioEngine.playCatch(sp.rank);
 
-  openModal(
-    `🐚 ${sp.name} ×${res.count}（ランク${sp.rank}）を採取！`,
-    `
-      <div><strong>合計重量:</strong> ${res.weightKg} kg（${m.label}）</div>
-      <div><strong>査定額:</strong> ¥${res.estimatedPrice.toLocaleString()}（本日相場 x${env.marketRate}）</div>
-      <div>${res.tags.map((t) => `<span class="tag ${t === "真珠入り" ? "gold" : ""}">${t}</span>`).join("")}</div>
-      <p class="muted">${sp.desc}</p>
-      <p>${sp.tasteNote}</p>
-      <button class="btn-primary" id="btn-catch-ok">クーラーにしまって続ける</button>
-    `
-  );
+  openModal(`🐚 ${sp.name} ×${res.count}（ランク${sp.rank}）を採取！`, `
+    <div><strong>合計重量:</strong> ${res.weightKg} kg（${m.label}）</div>
+    <div><strong>査定額:</strong> ¥${res.estimatedPrice.toLocaleString()}（本日相場 x${env.marketRate}）</div>
+    <div>${res.tags.map((t) => `<span class="tag ${t === "真珠入り" ? "gold" : ""}">${t}</span>`).join("")}</div>
+    <p class="muted">${sp.desc}</p>
+    <p>${sp.tasteNote}</p>
+    <button class="btn-primary" id="btn-catch-ok">クーラーにしまって続ける</button>
+  `);
   $("btn-catch-ok").onclick = closeModal;
   resetActionState();
 }
 
 function startCast() {
   const save = currentSave();
-  if (!save || !checkCoolerSpace(save)) return;
+  if (!save || !checkCoolerSpace(save, 1)) return;
   if (save.stamina < 2) {
     $("status-banner").textContent = "スタミナ不足です（3分で1回復します）";
     audioEngine.playFail();
@@ -274,9 +426,10 @@ function startCast() {
   const dist = 16 + Math.random() * 14;
   scene3d.setBobber(true, dist, 0);
   $("btn-main-action").textContent = "回収する";
-  $("status-banner").textContent = "アタリを待っています...";
+  const inSpot = scene3d.getNearestHotspot().inSpot;
+  $("status-banner").textContent = inSpot ? "🐟 魚群ポイント！アタリが早そうだ..." : "アタリを待っています...";
 
-  const waitMs = 1900 + Math.random() * 3000;
+  const waitMs = (inSpot ? 1100 : 1900) + Math.random() * (inSpot ? 1700 : 2900);
   waitTimer = setTimeout(() => {
     if (phase !== "waiting") return;
     phase = "bite";
@@ -299,16 +452,11 @@ function startCast() {
 function startFight() {
   clearTimeout(biteTimer);
   const save = currentSave();
-  const caught = rollCatch(save.area, env);
+  const inSpot = scene3d.getNearestHotspot().inSpot;
+  const caught = rollCatch(save.area, env, inSpot);
 
   phase = "fighting";
-  fightState = {
-    caught,
-    distance: 19 + Math.random() * 10,
-    fishStamina: 100,
-    tension: 24
-  };
-
+  fightState = { caught, distance: 19 + Math.random() * 10, fishStamina: 100, tension: 24 };
   $("fight-panel").classList.remove("hidden");
   $("btn-main-action").className = "btn-action reeling";
   $("btn-main-action").textContent = "🔄 長押しで巻く";
@@ -364,9 +512,7 @@ function tickFight() {
     setTimeout(resetActionState, 1300);
     return;
   }
-  if (f.distance <= 0.4) {
-    onCatchSuccess(f.caught);
-  }
+  if (f.distance <= 0.4) onCatchSuccess(f.caught);
 }
 
 function onCatchSuccess(caught) {
@@ -374,14 +520,9 @@ function onCatchSuccess(caught) {
   const sp = caught.species;
 
   save.cooler.push({
-    id: sp.id,
-    name: sp.name,
-    rank: sp.rank,
-    weightKg: caught.weightKg,
-    tags: caught.tags,
-    price: caught.estimatedPrice
+    id: sp.id, name: sp.name, rank: sp.rank,
+    weightKg: caught.weightKg, tags: caught.tags, price: caught.estimatedPrice
   });
-
   if (!save.dex[sp.id]) save.dex[sp.id] = { count: 0, maxKg: 0 };
   save.dex[sp.id].count += 1;
   save.dex[sp.id].maxKg = Math.max(save.dex[sp.id].maxKg, caught.weightKg);
@@ -393,36 +534,148 @@ function onCatchSuccess(caught) {
   audioEngine.playCatch(sp.rank);
 
   submitDailyRecord({
-    playerName: save.name,
-    fishName: sp.name,
-    weightKg: caught.weightKg,
-    rank: sp.rank,
-    condition: caught.tags[0] || ""
+    playerName: save.name, fishName: sp.name,
+    weightKg: caught.weightKg, rank: sp.rank, condition: caught.tags[0] || ""
   });
 
-  openModal(
-    `🎉 ${sp.name}（ランク${sp.rank}）を釣り上げた！`,
-    `
-      <div><strong>重量:</strong> ${caught.weightKg} kg</div>
-      <div><strong>査定額:</strong> ¥${caught.estimatedPrice.toLocaleString()}（本日相場 x${env.marketRate}）</div>
-      <div>${caught.tags.map((t) => `<span class="tag">${t}</span>`).join("")}</div>
-      <p class="muted">${sp.desc}</p>
-      <p>${sp.tasteNote}</p>
-      <button class="btn-primary" id="btn-catch-ok">クーラーにしまって続ける</button>
-    `
-  );
+  openModal(`🎉 ${sp.name}（ランク${sp.rank}）を釣り上げた！`, `
+    <div><strong>重量:</strong> ${caught.weightKg} kg</div>
+    <div><strong>査定額:</strong> ¥${caught.estimatedPrice.toLocaleString()}（本日相場 x${env.marketRate}）</div>
+    <div>${caught.tags.map((t) => `<span class="tag">${t}</span>`).join("")}</div>
+    <p class="muted">${sp.desc}</p>
+    <p>${sp.tasteNote}</p>
+    <button class="btn-primary" id="btn-catch-ok">クーラーにしまって続ける</button>
+  `);
   $("btn-catch-ok").onclick = closeModal;
   resetActionState();
 }
 
 function openModal(title, html) {
+  stopActiveJobGame();
   $("modal-title").textContent = title;
   $("modal-body").innerHTML = html;
   $("modal-overlay").classList.remove("hidden");
 }
 
 function closeModal() {
+  stopActiveJobGame();
   $("modal-overlay").classList.add("hidden");
+}
+
+function openDockModal() {
+  const save = currentSave();
+  const active = getActiveBoat(save);
+  const remainH = save.rentalBoat ? Math.max(1, Math.ceil((save.rentalBoat.expiresAt - Date.now()) / 3600000)) : 0;
+  const needFuel = Math.max(0, Math.ceil(active.maxFuel - save.fuel));
+  const refuelCost = needFuel * FUEL_PRICE_PER_L;
+
+  const fuelBox = active.maxFuel > 0 ? `
+    <div class="bank-box">
+      <strong>⛽ 燃料管理（現在 ${Math.floor(save.fuel)} / ${active.maxFuel} L）</strong>
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-refuel-full" ${needFuel <= 0 ? "disabled" : ""}>
+          満タン給油（${needFuel}L / ¥${refuelCost.toLocaleString()}）
+        </button>
+        <button class="btn-sub" id="btn-toggle-autorefuel">
+          自動給油: ${save.autoRefuel ? "ON" : "OFF"}
+        </button>
+      </div>
+    </div>
+  ` : "";
+
+  const boatRows = BOATS.filter((b) => b.tier > 0).map((b) => {
+    const owned = save.ownedBoats.includes(b.id);
+    const rented = save.rentalBoat && save.rentalBoat.boatId === b.id;
+    const isUsing = active.id === b.id;
+
+    let actions = "";
+    if (isUsing) {
+      actions = `<span class="tag">${owned ? "乗船中(所有)" : `レンタル中(残${remainH}h)`}</span>`;
+    } else if (owned || rented) {
+      actions = `<button class="btn-sub" data-use-boat="${b.id}">乗船する</button>`;
+    } else {
+      actions = `
+        <div class="btn-row">
+          <button class="btn-warn" data-rent-boat="${b.id}">レンタル ¥${b.rentPrice.toLocaleString()}/日</button>
+          <button class="btn-primary" data-buy-boat="${b.id}">購入 ¥${b.buyPrice.toLocaleString()}</button>
+        </div>
+      `;
+    }
+    return `
+      <div class="bank-box">
+        <div><strong>🚤 ${b.name}</strong>（燃料 ${b.maxFuel}L）</div>
+        <div class="muted">${b.desc}</div>
+        ${actions}
+      </div>
+    `;
+  }).join("");
+
+  openModal(`🚤 船ドック・レンタル（所持 ¥${save.money.toLocaleString()}）`, `${fuelBox}${boatRows}`);
+
+  if ($("btn-refuel-full")) {
+    $("btn-refuel-full").onclick = () => {
+      if (needFuel <= 0) return;
+      if (save.money < refuelCost) { audioEngine.playFail(); alert("お金が足りません！"); return; }
+      save.money -= refuelCost;
+      save.fuel = active.maxFuel;
+      persistSlots(slots, true);
+      updateHud();
+      audioEngine.playCash();
+      openDockModal();
+    };
+  }
+  if ($("btn-toggle-autorefuel")) {
+    $("btn-toggle-autorefuel").onclick = () => {
+      save.autoRefuel = !save.autoRefuel;
+      persistSlots(slots, true);
+      openDockModal();
+    };
+  }
+
+  $("modal-body").querySelectorAll("[data-rent-boat]").forEach((btn) => {
+    btn.onclick = () => {
+      const b = BOATS.find((x) => x.id === btn.dataset.rentBoat);
+      if (!b || save.money < b.rentPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; }
+      save.money -= b.rentPrice;
+      save.rentalBoat = { boatId: b.id, expiresAt: Date.now() + 24 * 3600 * 1000 };
+      save.activeBoatId = b.id;
+      save.fuel = b.maxFuel;
+      persistSlots(slots, true);
+      applyAreaToScene();
+      updateHud();
+      audioEngine.playCash();
+      openDockModal();
+    };
+  });
+
+  $("modal-body").querySelectorAll("[data-buy-boat]").forEach((btn) => {
+    btn.onclick = () => {
+      const b = BOATS.find((x) => x.id === btn.dataset.buyBoat);
+      if (!b || save.money < b.buyPrice) { audioEngine.playFail(); alert("お金が足りません！銀行ローンも使えます。"); return; }
+      save.money -= b.buyPrice;
+      if (!save.ownedBoats.includes(b.id)) save.ownedBoats.push(b.id);
+      save.activeBoatId = b.id;
+      save.fuel = b.maxFuel;
+      persistSlots(slots, true);
+      applyAreaToScene();
+      updateHud();
+      audioEngine.playCash();
+      openDockModal();
+    };
+  });
+
+  $("modal-body").querySelectorAll("[data-use-boat]").forEach((btn) => {
+    btn.onclick = () => {
+      const b = BOATS.find((x) => x.id === btn.dataset.useBoat);
+      if (!b) return;
+      save.activeBoatId = b.id;
+      save.fuel = Math.min(save.fuel || b.maxFuel, b.maxFuel);
+      persistSlots(slots, true);
+      applyAreaToScene();
+      updateHud();
+      openDockModal();
+    };
+  });
 }
 
 function openCoolerModal() {
@@ -486,17 +739,14 @@ function openShopModal() {
     btn.onclick = () => {
       const item = SHOP_ITEMS.find((x) => x.id === btn.dataset.buy);
       if (!item) return;
-      if (save.money < item.price) {
-        audioEngine.playFail();
-        alert("お金が足りません！バイトや漁協ローンも活用できます。");
-        return;
-      }
+      if (save.money < item.price) { audioEngine.playFail(); alert("お金が足りません！"); return; }
       save.money -= item.price;
       save.ownedGear.push(item.id);
       save.gear[item.slot] = item.id;
       save.lastPlayedAt = Date.now();
       persistSlots(slots, true);
       updateHud();
+      resetActionState();
       audioEngine.playCash();
       openShopModal();
     };
@@ -509,6 +759,7 @@ function openShopModal() {
       save.gear[item.slot] = item.id;
       persistSlots(slots, true);
       updateHud();
+      resetActionState();
       openShopModal();
     };
   });
@@ -526,7 +777,7 @@ function openJobsModal() {
           <div class="muted">${job.desc} / 消費⚡${job.stamina}</div>
         </div>
         ${available
-          ? `<button class="btn-primary" data-job="${job.id}">+¥${job.pay.toLocaleString()}</button>`
+          ? `<button class="btn-primary" data-job="${job.id}">出勤する</button>`
           : `<span class="muted">時間外</span>`
         }
       </div>
@@ -545,13 +796,33 @@ function openJobsModal() {
         return;
       }
       save.stamina -= job.stamina;
-      save.money += job.pay;
-      save.stats.totalEarned += job.pay;
       save.lastPlayedAt = Date.now();
-      persistSlots(slots, true);
+      persistSlots(slots, false);
       updateHud();
-      audioEngine.playCash();
-      openJobsModal();
+
+      $("modal-title").textContent = `💼 勤務中: ${job.name}`;
+      runJobMinigame($("modal-body"), job, ({ pay, grade, detail }) => {
+        save.money += pay;
+        save.stats.totalEarned += pay;
+        save.lastPlayedAt = Date.now();
+        persistSlots(slots, true);
+        updateHud();
+        audioEngine.playCash();
+
+        $("modal-title").textContent = `✅ 勤務完了！ 評価【${grade}】`;
+        $("modal-body").innerHTML = `
+          <div class="bank-box" style="text-align:center;">
+            <div style="font-size:1.4rem;font-weight:800;color:#ffd166;">給与 ¥${pay.toLocaleString()}</div>
+            <div class="muted">${detail}（基本給 ¥${job.basePay.toLocaleString()}）</div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" id="job-again" style="flex:1;">バイト一覧へ戻る</button>
+            <button class="btn-sub" id="job-close" style="flex:1;">釣りへ戻る</button>
+          </div>
+        `;
+        $("job-again").onclick = openJobsModal;
+        $("job-close").onclick = closeModal;
+      });
     };
   });
 }
@@ -571,9 +842,9 @@ function openBankModal() {
       </div>
     </div>
     <div class="bank-box">
-      <strong>📄 漁協ローン（日利 0.3%・上限30万円）</strong>
+      <strong>📄 漁協ローン（日利 0.3%・上限50万円）</strong>
       <div>借入残高: <strong style="color:#ff7b7b;">¥${bank.loan.toLocaleString()}</strong></div>
-      <div class="muted">装備や船の購入資金に低金利で借りられます。</div>
+      <div class="muted">船や漁具の資金に低金利で借りられます。</div>
       <div class="btn-row">
         <button class="btn-primary" id="loan-borrow-20k">2万円借りる</button>
         <button class="btn-primary" id="loan-borrow-50k">5万円借りる</button>
@@ -595,8 +866,8 @@ function openBankModal() {
   $("bank-dep-all").onclick = () => { if (save.money > 0) { bank.ordinary += save.money; save.money = 0; done(); } };
   $("bank-wd-10k").onclick = () => { const v = Math.min(10000, bank.ordinary); if (v > 0) { bank.ordinary -= v; save.money += v; done(); } };
   $("bank-wd-all").onclick = () => { if (bank.ordinary > 0) { save.money += bank.ordinary; bank.ordinary = 0; done(); } };
-  $("loan-borrow-20k").onclick = () => { if (bank.loan + 20000 <= 300000) { bank.loan += 20000; save.money += 20000; done(); } };
-  $("loan-borrow-50k").onclick = () => { if (bank.loan + 50000 <= 300000) { bank.loan += 50000; save.money += 50000; done(); } };
+  $("loan-borrow-20k").onclick = () => { if (bank.loan + 20000 <= 500000) { bank.loan += 20000; save.money += 20000; done(); } };
+  $("loan-borrow-50k").onclick = () => { if (bank.loan + 50000 <= 500000) { bank.loan += 50000; save.money += 50000; done(); } };
   $("loan-repay-20k").onclick = () => { const v = Math.min(20000, bank.loan, save.money); if (v > 0) { bank.loan -= v; save.money -= v; done(); } };
   $("loan-repay-all").onclick = () => { const v = Math.min(bank.loan, save.money); if (v > 0) { bank.loan -= v; save.money -= v; done(); } };
 }
@@ -623,12 +894,39 @@ function openDexModal() {
 
 async function boot() {
   scene3d = new FishingScene($("scene-canvas"));
+  scene3d.onFuelConsume = (dist) => {
+    audioEngine.playEnginePulse();
+    fuelMoveAccum += dist;
+    if (fuelMoveAccum >= 14) {
+      fuelMoveAccum -= 14;
+      const ok = tryConsumeFuel(1);
+      updateHud();
+      if (!ok) {
+        $("status-banner").textContent = "⛽ ガス欠！船ドックで給油してください";
+        audioEngine.playFail();
+        return false;
+      }
+    }
+    return true;
+  };
+
   updateSoundIcons();
   updateEnvironmentUI();
   setInterval(updateEnvironmentUI, 30000);
   setInterval(tickFight, 60);
 
-  // 最初の画面タップでBGM＆波音を自動起動
+  // ソナー表示を0.25秒おきに更新
+  setInterval(() => {
+    if (!scene3d?.isBoatArea) return;
+    const info = scene3d.getNearestHotspot();
+    const bar = $("sonar-bar");
+    bar.classList.toggle("hotspot", info.inSpot);
+    $("sonar-text").textContent = info.inSpot
+      ? "🐟 魚群反応MAX！レア＆大漁ボーナス中"
+      : `📡 最寄り魚群まで ${Math.round(info.dist)}m`;
+    $("btn-autopilot").textContent = scene3d.autopilot ? "⏹ 自動航行中" : "🧭 魚群へ自動航行";
+  }, 250);
+
   window.addEventListener("pointerdown", () => audioEngine.unlock(), { once: true });
 
   await loadSpeciesMaster();
@@ -646,24 +944,54 @@ async function boot() {
   $("btn-refresh-rank").onclick = renderRanking;
   $("btn-back-home").onclick = () => {
     resetActionState();
+    scene3d.setAreaMode(false);
     persistSlots(slots, true);
     $("play-screen").classList.remove("active");
     $("home-screen").classList.add("active");
     renderSlots();
     renderRanking();
   };
+
   $("area-select").onchange = (e) => {
     const save = currentSave();
     if (!save) return;
-    save.area = e.target.value;
+    const nextArea = e.target.value;
+    const req = AREA_REQUIREMENTS[nextArea] || AREA_REQUIREMENTS.teibou;
+    if (getBestBoatTier(save) < req.minBoatTier) {
+      e.target.value = save.area;
+      audioEngine.playFail();
+      if (confirm(`${req.name}へ行くには船が必要です。船ドック（¥6,800/日〜レンタル可）を開きますか？`)) {
+        openDockModal();
+      }
+      return;
+    }
+    save.area = nextArea;
     persistSlots(slots, false);
+    applyAreaToScene();
     syncHarvestTabs();
     resetActionState();
   };
+
   $("tab-mode-fish").onclick = () => { harvestMode = "fish"; syncHarvestTabs(); resetActionState(); };
   $("tab-mode-shell").onclick = () => { harvestMode = "shell"; syncHarvestTabs(); resetActionState(); };
+  $("tab-mode-net").onclick = () => { harvestMode = "net"; syncHarvestTabs(); resetActionState(); };
+  $("tab-mode-steer").onclick = () => { harvestMode = "steer"; syncHarvestTabs(); resetActionState(); };
+  $("btn-autopilot").onclick = () => { audioEngine.unlock(); scene3d.toggleAutopilot(); };
+
+  // 操船ボタン長押しバインド
+  const bindSteer = (id, key) => {
+    const el = $(id);
+    el.addEventListener("pointerdown", () => { audioEngine.unlock(); scene3d.autopilot = false; scene3d.steerInput[key] = true; });
+    el.addEventListener("pointerup", () => { scene3d.steerInput[key] = false; });
+    el.addEventListener("pointerleave", () => { scene3d.steerInput[key] = false; });
+    el.addEventListener("pointercancel", () => { scene3d.steerInput[key] = false; });
+  };
+  bindSteer("btn-steer-left", "left");
+  bindSteer("btn-steer-fwd", "fwd");
+  bindSteer("btn-steer-right", "right");
 
   $("btn-open-cooler").onclick = openCoolerModal;
+  $("btn-open-dock").onclick = openDockModal;
   $("btn-open-shop").onclick = openShopModal;
   $("btn-open-jobs").onclick = openJobsModal;
   $("btn-open-bank").onclick = openBankModal;
@@ -673,10 +1001,8 @@ async function boot() {
   const actBtn = $("btn-main-action");
   actBtn.addEventListener("pointerdown", () => {
     audioEngine.unlock();
-    if (harvestMode === "shell") {
-      doShellHarvest();
-      return;
-    }
+    if (harvestMode === "shell") { doShellHarvest(); return; }
+    if (harvestMode === "net") { doNetHarvest(); return; }
     if (phase === "idle") startCast();
     else if (phase === "waiting") resetActionState();
     else if (phase === "bite") startFight();
