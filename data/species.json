@@ -1,0 +1,383 @@
+[
+  {
+    "id": "maaji",
+    "name": "マアジ",
+    "kana": "まあじ",
+    "speciesType": "fish",
+    "category": "ao_mono",
+    "rank": "C",
+    "desc": "堤防から近海まで群れで回遊する定番魚。朝夕のマズメに活性が上がる。",
+    "tasteNote": "脂が乗った身は刺身・なめろう・握りで抜群。",
+    "imageKey": null,
+    "areas": [
+      "teibou",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 15.0,
+    "minTemp": 14.0,
+    "maxTemp": 25.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 90,
+    "minKg": 0.12,
+    "maxKg": 0.5,
+    "trophyKg": 0.4,
+    "pullPower": 1.6,
+    "stamina": 14.0,
+    "speed": 2.4,
+    "favLures": [
+      "jig",
+      "worm",
+      "sabiki"
+    ],
+    "favBaits": [
+      "okiami",
+      "isoma"
+    ],
+    "captureMethods": [
+      "toami",
+      "makiami"
+    ],
+    "liveDurability": 3,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "summer",
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 1200,
+    "sushiType": "hikarimono",
+    "omakaseTags": [
+      "standard",
+      "seasonal"
+    ],
+    "aquariumPop": 30,
+    "farmHours": 3.0,
+    "farmSeedPrice": 250
+  },
+  {
+    "id": "madai",
+    "name": "マダイ",
+    "kana": "まだい",
+    "speciesType": "fish",
+    "category": "tai",
+    "rank": "A",
+    "desc": "沿岸から深場まで生息する白身の王様。春は産卵のため浅場へ寄る。",
+    "tasteNote": "上品な甘みと弾力。刺身・高級寿司・鯛めしまで万能。",
+    "imageKey": null,
+    "areas": [
+      "kinkai",
+      "okiai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "minDepth": 8.0,
+    "maxDepth": 60.0,
+    "minTemp": 12.0,
+    "maxTemp": 23.0,
+    "favWeather": [
+      "sunny",
+      "cloudy",
+      "fog"
+    ],
+    "favWind": "any",
+    "rarityWeight": 35,
+    "minKg": 0.8,
+    "maxKg": 6.5,
+    "trophyKg": 5.0,
+    "pullPower": 4.8,
+    "stamina": 38.0,
+    "speed": 4.2,
+    "favLures": [
+      "jig",
+      "tairaba"
+    ],
+    "favBaits": [
+      "okiami",
+      "live_aji"
+    ],
+    "captureMethods": [
+      "sashiami",
+      "sokobiki"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "autumn",
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 3400,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "luxury",
+      "seasonal"
+    ],
+    "aquariumPop": 75,
+    "farmHours": 36.0,
+    "farmSeedPrice": 1500
+  },
+  {
+    "id": "ryugu_no_tsukai",
+    "name": "リュウグウノツカイ",
+    "kana": "りゅうぐうのつかい",
+    "speciesType": "fish",
+    "category": "shinkai",
+    "rank": "S",
+    "desc": "深海に生息する銀色の長大な希少魚。冬のシケや霧の夜に稀に浮上する。",
+    "tasteNote": "水分の多い繊細な身。食材より水族館の目玉として超高評価。",
+    "imageKey": null,
+    "areas": [
+      "shinkai"
+    ],
+    "seasons": [
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      22,
+      23
+    ],
+    "minDepth": 120.0,
+    "maxDepth": 400.0,
+    "minTemp": 4.0,
+    "maxTemp": 13.0,
+    "favWeather": [
+      "fog",
+      "rough"
+    ],
+    "favWind": "any",
+    "rarityWeight": 3,
+    "minKg": 12.0,
+    "maxKg": 45.0,
+    "trophyKg": 35.0,
+    "pullPower": 11.5,
+    "stamina": 75.0,
+    "speed": 4.8,
+    "favLures": [
+      "jig"
+    ],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [],
+    "liveDurability": 1,
+    "spawnSeasons": [],
+    "fatSeasons": [],
+    "coldWaterBonus": false,
+    "basePricePerKg": 25000,
+    "sushiType": "chinmi",
+    "omakaseTags": [
+      "deepsea",
+      "legend"
+    ],
+    "aquariumPop": 100,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "asari",
+    "name": "アサリ",
+    "kana": "あさり",
+    "speciesType": "shellfish",
+    "category": "nimaigai",
+    "rank": "C",
+    "desc": "干潟や砂浜の浅い砂泥に潜む定番の二枚貝。大潮の干潮時が狙い目。",
+    "tasteNote": "濃厚な出汁が出る。酒蒸し・味噌汁・軍艦に最適。",
+    "imageKey": null,
+    "areas": [
+      "sunahama",
+      "kakou"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 0.0,
+    "maxDepth": 3.0,
+    "minTemp": 10.0,
+    "maxTemp": 26.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 95,
+    "minKg": 0.02,
+    "maxKg": 0.06,
+    "trophyKg": 0.05,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "shiohigari"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "spring",
+      "autumn"
+    ],
+    "fatSeasons": [
+      "spring"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 1400,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "standard",
+      "shellfish"
+    ],
+    "aquariumPop": 20,
+    "farmHours": 2.0,
+    "farmSeedPrice": 180
+  },
+  {
+    "id": "kuro_awabi",
+    "name": "クロアワビ",
+    "kana": "くろあわび",
+    "speciesType": "shellfish",
+    "category": "makigai",
+    "rank": "S",
+    "desc": "外洋に面した磯の岩陰に張り付く最高級の巻貝。波の穏やかな日が勝負。",
+    "tasteNote": "コリコリした極上の食感と磯の香り。高級寿司の主役。",
+    "imageKey": null,
+    "areas": [
+      "iso"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "minDepth": 0.5,
+    "maxDepth": 12.0,
+    "minTemp": 12.0,
+    "maxTemp": 24.0,
+    "favWeather": [
+      "sunny"
+    ],
+    "favWind": "offshore",
+    "rarityWeight": 8,
+    "minKg": 0.25,
+    "maxKg": 1.2,
+    "trophyKg": 0.9,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "isodori"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "autumn"
+    ],
+    "fatSeasons": [
+      "summer"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 18000,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "luxury",
+      "shellfish"
+    ],
+    "aquariumPop": 85,
+    "farmHours": 48.0,
+    "farmSeedPrice": 5500
+  }
+]
