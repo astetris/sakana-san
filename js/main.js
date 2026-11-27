@@ -43,8 +43,7 @@ import {
 } from "./systems/economy.js?v=20261128_042032";
 import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_042032";
 import {
-  BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen,
-  autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders
+  BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
 } from "./systems/business.js?v=20261128_042032";
 import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_042032";
 import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_042032";
@@ -1216,49 +1215,243 @@ function openOfficeModal() {
 }
 
 // ===== 4業態店舗経営・養殖・依頼・船・ショップ・バイト・クーラー・銀行・図鑑 =====
+let activeBizSubTab = "floor"; // "floor" | "stock" | "manage"
+
 function openBusinessModal() {
-  const save = currentSave(); syncBusinessProgress(save);
+  const save = currentSave();
+  syncBusinessProgress(save, env);
   const def = BUSINESS_DEFS.find((b) => b.id === activeBizTab) || BUSINESS_DEFS[0];
-  const st = save.businesses[def.id], open = isBusinessOpen(st);
+  const st = ensureBizState(save.businesses[def.id]);
+  const open = isBusinessOpen(st);
   const remainH = st.rentExpiresAt > Date.now() ? Math.ceil((st.rentExpiresAt - Date.now()) / 3600000) : 0;
   const tabsHtml = BUSINESS_DEFS.map((b) => `<button class="shop-tab ${b.id === def.id ? "active" : ""}" data-biz-tab="${b.id}">${b.icon}${b.name.slice(0, 3)}${(save.businesses[b.id]?.pendingRevenue || 0) >= 500 ? "●" : ""}</button>`).join("");
 
   let bodyHtml = "";
   if (!open) {
-    bodyHtml = `<div class="bank-box"><strong>${def.icon} ${def.name}（未開業）</strong><div class="muted">${def.desc}</div><div class="btn-row" style="margin-top:4px;"><button class="btn-warn" id="biz-rent">1日賃貸 ¥${def.rentPrice.toLocaleString()}</button><button class="btn-primary" id="biz-buy">店舗を購入 ¥${def.buyPrice.toLocaleString()}</button></div></div>`;
+    bodyHtml = `
+      <div class="bank-box">
+        <strong>${def.icon} ${def.name}（未開業）</strong>
+        <div class="muted">${def.desc}</div>
+        <div class="btn-row" style="margin-top:6px;">
+          <button class="btn-warn" id="biz-rent">1日賃貸 ¥${def.rentPrice.toLocaleString()}</button>
+          <button class="btn-primary" id="biz-buy">店舗を購入 ¥${def.buyPrice.toLocaleString()}</button>
+        </div>
+      </div>`;
   } else {
+    const m = getBizMetrics(def, st, save, env);
     const statusBadge = st.owned ? `<span class="tag gold">所有店舗</span>` : `<span class="tag">賃貸中(残${remainH}h)</span>`;
     const totalPop = def.isAquarium ? st.stock.reduce((s, x) => s + (x.pop || 20), 0) : 0;
-    const stockListHtml = st.stock.slice(0, 8).map((x) => `<span class="tag">${x.name}${def.isAquarium ? `(人気${x.pop})` : `(¥${x.salePrice.toLocaleString()})`}</span>`).join("") || `<span class="muted">まだ在庫がありません。「大将のおまかせ」で仕込もう！</span>`;
+    const starTxt = `★${st.rating.toFixed(2)}${m.isFamous ? " 🌟名店" : ""}`;
+    const subTabsHtml = `
+      <div class="shop-tabs" style="margin:6px 0;">
+        <button class="shop-tab ${activeBizSubTab === "floor" ? "active" : ""}" data-bsub="floor">🍽️ 店頭営業</button>
+        <button class="shop-tab ${activeBizSubTab === "stock" ? "active" : ""}" data-bsub="stock">🧊 仕込み/鮮度</button>
+        <button class="shop-tab ${activeBizSubTab === "manage" ? "active" : ""}" data-bsub="manage">📈 戦略/設備</button>
+      </div>`;
+
+    let subBody = "";
+    if (activeBizSubTab === "floor") {
+      const stockPreview = st.stock.slice(0, 6).map((x) => {
+        if (def.isAquarium) return `<span class="tag">${escapeHtml(x.name)}(人気${x.pop})</span>`;
+        const fr = getItemFreshness(x, st.coolingLv, st.lastIceAt);
+        const fe = getFreshnessEffect(def.id, fr);
+        return `<span class="tag" style="border-color:${fe.color};">${escapeHtml(x.name)} ${fr}%</span>`;
+      }).join("") || `<span class="muted">まだ在庫がありません。「おまかせ仕込み」で投入しよう！</span>`;
+
+      subBody = `
+        <div class="bank-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+            <div>
+              ${statusBadge} <span class="tag" id="biz-rating-badge">${starTxt}</span>
+              <div style="margin-top:4px;">純利益金庫: <strong id="biz-pending-val" style="color:#f3c687;font-size:1.05rem;">¥${st.pendingRevenue.toLocaleString()}</strong></div>
+            </div>
+            <button class="btn-primary" id="biz-collect" ${st.pendingRevenue <= 0 ? "disabled" : ""}>💰 回収</button>
+          </div>
+          <div class="muted" id="biz-live-sub" style="margin-top:4px;">
+            ${m.peakLabel} / 回転: 約${Math.round(m.effectiveIntervalSec)}秒 / 経費率: ${Math.round(m.expenseRate * 100)}%
+          </div>
+          <div class="muted" id="biz-profit-line">
+            直近収支: 売上¥${(st.lastGross || 0).toLocaleString()} − 経費¥${(st.lastExpense || 0).toLocaleString()} / 累計 ¥${st.totalRevenue.toLocaleString()}
+          </div>
+          <div class="btn-row" style="margin-top:6px;">
+            <button class="btn-primary" id="biz-omakase" style="flex:1;">🍣 ${def.isAquarium ? "おまかせ展示" : "大将のおまかせ仕込み"}</button>
+            <button class="btn-warn" id="biz-rush">⚡ ラッシュ(12秒)</button>
+          </div>
+          <div style="margin-top:6px;">${stockPreview}</div>
+        </div>`;
+    } else if (activeBizSubTab === "stock") {
+      const iceBtn = !def.isAquarium
+        ? `<button class="btn-sub" id="biz-ice">❄️ 砕氷補充 ¥800（鮮度回復＆保冷${m.iceActive ? "・保冷中" : ""}）</button>`
+        : "";
+      const coolerRows = save.cooler.length
+        ? save.cooler.slice(0, 10).map((c, idx) => `
+            <div class="list-row">
+              <div><strong class="rank-${c.rank}">[${c.rank}] ${escapeHtml(c.name)}</strong> <span class="muted">${c.weightKg}kg / ¥${(c.price || 0).toLocaleString()}</span></div>
+              <button class="btn-mini" data-biz-pick="${idx}">${def.isAquarium ? "展示" : "仕込む"}</button>
+            </div>`).join("")
+        : `<div class="muted">クーラーボックスは空です。海で釣ってこよう！</div>`;
+      const curStockRows = st.stock.slice(0, 10).map((x) => {
+        if (def.isAquarium) return `<div class="list-row"><span>🐠 ${escapeHtml(x.name)}</span><span class="tag">人気 ${x.pop}</span></div>`;
+        const fr = getItemFreshness(x, st.coolingLv, st.lastIceAt);
+        const fe = getFreshnessEffect(def.id, fr);
+        return `<div class="list-row"><span>${escapeHtml(x.name)} <span class="muted">(基準¥${(x.salePrice || 0).toLocaleString()})</span></span><span class="tag" style="color:${fe.color};">${fe.label} ${fr}%</span></div>`;
+      }).join("") || `<div class="muted">店頭在庫なし</div>`;
+
+      subBody = `
+        <div class="bank-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong>${def.isAquarium ? "🐠 水槽展示管理" : `🧊 鮮度＆仕込み管理（平均鮮度 ${m.avgFreshness}%）`}</strong>
+            <span class="muted">${st.stock.length}/${m.stockCap}</span>
+          </div>
+          <div class="btn-row" style="margin:6px 0;">
+            <button class="btn-primary" id="biz-omakase" style="flex:1;">🍣 ${def.isAquarium ? "おまかせ展示" : "おまかせ仕込み"}</button>
+            ${iceBtn}
+          </div>
+          <div style="font-size:12px;font-weight:700;margin-top:6px;">📦 クーラーから選んで仕込む（計${save.cooler.length}点）</div>
+          <div style="max-height:130px;overflow-y:auto;">${coolerRows}</div>
+          <div style="font-size:12px;font-weight:700;margin-top:8px;">🏪 現在の店頭ストック</div>
+          <div style="max-height:110px;overflow-y:auto;">${curStockRows}</div>
+        </div>`;
+    } else {
+      const stratBtns = !def.isAquarium ? `
+        <div class="bank-box">
+          <strong>💴 価格戦略（値付け方針）</strong>
+          <div class="btn-row" style="margin-top:4px;">
+            ${Object.values(PRICE_STRATEGIES).map((p) => `<button class="${st.priceStrategy === p.id ? "btn-primary" : "btn-sub"}" data-biz-strat="${p.id}" style="flex:1;">${p.label}</button>`).join("")}
+          </div>
+          <div class="muted" style="margin-top:4px;">${m.strat.desc}</div>
+        </div>` : "";
+
+      const upgRows = Object.entries(BIZ_UPGRADES).map(([kind, u]) => {
+        const lv = st[u.key] || 1;
+        const cost = getUpgradeCost(def, kind, lv);
+        const maxed = lv >= u.maxLv;
+        return `
+          <div class="list-row" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <strong>${u.label} Lv.${lv}/${u.maxLv}</strong>
+              <div class="muted" style="font-size:11px;">${u.desc}</div>
+            </div>
+            <button class="${maxed ? "btn-sub" : "btn-warn"}" data-biz-upg="${kind}" ${maxed ? "disabled" : ""}>${maxed ? "MAX" : `¥${cost.toLocaleString()}`}</button>
+          </div>`;
+      }).join("");
+
+      subBody = `
+        ${stratBtns}
+        <div class="bank-box">
+          <strong>🛠️ 店舗設備・スタッフ投資</strong>
+          <div class="muted" style="font-size:11px;">内装Lvを上げると2.5D店内の照明や装飾もグレードアップします</div>
+          ${upgRows}
+        </div>
+        ${!st.owned ? `<button class="btn-sub" id="biz-buy">この店舗を買い取る（¥${def.buyPrice.toLocaleString()}）</button>` : ""}`;
+    }
+
     bodyHtml = `
-      <div class="shop-canvas-wrap"><canvas id="shop-view-canvas" width="420" height="175"></canvas><div class="shop-view-overlay"><span>${def.icon} ${def.name}</span><span>${def.isAquarium ? `人気度 ${totalPop} / 展示 ${st.stock.length}/${def.stockCap}` : `在庫 ${st.stock.length}/${def.stockCap}`}</span></div></div>
-      <div class="bank-box">
-        <div style="display:flex;justify-content:space-between;align-items:center;"><div>${statusBadge} 売上金庫: <strong style="color:#f3c687;">¥${st.pendingRevenue.toLocaleString()}</strong></div><button class="btn-primary" id="biz-collect" ${st.pendingRevenue <= 0 ? "disabled" : ""}>💰 回収</button></div>
-        <div class="btn-row"><button class="btn-primary" id="biz-omakase" style="flex:1;">🍣 ${def.isAquarium ? "おまかせ展示" : "大将のおまかせ仕込み"}</button><button class="btn-warn" id="biz-rush">⚡ ラッシュ営業(12秒)</button></div>
-        <div class="muted">クーラー内: ${save.cooler.length}点 / 累計売上: ¥${st.totalRevenue.toLocaleString()}</div>
-        <div>${stockListHtml}</div>
+      <div class="shop-canvas-wrap" style="position:relative;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.14);">
+        <canvas id="shop-view-canvas" width="420" height="232" style="width:100%;height:auto;display:block;cursor:pointer;touch-action:manipulation;"></canvas>
+        <div class="shop-view-overlay">
+          <span>${def.icon} ${def.name} <strong id="biz-top-star" style="color:#ffd166;">★${st.rating.toFixed(1)}</strong></span>
+          <span id="biz-top-stock">${def.isAquarium ? `人気 ${totalPop} / 展示 ${st.stock.length}/${m.stockCap}` : `在庫 ${st.stock.length}/${m.stockCap} / 鮮度${m.avgFreshness}%`}</span>
+        </div>
       </div>
-      ${!st.owned ? `<button class="btn-sub" id="biz-buy">この店舗を買い取る（¥${def.buyPrice.toLocaleString()}）</button>` : ""}
+      ${subTabsHtml}
+      ${subBody}
     `;
   }
-  openModal(`🏪 店舗経営（所持 ¥${save.money.toLocaleString()}）`, `<div class="shop-tabs">${tabsHtml}</div>${bodyHtml}<button class="btn-mini" id="biz-back-office" style="padding:8px;">← 事務所へ戻る</button>`);
+
+  openModal(`🏪 店舗経営（所持 ¥${save.money.toLocaleString()}）`, `<div class="shop-tabs">${tabsHtml}</div>${bodyHtml}<button class="btn-mini" id="biz-back-office" style="padding:8px;margin-top:6px;">← 事務所へ戻る</button>`);
   $("biz-back-office").onclick = openOfficeModal;
   $("modal-body").querySelectorAll("[data-biz-tab]").forEach((btn) => { btn.onclick = () => { activeBizTab = btn.dataset.bizTab; openBusinessModal(); }; });
-  if ($("biz-rent")) $("biz-rent").onclick = () => { if (save.money < def.rentPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; } save.money -= def.rentPrice; st.rentExpiresAt = Date.now() + 86400000; st.lastTickAt = Date.now(); persistSlots(slots, true); updateHud(); audioEngine.playCash(); openBusinessModal(); };
-  if ($("biz-buy")) $("biz-buy").onclick = () => { if (save.money < def.buyPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; } save.money -= def.buyPrice; st.owned = true; st.lastTickAt = Date.now(); save.reputation += 12; pushWorldFeed({ text: `🏪 ${save.name}さんが「${def.name}」のオーナーになった！` }); persistSlots(slots, true); updateHud(); audioEngine.playCatch("S"); openBusinessModal(); };
+  $("modal-body").querySelectorAll("[data-bsub]").forEach((btn) => { btn.onclick = () => { activeBizSubTab = btn.dataset.bsub; openBusinessModal(); }; });
+
+  if ($("biz-rent")) $("biz-rent").onclick = () => {
+    if (save.money < def.rentPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; }
+    save.money -= def.rentPrice; st.rentExpiresAt = Date.now() + 86400000; st.lastTickAt = Date.now();
+    persistSlots(slots, true); updateHud(); audioEngine.playCash(); openBusinessModal();
+  };
+  if ($("biz-buy")) $("biz-buy").onclick = () => {
+    if (save.money < def.buyPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; }
+    save.money -= def.buyPrice; st.owned = true; st.lastTickAt = Date.now(); save.reputation += 12;
+    pushWorldFeed({ text: `🏪 ${save.name}さんが「${def.name}」のオーナーになった！` });
+    persistSlots(slots, true); updateHud(); audioEngine.playCatch("S"); openBusinessModal();
+  };
+
   if (open) {
+    const syncLiveDom = () => {
+      const m2 = getBizMetrics(def, st, save, env);
+      const totalPop2 = def.isAquarium ? st.stock.reduce((s, x) => s + (x.pop || 20), 0) : 0;
+      if ($("biz-pending-val")) $("biz-pending-val").textContent = `¥${st.pendingRevenue.toLocaleString()}`;
+      if ($("biz-collect")) $("biz-collect").disabled = st.pendingRevenue <= 0;
+      if ($("biz-rating-badge")) $("biz-rating-badge").textContent = `★${st.rating.toFixed(2)}${m2.isFamous ? " 🌟名店" : ""}`;
+      if ($("biz-top-star")) $("biz-top-star").textContent = `★${st.rating.toFixed(1)}`;
+      if ($("biz-top-stock")) $("biz-top-stock").textContent = def.isAquarium
+        ? `人気 ${totalPop2} / 展示 ${st.stock.length}/${m2.stockCap}`
+        : `在庫 ${st.stock.length}/${m2.stockCap} / 鮮度${m2.avgFreshness}%`;
+      if ($("biz-profit-line")) $("biz-profit-line").textContent =
+        `直近収支: 売上¥${(st.lastGross || 0).toLocaleString()} − 経費¥${(st.lastExpense || 0).toLocaleString()} / 累計 ¥${st.totalRevenue.toLocaleString()}`;
+    };
+
     const viewCtrl = startShopView($("shop-view-canvas"), {
-      bizDef: def, bizState: st,
+      bizDef: def,
+      bizState: st,
+      onServeGuest: ({ isRush, combo }) => {
+        const res = serveGuestOrder(save, def, env, { isRush, combo });
+        if (res.ok) {
+          persistSlots(slots, false);
+          syncLiveDom();
+        }
+        return res;
+      },
       onRushSale: () => {
-        if (def.isAquarium) { const p = st.stock.reduce((s, x) => s + (x.pop || 20), 0); if (p <= 0) return 0; const t = Math.round(p * 16 + 300); st.pendingRevenue += t; st.totalRevenue += t; save.reputation += 0.3; persistSlots(slots, false); return t; }
-        if (!st.stock.length) return 0;
-        const item = st.stock.shift(), rev = Math.round((item.salePrice || 500) * 1.15);
-        st.pendingRevenue += rev; st.totalRevenue += rev; save.reputation += 0.6; persistSlots(slots, false); return rev;
+        const res = serveGuestOrder(save, def, env, { isRush: true, combo: 2 });
+        if (res.ok) {
+          persistSlots(slots, false);
+          syncLiveDom();
+          return res.net;
+        }
+        return 0;
       }
     });
-    $("biz-omakase").onclick = () => { const res = autoOmakaseStock(save, def.id, getSpeciesMap()); if (res.moved > 0) { persistSlots(slots, true); updateHud(); audioEngine.playOk(); openBusinessModal(); } else { audioEngine.playFail(); alert(res.msg); } };
-    $("biz-collect").onclick = () => { if (st.pendingRevenue <= 0) return; const rev = st.pendingRevenue; save.money += rev; save.stats.totalEarned += rev; st.pendingRevenue = 0; recordDailyProgress(save, { earnedDelta: rev }); persistSlots(slots, true); updateHud(); audioEngine.playCash(); openBusinessModal(); };
-    $("biz-rush").onclick = () => { if (!st.stock.length) { audioEngine.playFail(); alert("先に「おまかせ」でネタを投入しよう！"); return; } audioEngine.playOk(); viewCtrl.triggerRush(); setTimeout(() => { if ($("shop-view-canvas")) openBusinessModal(); }, 12400); };
+
+    if ($("biz-omakase")) $("biz-omakase").onclick = () => {
+      const res = autoOmakaseStock(save, def.id, getSpeciesMap());
+      if (res.moved > 0) { persistSlots(slots, true); updateHud(); audioEngine.playOk(); openBusinessModal(); }
+      else { audioEngine.playFail(); alert(res.msg); }
+    };
+    if ($("biz-collect")) $("biz-collect").onclick = () => {
+      if (st.pendingRevenue <= 0) return;
+      const rev = st.pendingRevenue; save.money += rev; save.stats.totalEarned += rev; st.pendingRevenue = 0;
+      recordDailyProgress(save, { earnedDelta: rev }); persistSlots(slots, true); updateHud(); audioEngine.playCash(); openBusinessModal();
+    };
+    if ($("biz-rush")) $("biz-rush").onclick = () => {
+      if (!st.stock.length) { audioEngine.playFail(); alert("先に「おまかせ」でネタを投入しよう！"); return; }
+      audioEngine.playOk(); viewCtrl.triggerRush();
+    };
+    if ($("biz-ice")) $("biz-ice").onclick = () => {
+      const res = refreshBizIce(save, def.id);
+      if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
+      persistSlots(slots, true); updateHud(); audioEngine.playOk(); openBusinessModal();
+    };
+    $("modal-body").querySelectorAll("[data-biz-pick]").forEach((btn) => {
+      btn.onclick = () => {
+        const res = stockSingleToBiz(save, def.id, Number(btn.dataset.bizPick), getSpeciesMap());
+        if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
+        persistSlots(slots, true); updateHud(); audioEngine.playOk(); openBusinessModal();
+      };
+    });
+    $("modal-body").querySelectorAll("[data-biz-strat]").forEach((btn) => {
+      btn.onclick = () => {
+        st.priceStrategy = btn.dataset.bizStrat;
+        persistSlots(slots, true); audioEngine.playOk(); openBusinessModal();
+      };
+    });
+    $("modal-body").querySelectorAll("[data-biz-upg]").forEach((btn) => {
+      btn.onclick = () => {
+        const res = upgradeBizFacility(save, def.id, btn.dataset.bizUpg);
+        if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
+        persistSlots(slots, true); updateHud(); audioEngine.playCash(); openBusinessModal();
+      };
+    });
   }
 }
 
