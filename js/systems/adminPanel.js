@@ -4,7 +4,7 @@ import { getAllSpecies } from "./fishingEngine.js";
 import { getGachaGearList } from "./gacha.js";
 import { setEnvOverride, getEnvOverride } from "./environment.js";
 import { grantMonthlyPass, grantWeeklyPass, isMonthlyPassActive, isWeeklyPassActive } from "./pearlShop.js";
-import { createCouponCode } from "../config/firebase.js";
+import { createCouponCode, resetTodayDailyRankings } from "../config/firebase.js";
 import { audioEngine } from "./audioEngine.js";
 
 export const ADMIN_PASSCODE = "sakana-admin";
@@ -54,6 +54,13 @@ export function openAdminPanel({ save, scene3d, openModal, onSaveAndRefresh, onE
         <div class="chat-input-row" style="margin-top:4px;">
           <input type="number" id="adm-custom-money" class="field-input" placeholder="任意の所持金額(¥)" />
           <button class="btn-primary" id="adm-set-money">設定</button>
+        </div>
+      </div>
+      <div class="bank-box">
+        <strong>🏆 今日のランキング操作</strong>
+        <div class="muted">本日の5部門ランキング（重複・テスト記録）を一括クリアします。</div>
+        <div class="btn-row">
+          <button class="btn-warn" id="adm-reset-daily-ranking">🗑️ 今日の全5部門ランキングをリセット</button>
         </div>
       </div>
       <div class="bank-box">
@@ -218,6 +225,19 @@ export function openAdminPanel({ save, scene3d, openModal, onSaveAndRefresh, onE
     document.getElementById("adm-shell-100").onclick = () => { save.shells = (save.shells || 0) + 100; commit(); };
     document.getElementById("adm-full-sta").onclick = () => { save.stamina = 100; save.fuel = 320; commit(); };
     document.getElementById("adm-rep-100").onclick = () => { save.reputation = (save.reputation || 0) + 100; commit(); };
+    const resetRankBtn = document.getElementById("adm-reset-daily-ranking");
+    if (resetRankBtn) {
+      resetRankBtn.onclick = async () => {
+        if (!confirm("本日（JST）の全5部門ランキングをリセットしますか？")) return;
+        resetRankBtn.disabled = true;
+        const res = await resetTodayDailyRankings();
+        resetRankBtn.disabled = false;
+        if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
+        audioEngine.playCash();
+        alert(res.msg);
+        onSaveAndRefresh?.();
+      };
+    }
     document.getElementById("adm-set-money").onclick = () => { const v = Number(document.getElementById("adm-custom-money").value); if (!Number.isNaN(v) && v >= 0) { save.money = Math.floor(v); commit(); } };
     document.getElementById("adm-farm-ready").onclick = () => { (save.farm?.plots || []).forEach((p) => { if (p) p.readyAt = Date.now() - 1000; }); commit("養殖を全完了にしました！"); };
     document.getElementById("adm-clear-cooler").onclick = () => { save.cooler = []; commit("クーラーを空にしました"); };

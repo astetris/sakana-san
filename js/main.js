@@ -9,10 +9,8 @@ function __traceBoot(msg) {
   } catch {}
 }
 window.addEventListener("error", (ev) => {
-  __traceBoot("⚠️ ERR: " + (ev?.message || "unknown"));
 });
 window.addEventListener("unhandledrejection", (ev) => {
-  __traceBoot("⚠️ PROMISE: " + (ev?.reason?.message || ev?.reason || "unknown"));
 });
 
 
@@ -1677,10 +1675,8 @@ function setupJoystick() {
 
 async function boot() {
   /* fast-boot-steps */
-  if (window.__putBootMsg) window.__putBootMsg('⏳ 1/5 Scene...');
   /* main-entered-tracer */
   if ($("live-clock")) $("live-clock").textContent = "⏳ boot開始...";
-  __traceBoot("1/5 Scene初期化中...");
   scene3d = new FishingScene($("scene-canvas"));
   scene3d.onFuelConsume = (dist) => {
     audioEngine.playEnginePulse(); fuelMoveAccum += dist;
@@ -1703,14 +1699,8 @@ async function boot() {
   setInterval(() => { if (activeSlotIndex >= 0) updateHud(); }, 10000);
 
   window.addEventListener("pointerdown", () => audioEngine.unlock(), { once: true });
-  __traceBoot("2/5 魚種データ読込中...");
-  if (window.__putBootMsg) window.__putBootMsg('⏳ 2/5 魚種読込...');
   await loadSpeciesMaster();
-  __traceBoot("3/5 ガチャ読込中...");
-  if (window.__putBootMsg) window.__putBootMsg('⏳ 3/5 ガチャ読込...');
   await loadGachaBanners();
-  __traceBoot("4/5 Firebase接続中...");
-  if (window.__putBootMsg) window.__putBootMsg('⏳ 4/5 Firebase...');
   await initFirebase({ onOnlineCount: (n) => { $("online-count").textContent = n; }, onStatus: (msg) => { $("sync-status").textContent = msg; } });
 
   // リアルタイム同期購読

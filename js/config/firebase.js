@@ -134,6 +134,24 @@ export async function submitDailyBoard(boardId, { playerName, score, detail = ""
   } catch (e) { console.warn("ランキング更新スキップ:", e); }
 }
 
+export async function resetTodayDailyRankings() {
+  if (!ready) return { ok: false, msg: "Firebase未接続のためリセットできません。" };
+  try {
+    const dateKey = getJstDateKey();
+    await Promise.all(
+      RANKING_BOARDS.map((b) =>
+        setDoc(doc(db, "daily_rankings", dateKey, "boards", b.id), {
+          topList: [],
+          updatedAt: Date.now()
+        })
+      )
+    );
+    return { ok: true, msg: `本日（${dateKey}）の全${RANKING_BOARDS.length}部門ランキングをリセットしました！` };
+  } catch (e) {
+    return { ok: false, msg: e?.message || "ランキングのリセットに失敗しました。" };
+  }
+}
+
 // ===== リアルタイムワールド同期 =====
 export async function updateWorldPresence(payload) {
   if (!ready || !currentUid) return;

@@ -203,7 +203,7 @@
 <script>
     (function() {
       /* sakana-auto-cache-bust */
-      const ver = "20261128_041111";
+      const ver = "20261128_041559";
       const css = document.getElementById("main-css");
       if (css) css.href = "./css/style.css?v=" + ver;
       const s = document.createElement("script");
@@ -234,7 +234,7 @@
     var r = e && e.reason;
     putMsg('⚠️ REJECT: ' + ((r && r.message) || String(r || 'Promise')));
   });
-  putMsg('⏳ 読込中(HTML)...');
+  // cleaned up boot debug message
 })();
 </script>
 </body>
