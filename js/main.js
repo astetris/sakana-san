@@ -295,6 +295,35 @@ function saveWorldPosition(syncCloud = false) {
   persistSlots(slots, syncCloud);
 }
 
+/* ensure-mode-btn-after-init */
+
+function ensurePlayModeButton() {
+  if (typeof playMode === "undefined") {
+    window.playMode = localStorage.getItem("sakana_play_mode") || "multi";
+  }
+  const modeVal = typeof playMode !== "undefined" ? playMode : window.playMode;
+  const coolerBtn = document.getElementById("btn-open-cooler");
+  if (!coolerBtn || !coolerBtn.parentElement) return;
+
+  let btn = document.getElementById("btn-play-mode-toggle");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "btn-play-mode-toggle";
+    btn.className = "btn-mini";
+    btn.type = "button";
+    btn.onclick = () => {
+      if (typeof audioEngine !== "undefined") audioEngine.unlock();
+      if (typeof openPlayModeSelectModal === "function") {
+        openPlayModeSelectModal();
+      } else {
+        alert("モード切替モーダル関数が見つかりません");
+      }
+    };
+    coolerBtn.parentElement.appendChild(btn);
+  }
+  btn.textContent = modeVal === "solo" ? "🧍 ソロ" : "🌐 マルチ";
+}
+
 function updateHud() {
   const save = currentSave();
   if (!save) return;
@@ -308,6 +337,7 @@ function updateHud() {
   $("hud-pearls").textContent = getTotalPearls(save).toLocaleString();
   $("hud-stamina").textContent = save.stamina;
   $("hud-cooler-count").textContent = `${save.cooler.length}/${stats.coolerCap}`;
+  ensurePlayModeButton();
   $("gear-power-hint").textContent = `(竿x${stats.rodPower} / リールx${stats.reelSpeed} / 糸x${stats.lineStrength})`;
   $("office-dot").classList.toggle("hidden", !hasOfficeNotif);
 
