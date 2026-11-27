@@ -32,12 +32,18 @@ const LAND_OBSTACLES = (() => {
     { type: "box", minX: -142.0, maxX: -126.0, minZ: -4.0, maxZ: 14.2, label: "川（橋を渡ろう）" },
     { type: "box", minX: -142.0, maxX: -126.0, minZ: 17.8, maxZ: 48.0, label: "川（橋を渡ろう）" },
     // 海沿い道路のガードレール（横断歩道 x = 4.6〜9.4 だけ渡れる）
-    { type: "box", minX: -160.0, maxX: 4.5,   minZ: 34.1, maxZ: 41.6, label: "ガードレール（横断歩道から渡ろう）" },
-    { type: "box", minX: 9.5,    maxX: 140.0, minZ: 34.1, maxZ: 41.6, label: "ガードレール（横断歩道から渡ろう）" },
+    { type: "box", minX: -160.0, maxX: 3.5,   minZ: 34.1, maxZ: 41.6, label: "ガードレール（横断歩道から渡ろう）" },
+    { type: "box", minX: 10.5,   maxX: 140.0, minZ: 34.1, maxZ: 41.6, label: "ガードレール（横断歩道から渡ろう）" },
     // 向こう側歩道の左右終端＆自販機
     { type: "box", minX: -160.0, maxX: -36.5, minZ: 41.6, maxZ: 48.0, label: "歩道の端" },
     { type: "box", minX: 36.5,   maxX: 140.0, minZ: 41.6, maxZ: 48.0, label: "歩道の端" },
-    { type: "box", minX: 0.7,    maxX: 2.3,   minZ: 45.4, maxZ: 46.8, label: "自動販売機" }
+    { type: "box", minX: 0.7,    maxX: 2.3,   minZ: 45.4, maxZ: 46.8, label: "自動販売機" },
+    // 線路の柵（踏切 x = 3.6〜10.4 だけ渡れる）
+    { type: "box", minX: -160.0, maxX: 3.5,   minZ: 47.6, maxZ: 54.4, label: "線路（踏切から渡ろう）" },
+    { type: "box", minX: 10.5,   maxX: 140.0, minZ: 47.6, maxZ: 54.4, label: "線路（踏切から渡ろう）" },
+    // 駅前広場＆さかな港駅の左右境界
+    { type: "box", minX: -160.0, maxX: -12.0, minZ: 54.4, maxZ: 62.0, label: "駅前の端" },
+    { type: "box", minX: 36.5,   maxX: 140.0, minZ: 54.4, maxZ: 62.0, label: "駅の端" }
   ];
 
   // 港の街灯
@@ -204,7 +210,7 @@ export function clampWorldPosition(nx, nz, isBoating, boatTier) {
   if (!isBoating) {
     const PLAYER_R = 0.9;
     nx = Math.max(-157, Math.min(137, nx));
-    nz = Math.min(45.4, nz);
+    nz = Math.min(59.5, nz);
 
     const onPierEntry = Math.abs(nx) <= 3.6;
     const coastMinZ = Math.abs(nx) <= 36.5 ? 0.75 : -0.35;
@@ -234,7 +240,7 @@ export function clampWorldPosition(nx, nz, isBoating, boatTier) {
         }
       }
       nx = Math.max(-157, Math.min(137, nx));
-      nz = Math.min(45.4, nz);
+      nz = Math.min(59.5, nz);
       if (nz < coastMinZ) {
         if (Math.abs(nx) <= 3.6) {
           nx = Math.max(-3.5, Math.min(3.5, nx));

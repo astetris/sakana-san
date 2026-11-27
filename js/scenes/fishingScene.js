@@ -584,6 +584,8 @@ export class FishingScene {
     this.signalBulbs = { carR: [], carY: [], carG: [], pedR: [], pedG: [] };
     this.signalState = { car: 'green', ped: 'red', pedBlink: false };
     this.lastRedWarnAt = 0;
+    this.railState = null;
+    this.lastGateWarnAt = 0;
     this.trafficVehicles = [];
     this.carBeamMats = [];
     this.busWindowMats = [];
@@ -1449,6 +1451,7 @@ export class FishingScene {
     addBuoy(68, -140, 0xef4444);
 
     this.buildTraffic(world);
+    this.buildRailway(world);
     this.scene.add(world);
   }
 
@@ -1626,10 +1629,10 @@ export class FishingScene {
         world.add(post);
       }
     };
-    addGuardSection(-157, 4.5, 34.4);
-    addGuardSection(9.5, 138, 34.4);
-    addGuardSection(-157, 4.5, 41.5);
-    addGuardSection(9.5, 138, 41.5);
+    addGuardSection(-157, 3.5, 34.4);
+    addGuardSection(10.5, 138, 34.4);
+    addGuardSection(-157, 3.5, 41.5);
+    addGuardSection(10.5, 138, 41.5);
 
     // 交差点・横断歩道・信号機・向こう側歩道を構築
     this.buildIntersection(world, roadMat, lineMat, guardMat);
@@ -1712,10 +1715,10 @@ export class FishingScene {
     northCurbL.position.set(-16.2, 1.04, 41.35);
     const northCurbR = new THREE.Mesh(new THREE.BoxGeometry(28.5, 0.16, 0.35), curbMat);
     northCurbR.position.set(23.8, 1.04, 41.35);
-    const backFenceL = new THREE.Mesh(new THREE.BoxGeometry(40.5, 0.65, 0.14), guardMat);
-    backFenceL.position.set(-16.8, 1.42, 46.8);
-    const backFenceR = new THREE.Mesh(new THREE.BoxGeometry(27.5, 0.65, 0.14), guardMat);
-    backFenceR.position.set(23.8, 1.42, 46.8);
+    const backFenceL = new THREE.Mesh(new THREE.BoxGeometry(41.5, 0.65, 0.14), guardMat);
+    backFenceL.position.set(-17.3, 1.42, 47.2);
+    const backFenceR = new THREE.Mesh(new THREE.BoxGeometry(27.0, 0.65, 0.14), guardMat);
+    backFenceR.position.set(24.0, 1.42, 47.2);
     world.add(northWalk, northCurbL, northCurbR, backFenceL, backFenceR);
 
     // 向こう側歩道の自販機・ベンチ
@@ -1732,7 +1735,7 @@ export class FishingScene {
 
     // 横断歩道（ゼブラストライプ）＆停止線
     for (let z = 35.3; z <= 40.7; z += 0.9) {
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.02, 0.46), lineMat);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.02, 0.52), lineMat);
       stripe.position.set(cx, 1.06, z);
       world.add(stripe);
     }
@@ -1798,8 +1801,8 @@ export class FishingScene {
       world.add(g);
     };
 
-    addSignalPole(9.8, 34.2, Math.PI / 2, 0);
-    addSignalPole(4.2, 41.7, -Math.PI / 2, Math.PI);
+    addSignalPole(10.8, 34.2, Math.PI / 2, 0);
+    addSignalPole(3.2, 41.7, -Math.PI / 2, Math.PI);
   }
 
   updateTrafficSignals(t) {
@@ -1836,7 +1839,7 @@ export class FishingScene {
   updateTraffic(dt, t) {
     this.updateTrafficSignals(t);
 
-    const playerOnCrosswalk = !this.isBoating && this.pos.y >= 34.4 && this.pos.y <= 41.4 && this.pos.x >= 4.2 && this.pos.x <= 9.8;
+    const playerOnCrosswalk = !this.isBoating && this.pos.y >= 34.4 && this.pos.y <= 41.4 && this.pos.x >= 3.4 && this.pos.x <= 10.6;
     if (playerOnCrosswalk && this.signalState.ped === "red" && performance.now() - this.lastRedWarnAt > 2600) {
       this.lastRedWarnAt = performance.now();
       this.onBlocked?.("🚥 歩行者信号が赤です！青になるまで待つと安全だよ");
@@ -1901,6 +1904,301 @@ export class FishingScene {
         v.cooldown = v.waitMin + Math.random() * (v.waitMax - v.waitMin);
       }
     }
+  }
+
+  // ===== 海沿いのローカル電車・踏切・さかな港駅 =====
+  buildRailway(world) {
+    const trackZ = 51.4;
+    const crossX = 7.0;
+    const ballastMat = new THREE.MeshStandardMaterial({ color: 0x57534e, roughness: 0.96 });
+    const tieMat = new THREE.MeshStandardMaterial({ color: 0x4b3621, roughness: 0.92 });
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.35, metalness: 0.78 });
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.5, metalness: 0.6 });
+    const concMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.88 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 });
+
+    // 1. 線路の砕石（バラスト）＆枕木＆レール＆架線柱
+    const ballast = new THREE.Mesh(new THREE.BoxGeometry(310, 0.22, 4.4), ballastMat);
+    ballast.position.set(-10, 0.98, trackZ);
+    world.add(ballast);
+
+    const tieGeo = new THREE.BoxGeometry(0.28, 0.12, 2.55);
+    for (let x = -155; x <= 140; x += 1.6) {
+      const tie = new THREE.Mesh(tieGeo, tieMat);
+      tie.position.set(x, 1.08, trackZ);
+      world.add(tie);
+    }
+    [-0.78, 0.78].forEach((rz) => {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(310, 0.14, 0.12), railMat);
+      rail.position.set(-10, 1.18, trackZ + rz);
+      world.add(rail);
+    });
+
+    // 架線柱と架線
+    for (let x = -140; x <= 130; x += 26) {
+      if (Math.abs(x - crossX) < 6) continue;
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 6.4, 8), poleMat);
+      p.position.set(x, 4.2, trackZ + 2.4);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 3.2), poleMat);
+      arm.position.set(x, 6.8, trackZ + 0.9);
+      world.add(p, arm);
+    }
+    const wire = new THREE.Mesh(new THREE.BoxGeometry(310, 0.04, 0.04), darkMat);
+    wire.position.set(-10, 6.65, trackZ);
+    world.add(wire);
+
+    // 2. 踏切（幅広の木製・コンクリート渡り板＋警報機2基＋可動遮断機2本）
+    const crossDeck = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.18, 4.8), concMat);
+    crossDeck.position.set(crossX, 1.07, trackZ);
+    world.add(crossDeck);
+
+    const stripeMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.45 });
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.6 });
+    const gateArms = [];
+    const flashL = [];
+    const flashR = [];
+
+    const addCrossingPost = (px, pz, barDirX, faceRotY) => {
+      const g = new THREE.Group();
+      g.position.set(px, 1.0, pz);
+
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 3.6, 8), stripeMat);
+      post.position.y = 1.8;
+      g.add(post);
+      // 黒帯アクセント
+      for (let by = 0.6; by <= 3.0; by += 0.8) {
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.34, 8), blackMat);
+        band.position.y = by;
+        g.add(band);
+      }
+
+      // 踏切の×マーク
+      const xGrp = new THREE.Group();
+      xGrp.position.set(0, 3.15, 0);
+      xGrp.rotation.y = faceRotY;
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.16, 0.08), stripeMat);
+      b1.rotation.z = Math.PI / 4;
+      const b2 = b1.clone();
+      b2.rotation.z = -Math.PI / 4;
+      xGrp.add(b1, b2);
+      g.add(xGrp);
+
+      // 交互点滅する赤色警報灯（左右2灯）
+      const lampGrp = new THREE.Group();
+      lampGrp.position.set(0, 2.35, 0);
+      lampGrp.rotation.y = faceRotY;
+      const lBar = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.14, 0.14), blackMat);
+      const mL = new THREE.MeshBasicMaterial({ color: 0x2a1414 });
+      const mR = new THREE.MeshBasicMaterial({ color: 0x2a1414 });
+      const bulbL = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 10), mL);
+      bulbL.position.set(-0.34, 0, 0.1);
+      const bulbR = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 10), mR);
+      bulbR.position.set(0.34, 0, 0.1);
+      lampGrp.add(lBar, bulbL, bulbR);
+      flashL.push(mL);
+      flashR.push(mR);
+      g.add(lampGrp);
+
+      // 遮断機（回転ピボット：開=上に上がる / 閉=水平に下りる）
+      const pivot = new THREE.Group();
+      pivot.position.set(0, 1.15, 0);
+      const armLen = 5.8;
+      const armMesh = new THREE.Mesh(new THREE.BoxGeometry(armLen, 0.12, 0.12), stripeMat);
+      armMesh.position.set(barDirX * (armLen / 2), 0, 0);
+      pivot.add(armMesh);
+      for (let s = 0.7; s < armLen; s += 1.0) {
+        const sb = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.13, 0.13), blackMat);
+        sb.position.set(barDirX * s, 0, 0);
+        pivot.add(sb);
+      }
+      g.add(pivot);
+      gateArms.push({ pivot, dir: barDirX });
+
+      world.add(g);
+    };
+
+    // 南側（港側）と北側（駅側）に1基ずつ設置
+    addCrossingPost(3.6, trackZ - 2.6, 1, Math.PI);
+    addCrossingPost(10.4, trackZ + 2.6, -1, 0);
+
+    // 3. 駅前広場＆「さかな港駅」（線路の北側 z = 54.0〜60.5）
+    const plaza = new THREE.Mesh(new THREE.BoxGeometry(54, 1.48, 7.6), new THREE.MeshStandardMaterial({ color: 0x71717a, roughness: 0.9 }));
+    plaza.position.set(14, 0.28, 57.6);
+    world.add(plaza);
+
+    // 駅ホーム（x = 13〜35, z = 54.0〜58.2）
+    const platform = new THREE.Mesh(new THREE.BoxGeometry(22, 0.72, 4.2), concMat);
+    platform.position.set(24, 1.38, 56.1);
+    const yellowLine = new THREE.Mesh(
+      new THREE.BoxGeometry(21.6, 0.04, 0.34),
+      new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.65 })
+    );
+    yellowLine.position.set(24, 1.75, 54.35);
+    // 駅の屋根と柱
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(16, 0.24, 3.8), new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.55 }));
+    roof.position.set(24, 4.65, 56.2);
+    for (let px = 17.5; px <= 30.5; px += 6.5) {
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.0, 8), poleMat);
+      col.position.set(px, 3.2, 56.2);
+      world.add(col);
+    }
+    // 駅名標「さかな港」
+    const stSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.8, 1.35),
+      new THREE.MeshBasicMaterial({ map: createSignTexture("🚉 さかな港", "SAKANA-MINATO", "#f8fafc", "#0f172a", "#0284c7"), side: THREE.DoubleSide })
+    );
+    stSign.position.set(24, 3.75, 54.45);
+    stSign.rotation.y = Math.PI;
+    // ホーム照明（夜間点灯）
+    const stLampMat = new THREE.MeshStandardMaterial({ color: 0xfff8dc, emissive: 0xffd166, emissiveIntensity: 0.4 });
+    const stLamp = new THREE.Mesh(new THREE.BoxGeometry(10.5, 0.14, 0.32), stLampMat);
+    stLamp.position.set(24, 4.46, 55.6);
+    this.nightEmissives.push(stLampMat);
+    // ホーム待合ベンチ
+    const stBench = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.48, 0.65), new THREE.MeshStandardMaterial({ color: 0x78563a, roughness: 0.85 }));
+    stBench.position.set(24, 1.98, 57.3);
+    world.add(platform, yellowLine, roof, stSign, stLamp, stBench);
+
+    // 4. 海沿いのレトロ2両編成ローカル電車（クリーム×マリンブルー）
+    const trainGroup = new THREE.Group();
+    const creamMat = new THREE.MeshStandardMaterial({ color: 0xfef9e7, roughness: 0.38, metalness: 0.15 });
+    const seaBlueMat = new THREE.MeshStandardMaterial({ color: 0x0e7490, roughness: 0.36, metalness: 0.22 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.55 });
+    const winGlowMat = new THREE.MeshStandardMaterial({
+      color: 0x334155, emissive: 0xffd27d, emissiveIntensity: 0.35, roughness: 0.16, metalness: 0.4
+    });
+    this.nightEmissives.push(winGlowMat);
+
+    const buildCar = (offsetX) => {
+      const car = new THREE.Group();
+      car.position.x = offsetX;
+      const lower = new THREE.Mesh(new THREE.BoxGeometry(11.4, 1.15, 2.55), seaBlueMat);
+      lower.position.y = 1.15;
+      const upper = new THREE.Mesh(new THREE.BoxGeometry(11.4, 1.45, 2.55), creamMat);
+      upper.position.y = 2.42;
+      const carRoof = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.28, 2.42), roofMat);
+      carRoof.position.y = 3.26;
+      const sideWin = new THREE.Mesh(new THREE.BoxGeometry(9.8, 0.92, 2.6), winGlowMat);
+      sideWin.position.y = 2.38;
+      // 窓枠ピラー
+      for (let wx = -4.2; wx <= 4.2; wx += 1.4) {
+        const pil = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.96, 2.62), creamMat);
+        pil.position.set(wx, 2.38, 0);
+        car.add(pil);
+      }
+      // パンタグラフ
+      const panto = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.72, 0.9), darkMat);
+      panto.position.set(0, 3.74, 0);
+      // 台車（車輪）
+      [-3.5, 3.5].forEach((bx) => {
+        const bogie = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.56, 2.2), darkMat);
+        bogie.position.set(bx, 0.42, 0);
+        car.add(bogie);
+      });
+      car.add(lower, upper, carRoof, sideWin, panto);
+      return car;
+    };
+
+    trainGroup.add(buildCar(-6.0), buildCar(6.0));
+    // 連結部
+    const coupler = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.2, 2.1), darkMat);
+    coupler.position.y = 1.9;
+    trainGroup.add(coupler);
+
+    // 前照灯＆尾灯
+    const headL = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), new THREE.MeshBasicMaterial({ color: 0xfff7cc }));
+    headL.position.set(11.75, 2.65, 0);
+    const tailL = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+    tailL.position.set(-11.75, 1.25, 0);
+    trainGroup.add(headL, tailL);
+
+    trainGroup.position.set(-165, 1.15, trackZ);
+    world.add(trainGroup);
+
+    this.railState = {
+      train: trainGroup,
+      trackZ,
+      crossX,
+      stationX: 24.0,
+      gateArms,
+      flashL,
+      flashR,
+      x: -165,
+      dir: 1,
+      speed: 0,
+      maxSpeed: 17.5,
+      mode: "wait", // "wait" | "run" | "stop"
+      timer: 5.5,
+      stoppedThisTrip: false,
+      gateClosed: 0 // 0=開, 1=閉
+    };
+  }
+
+  updateRailway(dt, t) {
+    const r = this.railState;
+    if (!r) return;
+
+    if (r.mode === "wait") {
+      r.timer -= dt;
+      if (r.timer <= 0) {
+        r.mode = "run";
+        r.stoppedThisTrip = false;
+        r.x = r.dir > 0 ? -168 : 148;
+        r.train.rotation.y = r.dir > 0 ? 0 : Math.PI;
+        r.train.visible = true;
+      }
+    } else if (r.mode === "stop") {
+      r.speed = 0;
+      r.timer -= dt;
+      if (r.timer <= 0) {
+        r.mode = "run";
+      }
+    } else if (r.mode === "run") {
+      // さかな港駅（x = 24）に近づいたら滑らかに減速＆停車
+      const distToStation = (r.stationX - r.x) * r.dir;
+      let targetSpd = r.maxSpeed;
+      if (!r.stoppedThisTrip && distToStation > 0 && distToStation < 34) {
+        targetSpd = Math.max(1.8, (distToStation / 34) * r.maxSpeed);
+      }
+      if (!r.stoppedThisTrip && Math.abs(r.x - r.stationX) < 1.2) {
+        r.x = r.stationX;
+        r.speed = 0;
+        r.stoppedThisTrip = true;
+        r.mode = "stop";
+        r.timer = 4.5; // 駅に4.5秒停車
+      } else {
+        r.speed += (targetSpd - r.speed) * Math.min(1, dt * 2.4);
+        r.x += r.dir * r.speed * dt;
+      }
+
+      if ((r.dir > 0 && r.x > 152) || (r.dir < 0 && r.x < -172)) {
+        r.mode = "wait";
+        r.timer = 12 + Math.random() * 14;
+        r.dir *= -1;
+        r.train.visible = false;
+      }
+    }
+
+    r.train.position.set(r.x, 1.15, r.trackZ);
+
+    // 踏切警報＆遮断機制御（電車が踏切から52m以内にいる間は遮断）
+    const nearCrossing = r.mode !== "wait" && Math.abs(r.x - r.crossX) < 52;
+    const targetClosed = nearCrossing ? 1.0 : 0.0;
+    r.gateClosed += (targetClosed - r.gateClosed) * Math.min(1, dt * 3.8);
+
+    // 遮断機の角度（0=直立開 / 1=水平閉）
+    const openAngle = Math.PI * 0.46;
+    const curAngle = openAngle * (1.0 - r.gateClosed);
+    r.gateArms.forEach(({ pivot, dir }) => {
+      pivot.rotation.z = dir * curAngle;
+    });
+
+    // 警報灯の交互点滅
+    const blink = Math.floor(t * 3.4) % 2 === 0;
+    const onCol = 0xff2222;
+    const offCol = 0x261212;
+    r.flashL.forEach((m) => m.color.setHex(nearCrossing && blink ? onCol : offCol));
+    r.flashR.forEach((m) => m.color.setHex(nearCrossing && !blink ? onCol : offCol));
   }
 
   // ===== 他プレイヤー3Dアバター同期 =====
@@ -2196,6 +2494,15 @@ export class FishingScene {
           }
         }
       }
+      if (!this.isBoating && this.railState && this.railState.gateClosed > 0.35) {
+        if (fz > 48.2 && fz < 54.4) {
+          fz = this.pos.y <= 51.3 ? 48.2 : 54.4;
+          if (performance.now() - this.lastGateWarnAt > 2200) {
+            this.lastGateWarnAt = performance.now();
+            this.onBlocked?.('🚆 電車が来ます！遮断機が上がるまで待とう');
+          }
+        }
+      }
       this.pos.set(fx, fz);
       if (clamped.blockedMsg && performance.now() - this.lastBlockAt > 1800) {
         this.lastBlockAt = performance.now(); this.autopilot = false; this.onBlocked?.(clamped.blockedMsg);
@@ -2243,6 +2550,7 @@ export class FishingScene {
 
     if (this.lighthouseBeam) this.lighthouseBeam.rotation.y = t * 0.55;
     this.updateTraffic(dt, t);
+    this.updateRailway(dt, t);
     for (const b of this.buoyLamps) {
       b.lamp.visible = Math.sin(t * 3.0 + b.phase) > -0.15;
     }
