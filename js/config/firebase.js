@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/fireba
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import {
-  getDatabase, ref, set, get, remove, push, onValue, onDisconnect, query, limitToLast
+  getDatabase, ref, set, get, remove, push, onValue, onDisconnect, query, limitToLast, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 const firebaseConfig = {
@@ -298,4 +298,54 @@ export async function consumeRedeemCode(code) {
   } catch (e) {
     return { ok: false, msg: "コード確認に失敗しました（RTDBルールを確認）" };
   }
+}
+
+
+// ===== Phase 7: 1人1回・人数制クーポン（割引＆真珠/パス配布） =====
+export async function createCouponCode(code, payload) {
+  if (!ready) return false;
+  try {
+    const clean = code.trim().toUpperCase();
+    await set(ref(rtdb, `coupons/${clean}`), {
+      ...payload,
+      maxUses: Math.max(1, payload.maxUses || 1),
+      usedCount: 0,
+      usedBy: {},
+      createdAt: Date.now()
+    });
+    return true;
+  } catch (e) { console.warn("クーポン発行エラー:", e); return false; }
+}
+
+export async function previewCouponCode(code) {
+  if (!ready || !currentUid) return { ok: false, msg: "オンライン接続が必要です" };
+  try {
+    const clean = code.trim().toUpperCase();
+    const snap = await get(ref(rtdb, `coupons/${clean}`));
+    if (!snap.exists()) return { ok: false, msg: "無効なコードです" };
+    const d = snap.val();
+    if (d.usedBy && d.usedBy[currentUid]) return { ok: false, msg: "このコードはすでに使用済みです（1人1回限り）" };
+    if ((d.usedCount || 0) >= (d.maxUses || 1)) return { ok: false, msg: "このコードは利用上限人数に達しました" };
+    return { ok: true, data: d };
+  } catch (e) { return { ok: false, msg: "コード確認に失敗しました（RTDBルール確認）" }; }
+}
+
+export async function redeemCouponCode(code) {
+  const pre = await previewCouponCode(code);
+  if (!pre.ok) return pre;
+  try {
+    const clean = code.trim().toUpperCase();
+    const codeRef = ref(rtdb, `coupons/${clean}`);
+    let rejectReason = "使用できませんでした";
+    const tx = await runTransaction(codeRef, (cur) => {
+      if (!cur) return cur;
+      const usedBy = cur.usedBy || {};
+      if (usedBy[currentUid]) { rejectReason = "このコードはすでに使用済みです（1人1回限り）"; return; }
+      if ((cur.usedCount || 0) >= (cur.maxUses || 1)) { rejectReason = "利用上限人数に達しました"; return; }
+      usedBy[currentUid] = Date.now();
+      return { ...cur, usedCount: (cur.usedCount || 0) + 1, usedBy };
+    });
+    if (!tx.committed) return { ok: false, msg: rejectReason };
+    return { ok: true, data: tx.snapshot.val() };
+  } catch (e) { return { ok: false, msg: "コード引換に失敗しました" }; }
 }

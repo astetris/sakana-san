@@ -23,9 +23,10 @@ import {
 import { startShopView, stopShopView } from "./systems/shopView.js";
 import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js";
 import {
-  PAYMENT_URLS, PAYMENT_METHODS, PEARL_PACKS, MONTHLY_PASS_DEF, PEARL_USES,
-  isMonthlyPassActive, canClaimDailyPass, grantMonthlyPass, claimMonthlyPassDaily
+  getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones
 } from "./systems/pearlShop.js";
+import { loadGachaBanners } from "./systems/gacha.js";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js";
 import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js";
 import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js";
 import {
@@ -152,7 +153,7 @@ function renderSlots() {
       item.innerHTML = `
         <div class="slot-info">
           <strong>スロット${idx + 1}: ${escapeHtml(s.name)}</strong>
-          <span>¥${s.money.toLocaleString()} / 💎${s.pearls || 0} / ${boat.name} / 図鑑${dexCount}種</span>
+          <span>¥${s.money.toLocaleString()} / 💎${getTotalPearls(s)} / ${boat.name} / 図鑑${dexCount}種</span>
         </div>
         <div class="slot-actions">
           <button class="btn-primary" data-play="${idx}">続きから</button>
@@ -262,8 +263,8 @@ function startSlot(idx) {
   resetActionState();
 
   // 月額パスの毎日ログイン受け取り通知
-  if (canClaimDailyPass(save)) {
-    showLiveTicker("🌙 月額パスの毎日💎100が受け取れます！右上の💎ボタンから受取ろう");
+  if (canClaimAnyPass(save)) {
+    showLiveTicker("🎁 パスの毎日ログイン報酬（💠無償真珠＆¥）が受け取れます！右上の💎から受取ろう");
   }
 }
 
@@ -301,7 +302,7 @@ function updateHud() {
 
   $("hud-name").textContent = `${isMonthlyPassActive(save) ? "🌙" : ""}${save.name}`;
   $("hud-money").textContent = `¥${save.money.toLocaleString()}`;
-  $("hud-pearls").textContent = (save.pearls || 0).toLocaleString();
+  $("hud-pearls").textContent = getTotalPearls(save).toLocaleString();
   $("hud-stamina").textContent = save.stamina;
   $("hud-cooler-count").textContent = `${save.cooler.length}/${stats.coolerCap}`;
   $("gear-power-hint").textContent = `(竿x${stats.rodPower} / リールx${stats.reelSpeed} / 糸x${stats.lineStrength})`;
@@ -442,7 +443,7 @@ function doNetHarvest() {
   let totalPrice = 0;
   kept.forEach((item) => {
     const sp = item.species;
-    let mult = (together ? 1.1 : 1) * (buff?.priceMult || 1);
+    let mult = (together ? 1.1 : 1) * (buff?.priceMult || 1) * (isMonthlyPassActive(save) ? 1.1 : 1);
     const price = Math.round(item.estimatedPrice * mult);
     const tags = [...item.tags];
     if (together) tags.push("一緒に釣り+10%");
@@ -486,7 +487,7 @@ function doShellHarvest() {
 
   const sp = res.species;
   const together = scene3d.getNearbyPlayers(35).length > 0;
-  const price = Math.round(res.estimatedPrice * (together ? 1.1 : 1) * (buff?.priceMult || 1));
+  const price = Math.round(res.estimatedPrice * (together ? 1.1 : 1) * (buff?.priceMult || 1) * (isMonthlyPassActive(save) ? 1.1 : 1));
   const tags = together ? [...res.tags, "一緒に釣り+10%"] : res.tags;
 
   save.cooler.push({ id: sp.id, name: `${sp.name}×${res.count}`, rank: sp.rank, weightKg: res.weightKg, tags, price });
@@ -547,7 +548,7 @@ function startFight() {
   const together = scene3d.getNearbyPlayers(35).length > 0;
   const buff = getActiveBuff(save);
   const caught = rollCatch(currentArea?.id || "teibou", env, inSpot || together || buff?.rareBonus, getEquippedStats(save).baitAttract);
-  const mult = (together ? 1.1 : 1) * (buff?.priceMult || 1);
+  const mult = (together ? 1.1 : 1) * (buff?.priceMult || 1) * (isMonthlyPassActive(save) ? 1.1 : 1);
   if (mult > 1) caught.estimatedPrice = Math.round(caught.estimatedPrice * mult);
   if (together) caught.tags.push("一緒に釣り+10%");
 
@@ -597,6 +598,7 @@ function onCatchSuccess(caught) {
   save.stats.totalCaught += 1; save.lastPlayedAt = Date.now();
 
   recordDailyProgress(save, { caughtDelta: 1 });
+  const ms = checkFreePearlMilestones(save); if (ms.length) showLiveTicker(`🎉 実績報酬: ${ms.join(' / ')}`);
   syncMyPublicProfile();
   submitDailyBoard("biggest_weight", { playerName: save.name, score: caught.weightKg, detail: sp.name });
   submitDailyBoard("highest_price", { playerName: save.name, score: caught.estimatedPrice, detail: sp.name });
@@ -642,7 +644,7 @@ function closeModal() {
 // ===== Phase 6: 港の食堂 ＆ 休憩所（憩いの場） =====
 function openLoungeModal() {
   const save = currentSave();
-  const vipSpeed = isMonthlyPassActive(save);
+  const vipSpeed = isMonthlyPassActive(save); const weekSpeed = isWeeklyPassActive(save);
   const tabsHtml = `
     <div class="shop-tabs">
       <button class="shop-tab ${activeLoungeTab === "canteen" ? "active" : ""}" data-ltab="canteen">🍜 港の食堂（料理）</button>
@@ -695,7 +697,7 @@ function openLoungeModal() {
       <div class="bank-box">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <strong>☕ ゆったり休憩中… ⚡<span id="rest-sta">${save.stamina}</span>/100</strong>
-          <span class="tag">${vipSpeed ? "🌙パス2倍回復" : "5秒ごとに⚡+1"}</span>
+          <span class="tag">${vipSpeed ? "🌙月パス2倍回復" : weekSpeed ? "🌤️週パス1.5倍回復" : "5秒ごとに⚡+1"}</span>
         </div>
         <div class="muted">お茶を飲みながら他の漁師さんとチャット交流！タップでプロフ閲覧・フレ申OK</div>
         <div class="btn-row">${guestPills}</div>
@@ -727,7 +729,7 @@ function openLoungeModal() {
         updateHud();
         const el = $("rest-sta"); if (el) el.textContent = save.stamina;
       }
-    }, vipSpeed ? 2500 : 5000);
+    }, vipSpeed ? 2500 : weekSpeed ? 3333 : 5000);
   }
 
   $("modal-body").querySelectorAll("[data-ltab]").forEach((btn) => {
@@ -762,11 +764,11 @@ function paintChatInto(boxEl, messages) {
 
 function openChatAndFriendsModal() {
   const save = currentSave();
+  if (activeChatTab === "lounge") activeChatTab = "global";
   const reqCount = Object.keys(friendReqsCache).length;
   const tabsHtml = `
     <div class="shop-tabs">
       <button class="shop-tab ${activeChatTab === "global" ? "active" : ""}" data-ctab="global">🌊 全体チャット</button>
-      <button class="shop-tab ${activeChatTab === "lounge" ? "active" : ""}" data-ctab="lounge">♨️ 憩いの場</button>
       <button class="shop-tab ${activeChatTab === "friends" ? "active" : ""}" data-ctab="friends">🤝 フレンド${reqCount ? `(${reqCount})` : ""}</button>
     </div>
   `;
@@ -775,88 +777,48 @@ function openChatAndFriendsModal() {
     const reqList = Object.values(friendReqsCache);
     const reqHtml = reqList.length ? reqList.map((r) => `
       <div class="list-row">
-        <div>
-          <strong class="chat-author" data-fprof="${r.uid}">${escapeHtml(r.name)}</strong>
-          <div class="muted">フレンド申請が届いています</div>
-        </div>
-        <div class="btn-row">
-          <button class="btn-sub" data-acc="${r.uid}">承認</button>
-          <button class="btn-danger" data-rej="${r.uid}">拒否</button>
-        </div>
+        <div><strong class="chat-author" data-fprof="${r.uid}">${escapeHtml(r.name)}</strong><div class="muted">フレンド申請が届いています</div></div>
+        <div class="btn-row"><button class="btn-sub" data-acc="${r.uid}">承認</button><button class="btn-danger" data-rej="${r.uid}">拒否</button></div>
       </div>
     `).join("") : `<div class="muted">届いているフレンド申請はありません。</div>`;
 
     const frList = Object.values(friendsCache);
     const frHtml = frList.length ? frList.map((f) => {
       const online = !!remotePlayersCache[f.uid];
-      return `
-        <div class="list-row">
-          <div>
-            <strong class="chat-author" data-fprof="${f.uid}">${online ? "🟢" : "⚪"} ${escapeHtml(f.name)}</strong>
-            <div class="muted">${online ? "現在オンライン中！" : "オフライン"}</div>
-          </div>
-          <button class="btn-danger" data-rmf="${f.uid}">解除</button>
-        </div>
-      `;
-    }).join("") : `<div class="muted">まだフレンドがいません。チャットや周囲の人の名前をタップして申請しよう！</div>`;
+      return `<div class="list-row"><div><strong class="chat-author" data-fprof="${f.uid}">${online ? "🟢" : "⚪"} ${escapeHtml(f.name)}</strong><div class="muted">${online ? "現在オンライン中！" : "オフライン"}</div></div><button class="btn-danger" data-rmf="${f.uid}">解除</button></div>`;
+    }).join("") : `<div class="muted">まだフレンドがいません。名前をタップして申請しよう！</div>`;
 
     const nearbyOthers = Object.entries(remotePlayersCache);
     const onlineHtml = nearbyOthers.length ? nearbyOthers.map(([uid, p]) => `
-      <div class="list-row">
-        <div><strong class="chat-author" data-fprof="${uid}">🟢 ${escapeHtml(p.name)}</strong> <span class="muted">${escapeHtml(p.title || "")}</span></div>
-        <button class="btn-sub" data-fprof="${uid}">プロフを見る</button>
-      </div>
+      <div class="list-row"><div><strong class="chat-author" data-fprof="${uid}">🟢 ${escapeHtml(p.name)}</strong> <span class="muted">${escapeHtml(p.title || "")}</span></div><button class="btn-sub" data-fprof="${uid}">プロフを見る</button></div>
     `).join("") : `<div class="muted">現在オンライン中の他プレイヤーはいません</div>`;
 
-    openModal("🤝 フレンド ＆ オンライン漁師", `
-      ${tabsHtml}
-      <div class="bank-box"><strong>📩 届いた申請（${reqList.length}）</strong>${reqHtml}</div>
-      <div class="bank-box"><strong>👥 フレンド一覧（${frList.length}）</strong>${frHtml}</div>
-      <div class="bank-box"><strong>🌊 オンライン中の漁師</strong>${onlineHtml}</div>
-    `, "chat_friends");
-
+    openModal("🤝 フレンド ＆ オンライン漁師", `${tabsHtml}<div class="bank-box"><strong>📩 届いた申請（${reqList.length}）</strong>${reqHtml}</div><div class="bank-box"><strong>👥 フレンド一覧（${frList.length}）</strong>${frHtml}</div><div class="bank-box"><strong>🌊 オンライン中の漁師</strong>${onlineHtml}</div>`, "chat_friends");
     $("modal-body").querySelectorAll("[data-fprof]").forEach((b) => { b.onclick = () => openOtherProfileModal(b.dataset.fprof); });
-    $("modal-body").querySelectorAll("[data-acc]").forEach((b) => {
-      b.onclick = async () => {
-        const uid = b.dataset.acc;
-        await acceptFriendRequest(uid, friendReqsCache[uid] || {}, { name: save.name });
-        audioEngine.playCash(); openChatAndFriendsModal();
-      };
-    });
-    $("modal-body").querySelectorAll("[data-rej]").forEach((b) => {
-      b.onclick = async () => { await rejectFriendRequest(b.dataset.rej); openChatAndFriendsModal(); };
-    });
-    $("modal-body").querySelectorAll("[data-rmf]").forEach((b) => {
-      b.onclick = async () => { if (confirm("フレンドを解除しますか？")) { await removeFriend(b.dataset.rmf); openChatAndFriendsModal(); } };
-    });
+    $("modal-body").querySelectorAll("[data-acc]").forEach((b) => { b.onclick = async () => { await acceptFriendRequest(b.dataset.acc, friendReqsCache[b.dataset.acc] || {}, { name: save.name }); audioEngine.playCash(); openChatAndFriendsModal(); }; });
+    $("modal-body").querySelectorAll("[data-rej]").forEach((b) => { b.onclick = async () => { await rejectFriendRequest(b.dataset.rej); openChatAndFriendsModal(); }; });
+    $("modal-body").querySelectorAll("[data-rmf]").forEach((b) => { b.onclick = async () => { if (confirm("フレンドを解除しますか？")) { await removeFriend(b.dataset.rmf); openChatAndFriendsModal(); } }; });
   } else {
-    const room = activeChatTab;
-    const msgs = room === "global" ? globalChatCache : loungeChatCache;
-    openModal(room === "global" ? "💬 港の全体チャット" : "♨️ 憩いの場チャット", `
+    openModal("💬 港の全体チャット", `
       ${tabsHtml}
-      <div class="muted">※名前をタップするとプロフィール閲覧・フレンド申請ができます</div>
+      <div class="muted">※憩いの場専用チャットは「🍜 憩い → ♨️ 憩いの場」で休憩中のみ利用できます</div>
       <div id="main-chat-box" class="chat-box"></div>
       <div class="chat-input-row">
-        <input id="main-chat-input" class="field-input" maxlength="120" placeholder="メッセージを入力..." />
+        <input id="main-chat-input" class="field-input" maxlength="120" placeholder="全体チャットにメッセージ..." />
         <button id="main-chat-send" class="btn-primary">送信</button>
       </div>
-    `, `chat_${room}`);
-
-    paintChatInto($("main-chat-box"), msgs);
+    `, "chat_global");
+    paintChatInto($("main-chat-box"), globalChatCache);
     const send = async () => {
-      const inp = $("main-chat-input");
-      if (!inp || !inp.value.trim()) return;
+      const inp = $("main-chat-input"); if (!inp || !inp.value.trim()) return;
       const txt = inp.value; inp.value = "";
-      await sendChatMessage(room, { name: save.name, title: save.profile?.title, text: txt });
+      await sendChatMessage("global", { name: save.name, title: save.profile?.title, text: txt });
       audioEngine.playOk();
     };
     $("main-chat-send").onclick = send;
     $("main-chat-input").onkeydown = (e) => { if (e.key === "Enter") send(); };
   }
-
-  $("modal-body").querySelectorAll("[data-ctab]").forEach((btn) => {
-    btn.onclick = () => { activeChatTab = btn.dataset.ctab; openChatAndFriendsModal(); };
-  });
+  $("modal-body").querySelectorAll("[data-ctab]").forEach((btn) => { btn.onclick = () => { activeChatTab = btn.dataset.ctab; openChatAndFriendsModal(); }; });
 }
 
 // ===== Phase 6: プロフィール編集 ＆ 他プレイヤーのプロフィール閲覧 =====
@@ -864,7 +826,8 @@ function openMyProfileEditModal() {
   const save = currentSave();
   const { lv } = getPortLevel(save.reputation);
   const dexGot = Object.keys(save.dex || {}).length;
-  const titleOpts = PROFILE_TITLES.map((t) => `<option value="${t}" ${save.profile?.title === t ? "selected" : ""}>${t}</option>`).join("");
+  const allTitles = [...new Set([...PROFILE_TITLES, ...(save.unlockedTitles || [])])];
+  const titleOpts = allTitles.map((t) => `<option value="${t}" ${save.profile?.title === t ? "selected" : ""}>${t}</option>`).join("");
   const favOpts = getAllSpecies().map((s) => `<option value="${s.name}" ${save.profile?.favSpecies === s.name ? "selected" : ""}>${s.name}</option>`).join("");
 
   openModal("👤 マイプロフィール編集", `
@@ -954,150 +917,22 @@ async function openOtherProfileModal(targetUid) {
   $("btn-prof-chat").onclick = openChatAndFriendsModal;
 }
 
-// ===== Phase 6: 💎真珠ショップ ＆ 月額パス（PayPay・クレカ等選択UI＋コード引換） =====
 function openPearlShopModal() {
-  const save = currentSave();
-  const passActive = isMonthlyPassActive(save);
-  const passDaysLeft = passActive ? Math.ceil((save.monthlyPass.expiresAt - Date.now()) / 86400000) : 0;
-  const canClaim = canClaimDailyPass(save);
+  openPearlShopUI({
+    save: currentSave(),
+    scene3d,
+    openModal,
+    onSaveAndRefresh: (syncCloud) => { persistSlots(slots, syncCloud); syncMyPublicProfile(); updateHud(); },
+    onOpenGacha: openGachaModal
+  });
+}
 
-  const tabsHtml = `
-    <div class="shop-tabs">
-      <button class="shop-tab ${activePearlTab === "buy" ? "active" : ""}" data-ptab="buy">💎 真珠・月額パス購入</button>
-      <button class="shop-tab ${activePearlTab === "use" ? "active" : ""}" data-ptab="use">✨ 真珠を使う (残${save.pearls || 0})</button>
-    </div>
-  `;
-
-  if (activePearlTab === "use") {
-    const useRows = PEARL_USES.map((u) => `
-      <div class="list-row">
-        <div>
-          <strong>${u.icon} ${u.name}</strong>
-          <div class="muted">${u.desc}</div>
-        </div>
-        <button class="btn-primary" data-puse="${u.id}">💎${u.cost}</button>
-      </div>
-    `).join("");
-
-    openModal(`💎 真珠の使い道（所持 💎${(save.pearls || 0).toLocaleString()}）`, `${tabsHtml}${useRows}`);
-    $("modal-body").querySelectorAll("[data-puse]").forEach((btn) => {
-      btn.onclick = () => {
-        const u = PEARL_USES.find((x) => x.id === btn.dataset.puse);
-        if (!u) return;
-        if ((save.pearls || 0) < u.cost) { audioEngine.playFail(); alert("真珠が足りません！"); return; }
-        save.pearls -= u.cost;
-        if (u.id === "use_stamina") save.stamina = 100;
-        else if (u.id === "use_hotspot") {
-          scene3d.hotspots.forEach((h, i) => {
-            if (i === 0) { h.x = scene3d.pos.x; h.z = Math.min(-18, scene3d.pos.y - 4); h.mesh.position.set(h.x, 0.25, h.z); }
-          });
-        } else if (u.id === "use_farm") {
-          (save.farm?.plots || []).forEach((p) => { if (p) p.readyAt = Date.now() - 1000; });
-        } else if (u.id === "use_charm") {
-          save.pearlBuff = { label: "🍀真珠チャーム", priceMult: 1.25, rareBonus: true, expiresAt: Date.now() + 30 * 60000 };
-        }
-        persistSlots(slots, true); updateHud(); audioEngine.playCatch("A");
-        alert(`✨「${u.name}」を発動しました！`);
-        openPearlShopModal();
-      };
-    });
-  } else {
-    const payOpts = PAYMENT_METHODS.map((m) => `
-      <button class="pay-opt ${selectedPayMethod === m.id ? "selected" : ""}" data-paym="${m.id}">
-        <div>${m.label}</div>
-        <div class="muted" style="font-size:0.66rem;">${m.note}</div>
-      </button>
-    `).join("");
-
-    const packRows = PEARL_PACKS.map((pk) => `
-      <div class="list-row">
-        <div>
-          <strong>💎 ${pk.name}（${pk.pearls + pk.bonus}個）</strong>
-          <span class="tag purple">${pk.tag}</span>
-          <div class="muted">基本${pk.pearls}${pk.bonus ? `＋おまけ${pk.bonus}` : ""} / 課金専用真珠</div>
-        </div>
-        <button class="btn-primary" data-buy-pack="${pk.id}">¥${pk.jpy.toLocaleString()}</button>
-      </div>
-    `).join("");
-
-    openModal(`💎 真珠ショップ（所持 💎${(save.pearls || 0).toLocaleString()}）`, `
-      ${tabsHtml}
-      <div class="bank-box" style="border-color:rgba(192,132,252,0.6);">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <strong>${MONTHLY_PASS_DEF.name}</strong>
-          <span class="tag purple">${passActive ? `加入中(残${passDaysLeft}日)` : `¥${MONTHLY_PASS_DEF.jpy}/月`}</span>
-        </div>
-        <div class="muted">${MONTHLY_PASS_DEF.desc}</div>
-        <div class="btn-row">
-          ${canClaim ? `<button class="btn-sub" id="btn-claim-pass" style="flex:1;">🎁 今日のログイン報酬 💎100 を受け取る！</button>` : ""}
-          <button class="btn-primary" data-buy-pack="monthly_pass">${passActive ? "30日延長する" : `購入 ¥${MONTHLY_PASS_DEF.jpy}`}</button>
-        </div>
-      </div>
-
-      <div class="bank-box">
-        <strong>💳 お支払い方法を選択</strong>
-        <div class="pay-grid">${payOpts}</div>
-      </div>
-
-      ${packRows}
-
-      <div class="bank-box">
-        <strong>🎫 引換コードで受け取る（決済後 / サポーターコード）</strong>
-        <div class="chat-input-row">
-          <input id="redeem-input" class="field-input" placeholder="コードを入力 (例: PASS30-XXXX)" />
-          <button id="btn-redeem" class="btn-sub">引換</button>
-        </div>
-      </div>
-    `);
-
-    if ($("btn-claim-pass")) {
-      $("btn-claim-pass").onclick = () => {
-        const gain = claimMonthlyPassDaily(save);
-        if (gain > 0) {
-          persistSlots(slots, true); updateHud(); audioEngine.playCatch("A");
-          alert(`🌙 毎日ログイン特典 💎${gain} を受け取りました！`);
-          openPearlShopModal();
-        }
-      };
-    }
-
-    $("modal-body").querySelectorAll("[data-paym]").forEach((btn) => {
-      btn.onclick = () => { selectedPayMethod = btn.dataset.paym; openPearlShopModal(); };
-    });
-
-    $("modal-body").querySelectorAll("[data-buy-pack]").forEach((btn) => {
-      btn.onclick = () => {
-        const pid = btn.dataset.buyPack;
-        const payLabel = PAYMENT_METHODS.find((m) => m.id === selectedPayMethod)?.label || "選択決済";
-        const url = PAYMENT_URLS[pid];
-        if (url) {
-          window.open(url, "_blank", "noopener");
-          alert(`${payLabel}の決済ページを開きました。完了後に届く引換コードを下へ入力してください。`);
-        } else {
-          alert(`【${payLabel}】外部決済リンク（Stripe/KOMOJU/BOOTH等）は未接続です。\nテスト付与する場合は、下の「引換コード」欄に管理人ページで発行したコードを入力してください！`);
-        }
-      };
-    });
-
-    $("btn-redeem").onclick = async () => {
-      const code = $("redeem-input").value;
-      const res = await consumeRedeemCode(code);
-      if (!res.ok) { audioEngine.playFail(); alert(res.msg); return; }
-      if (res.data.type === "monthly_pass") {
-        grantMonthlyPass(save);
-        alert("🌙 月額『真珠の恵みパス(30日)』＋即時💎300 を受け取りました！");
-      } else {
-        const gain = res.data.pearls || 0;
-        save.pearls = (save.pearls || 0) + gain;
-        alert(`💎 真珠 ${gain}個 を受け取りました！`);
-      }
-      syncMyPublicProfile();
-      persistSlots(slots, true); updateHud(); audioEngine.playCatch("S"); openPearlShopModal();
-    };
-  }
-
-  $("modal-body").querySelectorAll("[data-ptab]").forEach((btn) => {
-    btn.onclick = () => { activePearlTab = btn.dataset.ptab; openPearlShopModal(); };
+function openGachaModal() {
+  openGachaUI({
+    save: currentSave(),
+    openModal,
+    onSaveAndRefresh: (syncCloud) => { persistSlots(slots, syncCloud); updateHud(); resetActionState(); },
+    onOpenPearls: openPearlShopModal
   });
 }
 
@@ -1122,21 +957,25 @@ function openOfficeModal() {
     <div class="office-grid">
       <button class="office-btn accent" id="off-biz">🏪 店舗経営<span>${totalPending > 0 ? `💰 未回収 ¥${totalPending.toLocaleString()}` : "魚屋・寿司・水族館"}</span></button>
       <button class="office-btn" id="off-farm">🐟 養殖場<span>${readyFarms > 0 ? `✨ 収穫OK ${readyFarms}枠！` : `生け簀 ${save.farm.maxPlots}枠`}</span></button>
+      <button class="office-btn" id="off-gacha">🎰 ガチャ＆交換所<span>🐚貝殻 ${save.shells || 0}個</span></button>
       <button class="office-btn" id="off-orders">📋 納品依頼<span>高単価で評判UP</span></button>
       <button class="office-btn" id="off-bank">🏦 漁協バンク<span>預金 ¥${(save.bank?.ordinary || 0).toLocaleString()}</span></button>
       <button class="office-btn" id="off-prof">👤 プロフ編集<span>称号・自己紹介${reqCount ? ` / 申請${reqCount}` : ""}</span></button>
       <button class="office-btn" id="off-dex">📖 生き物図鑑<span>全${dexAll}種コレクション</span></button>
-      <button class="office-btn wide" id="off-rank">🏆 今日のランキング（全5部門）<span>大物・最高額・匹数・貝・売上王をチェック</span></button>
+      <button class="office-btn" id="off-rank">🏆 ランキング<span>全5部門</span></button>
+      <button class="office-btn wide" id="off-title" style="border-color:rgba(248,113,113,0.45);">🏠 タイトル画面に戻る<span>セーブを保存してスロット選択画面へ</span></button>
     </div>
   `);
 
   $("off-biz").onclick = openBusinessModal;
   $("off-farm").onclick = openFarmModal;
+  $("off-gacha").onclick = openGachaModal;
   $("off-orders").onclick = openOrdersModal;
   $("off-bank").onclick = openBankModal;
   $("off-prof").onclick = openMyProfileEditModal;
   $("off-dex").onclick = openDexModal;
   $("off-rank").onclick = openRankingModal;
+  $("off-title").onclick = () => { closeModal(); $("btn-back-home").click(); };
 }
 
 // ===== 4業態店舗経営・養殖・依頼・船・ショップ・バイト・クーラー・銀行・図鑑 =====
@@ -1207,10 +1046,10 @@ function openFarmModal() {
 
 function openSeedPickerModal(slotIdx, farmable) {
   const save = currentSave();
-  const rows = farmable.sort((a, b) => a.farmSeedPrice - b.farmSeedPrice).map((sp) => `<div class="list-row"><div><strong class="rank-${sp.rank}">[${sp.rank}] ${sp.name}</strong> <span class="tag">${sp.speciesType === "shellfish" ? "🦪垂下" : "🐟生け簀"}</span><div class="muted">育成時間: 約${Math.round(getFarmDurationMs(sp) / 60000)}分 / 市場目安 ¥${sp.basePricePerKg}/kg</div></div><button class="btn-primary" data-pick-seed="${sp.id}">¥${sp.farmSeedPrice.toLocaleString()}</button></div>`).join("");
+  const rows = farmable.sort((a, b) => a.farmSeedPrice - b.farmSeedPrice).map((sp) => `<div class="list-row"><div><strong class="rank-${sp.rank}">[${sp.rank}] ${sp.name}</strong> <span class="tag">${sp.speciesType === "shellfish" ? "🦪垂下" : "🐟生け簀"}</span><div class="muted">育成時間: 約${Math.round(getFarmDurationMs(sp, isMonthlyPassActive(save)) / 60000)}分 / 市場目安 ¥${sp.basePricePerKg}/kg</div></div><button class="btn-primary" data-pick-seed="${sp.id}">¥${sp.farmSeedPrice.toLocaleString()}</button></div>`).join("");
   openModal(`🌱 生け簀 #${slotIdx + 1} の種苗を選ぶ`, `${rows}<button class="btn-mini" id="seed-back" style="padding:8px;">← 養殖場へ戻る</button>`);
   $("seed-back").onclick = openFarmModal;
-  $("modal-body").querySelectorAll("[data-pick-seed]").forEach((btn) => { btn.onclick = () => { const sp = getSpeciesById(btn.dataset.pickSeed); if (!sp || save.money < sp.farmSeedPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; } save.money -= sp.farmSeedPrice; const now = Date.now(); save.farm.plots[slotIdx] = { speciesId: sp.id, startedAt: now, readyAt: now + getFarmDurationMs(sp) }; persistSlots(slots, true); updateHud(); audioEngine.playCash(); openFarmModal(); }; });
+  $("modal-body").querySelectorAll("[data-pick-seed]").forEach((btn) => { btn.onclick = () => { const sp = getSpeciesById(btn.dataset.pickSeed); if (!sp || save.money < sp.farmSeedPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; } save.money -= sp.farmSeedPrice; const now = Date.now(); save.farm.plots[slotIdx] = { speciesId: sp.id, startedAt: now, readyAt: now + getFarmDurationMs(sp, isMonthlyPassActive(save)) }; persistSlots(slots, true); updateHud(); audioEngine.playCash(); openFarmModal(); }; });
 }
 
 function openOrdersModal() {
@@ -1315,6 +1154,8 @@ function openJobsModal() {
           pay = Math.round(job.basePay * rankNow.bonusMult * (1 + Math.min(0.5, (jp.streak - 1) * 0.1)) * (isBonus ? 1.2 : 1) * (perfect ? 1.3 : 1) * (1 + (extraMult || 0)));
           if (isBonus) notes.push(job.bonusLabel); if (perfect) notes.push("✨パーフェクト+30%"); if (jp.streak >= 2) notes.push(`🔥${jp.streak}連勤`);
           if (jp.streak % 5 === 0) { save.stamina = Math.min(100, save.stamina + 15); drink = "🥤 5連勤達成！栄養ドリンク支給（⚡+15）"; }
+          if (jp.streak % 10 === 0) { save.freePearls = (save.freePearls || 0) + 25; drink += " ＆ 💠無償真珠+25！"; }
+          const ms = checkFreePearlMilestones(save); if (ms.length) drink += ` / 🎉${ms.join(' ')}`;
           save.reputation += 1.5; audioEngine.playCatch(perfect ? "S" : "B");
         } else { jp.streak = 0; pay = Math.round(job.basePay * 0.3); notes.push("ノルマ未達（見習い手当30%）"); audioEngine.playFail(); }
         save.jobProfile = jp; save.money += pay; save.stats.totalEarned += pay; save.lastPlayedAt = Date.now();
@@ -1440,6 +1281,7 @@ async function boot() {
 
   window.addEventListener("pointerdown", () => audioEngine.unlock(), { once: true });
   await loadSpeciesMaster();
+  await loadGachaBanners();
   await initFirebase({ onOnlineCount: (n) => { $("online-count").textContent = n; }, onStatus: (msg) => { $("sync-status").textContent = msg; } });
 
   // リアルタイム同期購読
@@ -1503,6 +1345,7 @@ async function boot() {
   $("btn-open-chat").onclick = () => { audioEngine.unlock(); openChatAndFriendsModal(); };
   $("btn-open-orders-quick").onclick = () => { audioEngine.unlock(); openOrdersModal(); };
   $("btn-open-pearls").onclick = () => { audioEngine.unlock(); openPearlShopModal(); };
+  $("btn-open-gacha").onclick = () => { audioEngine.unlock(); openGachaModal(); };
   $("btn-open-lounge").onclick = () => { audioEngine.unlock(); openLoungeModal(); };
 
   $("btn-stamp-toggle").onclick = () => { audioEngine.unlock(); $("stamp-bar").classList.toggle("hidden"); };

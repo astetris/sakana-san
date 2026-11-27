@@ -1,3 +1,5 @@
+import { getGachaGearList } from "./gacha.js";
+
 export const BOATS = [
   { id: "boat_none", tier: 0, name: "徒歩（船なし）", buyPrice: 0, rentPrice: 0, maxFuel: 0, speed: 0, desc: "港・堤防・砂浜・河口・磯を自由に歩いて探索" },
   { id: "boat_wasen", tier: 1, name: "ミニ和船（15馬力）", buyPrice: 48000, rentPrice: 4500, maxFuel: 40, speed: 1.15, desc: "近海エリアへ出航OK。燃費が良く小回りが利く" },
@@ -88,13 +90,14 @@ export function getBestBoatTier(save) {
 
 export function getEquippedStats(save) {
   const g = save.gear || {};
-  const rod = SHOP_ITEMS.find((x) => x.id === (g.rod || "rod_1")) || SHOP_ITEMS.find((x) => x.id === "rod_1");
-  const reel = SHOP_ITEMS.find((x) => x.id === (g.reel || "reel_1")) || SHOP_ITEMS.find((x) => x.id === "reel_1");
-  const line = SHOP_ITEMS.find((x) => x.id === (g.line || "line_1")) || SHOP_ITEMS.find((x) => x.id === "line_1");
-  const cooler = SHOP_ITEMS.find((x) => x.id === (g.cooler || "cooler_1")) || SHOP_ITEMS.find((x) => x.id === "cooler_1");
-  const shellTool = SHOP_ITEMS.find((x) => x.id === (g.shellTool || "shell_1")) || SHOP_ITEMS.find((x) => x.id === "shell_1");
-  const net = SHOP_ITEMS.find((x) => x.id === (g.net || "net_toami")) || SHOP_ITEMS.find((x) => x.id === "net_toami");
-  let bait = SHOP_ITEMS.find((x) => x.id === (g.bait || "bait_free")) || SHOP_ITEMS.find((x) => x.id === "bait_free");
+  const all = [...SHOP_ITEMS, ...getGachaGearList()];
+  const rod = all.find((x) => x.id === (g.rod || "rod_1")) || SHOP_ITEMS.find((x) => x.id === "rod_1");
+  const reel = all.find((x) => x.id === (g.reel || "reel_1")) || SHOP_ITEMS.find((x) => x.id === "reel_1");
+  const line = all.find((x) => x.id === (g.line || "line_1")) || SHOP_ITEMS.find((x) => x.id === "line_1");
+  const cooler = all.find((x) => x.id === (g.cooler || "cooler_1")) || SHOP_ITEMS.find((x) => x.id === "cooler_1");
+  const shellTool = all.find((x) => x.id === (g.shellTool || "shell_1")) || SHOP_ITEMS.find((x) => x.id === "shell_1");
+  const net = all.find((x) => x.id === (g.net || "net_toami")) || SHOP_ITEMS.find((x) => x.id === "net_toami");
+  let bait = all.find((x) => x.id === (g.bait || "bait_free")) || SHOP_ITEMS.find((x) => x.id === "bait_free");
   if (bait.pack > 0 && ((save.baitStock?.[bait.id]) || 0) <= 0) bait = SHOP_ITEMS.find((x) => x.id === "bait_free");
 
   return {

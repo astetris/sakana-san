@@ -157,9 +157,10 @@ export function syncBusinessProgress(save) {
 }
 
 // サクサク養殖：species.jsonのfarmHoursを現実時間（3分〜90分）へ快適スケーリング
-export function getFarmDurationMs(species) {
+export function getFarmDurationMs(species, hasMonthlyPass = false) {
   const h = species.farmHours || 4;
-  const mins = Math.max(3, Math.min(90, Math.round(h * 1.25)));
+  const baseMins = Math.max(3, Math.min(90, Math.round(h * 1.25)));
+  const mins = hasMonthlyPass ? Math.max(2, Math.round(baseMins * 0.8)) : baseMins;
   return mins * 60 * 1000;
 }
 
