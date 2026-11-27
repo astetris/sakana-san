@@ -12,6 +12,15 @@
       }
     }
   </script>
+  <!-- pwa-head-start -->
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#0b1324" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="さかなサン" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <!-- pwa-head-end -->
 </head>
 <body>
   <canvas id="scene-canvas"></canvas>
@@ -203,7 +212,7 @@
 <script>
     (function() {
       /* sakana-auto-cache-bust */
-      const ver = "20261128_044040";
+      const ver = "20261128_045116";
       const css = document.getElementById("main-css");
       if (css) css.href = "./css/style.css?v=" + ver;
       const s = document.createElement("script");
@@ -237,5 +246,14 @@
   // cleaned up boot debug message
 })();
 </script>
+  <!-- pwa-sw-start -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
+      });
+    }
+  </script>
+  <!-- pwa-sw-end -->
 </body>
 </html>
