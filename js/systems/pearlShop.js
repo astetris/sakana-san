@@ -167,3 +167,27 @@ export function checkFreePearlMilestones(save) {
   }
   return gained;
 }
+
+// ===== Phase 8: Stripe Checkout 開始 =====
+export const PAY_WORKER_URL = "https://sakana-pay.asterism1246.workers.dev";
+
+export async function startStripeCheckout({ productId, uid, couponCode = "", payMethod = "card" }) {
+  if (!uid) throw new Error("クラウド接続が完了していません。少し待ってからもう一度お試しください。");
+  const res = await fetch(`${PAY_WORKER_URL}/create-checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      productId,
+      uid,
+      couponCode: couponCode || "",
+      payMethod,
+      returnUrl: window.location.origin + window.location.pathname
+    })
+  });
+  let data = {};
+  try { data = await res.json(); } catch {}
+  if (!res.ok || !data.url) {
+    throw new Error(data.error || `決済ページの作成に失敗しました (HTTP ${res.status})`);
+  }
+  return data.url;
+}

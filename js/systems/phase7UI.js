@@ -1,10 +1,10 @@
 import {
   PAYMENT_URLS, PAYMENT_METHODS, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF, PEARL_USES,
   getTotalPearls, spendPearls, isMonthlyPassActive, isWeeklyPassActive,
-  canClaimAnyPass, claimAllDailyPassRewards, grantMonthlyPass, grantWeeklyPass, calcDiscountedPrice
+  canClaimAnyPass, claimAllDailyPassRewards, grantMonthlyPass, grantWeeklyPass, calcDiscountedPrice, startStripeCheckout
 } from "./pearlShop.js";
 import { getActiveBanners, getExchangeCatalog, getGachaGearList, executeGachaDraw, applyGachaPrize } from "./gacha.js";
-import { previewCouponCode, redeemCouponCode } from "../config/firebase.js";
+import { previewCouponCode, redeemCouponCode, getCurrentUid } from "../config/firebase.js";
 import { audioEngine } from "./audioEngine.js";
 
 let pearlTab = "buy";
@@ -12,14 +12,14 @@ let gachaTab = "draw";
 let selectedBannerId = null;
 let selectedPayMethod = "paypay";
 
-export function openPearlShopUI({ save, scene3d, openModal, onSaveAndRefresh, onOpenGacha }) {
+export function openPearlShopUI({ save, slotIndex = -1, scene3d, openModal, onSaveAndRefresh, onOpenGacha }) {
   const mOn = isMonthlyPassActive(save), wOn = isWeeklyPassActive(save);
   const mDays = mOn ? Math.ceil((save.monthlyPass.expiresAt - Date.now()) / 86400000) : 0;
   const wDays = wOn ? Math.ceil((save.weeklyPass.expiresAt - Date.now()) / 86400000) : 0;
   const canClaim = canClaimAnyPass(save);
   const activeCoupon = save.activeCoupon || null;
 
-  const reopen = () => openPearlShopUI({ save, scene3d, openModal, onSaveAndRefresh, onOpenGacha });
+  const reopen = () => openPearlShopUI({ save, slotIndex, scene3d, openModal, onSaveAndRefresh, onOpenGacha });
 
   const headerBalance = `
     <div class="office-stats">
@@ -144,19 +144,37 @@ export function openPearlShopUI({ save, scene3d, openModal, onSaveAndRefresh, on
     document.querySelectorAll("[data-buy-pack]").forEach((b) => {
       b.onclick = async () => {
         const pid = b.dataset.buyPack;
-        const payLabel = PAYMENT_METHODS.find((m) => m.id === selectedPayMethod)?.label || "選択決済";
-        const url = PAYMENT_URLS[pid];
-        if (url) {
-          if (save.activeCoupon) {
-            const consumed = await redeemCouponCode(save.activeCoupon.code);
-            save.activeCoupon = null;
-            onSaveAndRefresh(true);
-            if (!consumed.ok) { alert("クーポンの適用期限・上限に達しました。通常価格となります。"); }
+        const uid = getCurrentUid();
+        if (!uid) {
+          audioEngine.playFail();
+          alert("クラウド接続が完了していないため購入できません。通信環境を確認して再読み込みしてください。");
+          return;
+        }
+        const origHtml = b.innerHTML;
+        b.disabled = true;
+        b.textContent = "決済画面を準備中...";
+        try {
+          if (slotIndex >= 0) {
+            try { localStorage.setItem("sakana_pending_slot", String(slotIndex)); } catch {}
           }
-          window.open(url, "_blank", "noopener");
-          alert(`${payLabel}の決済画面を開きました。完了後に届くコードを入力してください。`);
-        } else {
-          alert(`【${payLabel}】外部決済URLは未設定です。\nテスト付与する場合は管理人ページで発行したコードを下の欄へ入力してください。`);
+          const couponCode = save.activeCoupon?.code || "";
+          const checkoutUrl = await startStripeCheckout({
+            productId: pid,
+            uid,
+            couponCode,
+            payMethod: selectedPayMethod
+          });
+          if (save.activeCoupon) {
+            await redeemCouponCode(save.activeCoupon.code);
+            save.activeCoupon = null;
+          }
+          onSaveAndRefresh(true);
+          window.location.href = checkoutUrl;
+        } catch (err) {
+          b.disabled = false;
+          b.innerHTML = origHtml;
+          audioEngine.playFail();
+          alert("決済の開始に失敗しました:\n" + (err?.message || err));
         }
       };
     });

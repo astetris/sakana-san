@@ -82,7 +82,11 @@ export class FishingScene3D {
     this.createSplashPool();
 
     this.setQuality('high');
-    window.addEventListener('resize', () => this.onResize());
+    const _syncSize = () => { this.onResize(); setTimeout(() => this.onResize(), 180); setTimeout(() => this.onResize(), 420); };
+    window.addEventListener('resize', _syncSize);
+    window.addEventListener('orientationchange', _syncSize);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', () => this.onResize());
+    this.onResize();
   }
 
   createEnvironment() {
@@ -341,8 +345,13 @@ export class FishingScene3D {
   }
 
   onResize() {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
+    const w = window.innerWidth || document.documentElement.clientWidth || 1;
+    const h = window.innerHeight || document.documentElement.clientHeight || 1;
+    const aspect = w / h;
+    this.camera.aspect = aspect;
+    this.camera.fov = aspect < 1 ? Math.min(74, 58 + (1 - aspect) * 26) : 56;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setSize(w, h);
   }
 }

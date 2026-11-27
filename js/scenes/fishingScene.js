@@ -125,7 +125,11 @@ export class FishingScene {
       this.yaw -= dx * 0.006;
     });
     window.addEventListener("pointerup", () => { dragX = null; });
-    window.addEventListener("resize", () => this.resize());
+    const _syncSize = () => { this.resize(); setTimeout(() => this.resize(), 180); setTimeout(() => this.resize(), 420); };
+    window.addEventListener("resize", _syncSize);
+    window.addEventListener("orientationchange", _syncSize);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", () => this.resize());
+    this.resize();
     this.animate();
   }
 
@@ -334,7 +338,16 @@ export class FishingScene {
 
   setBobber(visible, dist = 18, dip = 0) { this.bobber.visible = visible; this.bobberDist = dist; this.bobberDip = dip; }
   setRodBend(val) { this.rodBend = val; }
-  resize() { this.camera.aspect = window.innerWidth / window.innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(window.innerWidth, window.innerHeight); }
+  resize() {
+    const w = window.innerWidth || document.documentElement.clientWidth || 1;
+    const h = window.innerHeight || document.documentElement.clientHeight || 1;
+    const aspect = w / h;
+    this.camera.aspect = aspect;
+    this.camera.fov = aspect < 1 ? Math.min(75, 60 + (1 - aspect) * 26) : 58;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setSize(w, h);
+  }
 
   animate() {
     requestAnimationFrame(() => this.animate());

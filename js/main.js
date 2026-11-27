@@ -1,5 +1,5 @@
 import {
-  initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS,
+  initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase,
   fetchDailyRanking, submitDailyBoard,
   updateWorldPresence, clearWorldPresence, subscribeWorldPlayers,
   pushWorldFeed, subscribeWorldFeed,
@@ -23,7 +23,7 @@ import {
 import { startShopView, stopShopView } from "./systems/shopView.js";
 import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js";
 import {
-  getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones
+  getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
 } from "./systems/pearlShop.js";
 import { loadGachaBanners } from "./systems/gacha.js";
 import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js";
@@ -245,6 +245,7 @@ async function openRankingModal() {
 
 function startSlot(idx) {
   activeSlotIndex = idx;
+  setTimeout(() => processPendingPurchases(), 300);
   const save = ensureSaveDefaults(currentSave());
   save.lastPlayedAt = Date.now();
   const boat = getActiveBoat(save);
@@ -917,9 +918,85 @@ async function openOtherProfileModal(targetUid) {
   $("btn-prof-chat").onclick = openChatAndFriendsModal;
 }
 
+let pendingPurchasesCache = {};
+const processingPurchaseIds = new Set();
+
+async function processPendingPurchases() {
+  if (!Array.isArray(slots)) return;
+  const entries = Object.entries(pendingPurchasesCache || {});
+  if (!entries.length) return;
+
+  let targetIdx = activeSlotIndex;
+  if (targetIdx < 0 || !slots[targetIdx]) {
+    let savedIdx = -1;
+    try { savedIdx = Number(localStorage.getItem("sakana_pending_slot")); } catch {}
+    if (Number.isInteger(savedIdx) && savedIdx >= 0 && slots[savedIdx]) {
+      targetIdx = savedIdx;
+    } else {
+      targetIdx = slots.findIndex((sl) => !!sl);
+    }
+  }
+  if (targetIdx < 0 || !slots[targetIdx]) return;
+
+  const targetSave = slots[targetIdx];
+  if (!Array.isArray(targetSave.claimedSessions)) targetSave.claimedSessions = [];
+
+  for (const [sessionId, item] of entries) {
+    if (!item || processingPurchaseIds.has(sessionId)) continue;
+    processingPurchaseIds.add(sessionId);
+
+    if (targetSave.claimedSessions.includes(sessionId)) {
+      await clearPendingPurchase(sessionId);
+      continue;
+    }
+
+    const deleted = await clearPendingPurchase(sessionId);
+    if (!deleted) {
+      processingPurchaseIds.delete(sessionId);
+      continue;
+    }
+
+    const kind = item.kind
+      || (item.productId === "monthly_pass" ? "monthly_pass"
+        : item.productId === "weekly_pass" ? "weekly_pass" : "pearls");
+
+    let rewardText = item.name || "購入アイテム";
+    if (kind === "monthly_pass") {
+      grantMonthlyPass(targetSave);
+      rewardText = `${MONTHLY_PASS_DEF.name}\n💎有償真珠+${MONTHLY_PASS_DEF.instantPaid} / ¥${MONTHLY_PASS_DEF.instantMoney.toLocaleString()}`;
+    } else if (kind === "weekly_pass") {
+      grantWeeklyPass(targetSave);
+      rewardText = `${WEEKLY_PASS_DEF.name}\n💎有償真珠+${WEEKLY_PASS_DEF.instantPaid} / ¥${WEEKLY_PASS_DEF.instantMoney.toLocaleString()}`;
+    } else {
+      const pack = PEARL_PACKS.find((p) => p.id === item.productId);
+      const paid = Number(item.paid ?? item.paidPearls ?? pack?.paid ?? 0);
+      const bonus = Number(item.bonusFree ?? item.freePearls ?? pack?.bonusFree ?? 0);
+      targetSave.paidPearls = (targetSave.paidPearls || 0) + paid;
+      targetSave.freePearls = (targetSave.freePearls || 0) + bonus;
+      rewardText = `${item.name || pack?.name || "真珠パック"}\n💎有償真珠+${paid.toLocaleString()}${bonus ? ` / 💠無償真珠+${bonus.toLocaleString()}` : ""}`;
+    }
+
+    targetSave.claimedSessions.push(sessionId);
+    if (targetSave.claimedSessions.length > 50) {
+      targetSave.claimedSessions = targetSave.claimedSessions.slice(-50);
+    }
+
+    persistSlots(slots, true);
+    if (activeSlotIndex === targetIdx) {
+      syncMyPublicProfile();
+      updateHud();
+    } else {
+      renderSlots();
+    }
+    try { audioEngine.playCatch("S"); } catch {}
+    alert(`🎉 ご購入ありがとうございます！\nスロット${targetIdx + 1}（${targetSave.name}）へ自動反映しました！\n\n${rewardText}`);
+  }
+}
+
 function openPearlShopModal() {
   openPearlShopUI({
     save: currentSave(),
+    slotIndex: activeSlotIndex,
     scene3d,
     openModal,
     onSaveAndRefresh: (syncCloud) => { persistSlots(slots, syncCloud); syncMyPublicProfile(); updateHud(); },
@@ -1307,9 +1384,19 @@ async function boot() {
     }
   });
 
+  subscribePendingPurchases((map) => {
+    pendingPurchasesCache = map || {};
+    processPendingPurchases();
+  });
+
   slots = await syncLoadSlots();
   renderSlots();
   renderHomeRanking();
+  processPendingPurchases();
+
+  if (window.location.search.includes("paid=") || window.location.search.includes("checkout=")) {
+    try { history.replaceState(null, "", window.location.pathname); } catch {}
+  }
 
   // 秘密の管理人ページトリガー（ホーム画面タイトル5連タップ）
   let secretTapCount = 0, secretTapTimer = null;

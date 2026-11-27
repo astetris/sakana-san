@@ -349,3 +349,22 @@ export async function redeemCouponCode(code) {
     return { ok: true, data: tx.snapshot.val() };
   } catch (e) { return { ok: false, msg: "コード引換に失敗しました" }; }
 }
+
+// ===== Phase 8: Stripe 自動決済（未受取購入の監視・削除） =====
+export function subscribePendingPurchases(callback) {
+  if (!ready || !currentUid) return () => {};
+  return onValue(ref(rtdb, `pending_purchases/${currentUid}`), (snap) => {
+    callback(snap.val() || {});
+  });
+}
+
+export async function clearPendingPurchase(sessionId) {
+  if (!ready || !currentUid || !sessionId) return false;
+  try {
+    await remove(ref(rtdb, `pending_purchases/${currentUid}/${sessionId}`));
+    return true;
+  } catch (e) {
+    console.warn("購入データの削除に失敗:", e);
+    return false;
+  }
+}
