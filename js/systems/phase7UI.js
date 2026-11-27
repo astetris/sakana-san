@@ -117,7 +117,8 @@ export function openPearlShopUI({ save, slotIndex = -1, scene3d, openModal, onSa
       </div>
       <div class="bank-box">
         <strong>💳 お支払い方法</strong>
-        <div class="pay-grid">${payOpts}</div>
+        /* hide-payment-method-selector */
+      <!-- <div class="pay-grid">${payOpts}</div> -->
       </div>
       ${packRows}
       <div class="bank-box">
