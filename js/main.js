@@ -1538,7 +1538,7 @@ function ensurePlayModeButton() {
     floatBtn.style.display = playScreen.classList.contains("active") ? "inline-flex" : "none";
     floatBtn.textContent = label;
   }
-}
+// [auto-fix] removed extra brace: }
 
 setInterval(() => {
   try { ensurePlayModeButton(); } catch {}
