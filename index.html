@@ -2,118 +2,125 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>さかなサン - Phase 1</title>
-  <link rel="stylesheet" href="./css/base.css" />
-  <link rel="stylesheet" href="./css/fishing-ui.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>さかなサン | 3Dリアル釣り＆漁業シミュレーション</title>
+  <link rel="stylesheet" href="./css/style.css" />
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
+        "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js"
       }
     }
   </script>
 </head>
 <body>
-  <div id="canvas-container"></div>
+  <!-- 背景3Dキャンバス（ホーム画面・釣り画面共通） -->
+  <canvas id="scene-canvas"></canvas>
 
-  <!-- 上部HUD -->
-  <header class="hud-top">
-    <div class="hud-group">
-      <div class="hud-pill" id="hud-time">Day 1 05:30 晴</div>
-      <div class="hud-pill money" id="hud-money">¥1,000</div>
-    </div>
-    <div class="hud-group">
-      <button class="hud-btn" id="btn-market">🐟 市場 (<span id="hud-fish-count">0</span>)</button>
-      <button class="hud-btn" id="btn-quality">画質: 最高</button>
-    </div>
-  </header>
+  <!-- ===== ホーム画面（ダッシュボード） ===== -->
+  <div id="home-screen" class="screen active">
+    <header class="home-header">
+      <div>
+        <h1 class="game-title">さかなサン</h1>
+        <p class="subtitle" id="live-clock">読み込み中...</p>
+      </div>
+      <div class="online-badge">
+        <span class="dot"></span>
+        <span>オンライン: <strong id="online-count">-</strong>人</span>
+      </div>
+    </header>
 
-  <!-- ステータス＆距離・水深表示 -->
-  <div class="telemetry-bar">
-    <div class="telemetry-item">距離 <strong id="info-dist">0.0m</strong></div>
-    <div class="telemetry-item">水深 <strong id="info-depth">0.0m</strong></div>
-    <div class="telemetry-status" id="info-status">右ボタン長押しでキャスト</div>
+    <section class="glass-card env-card">
+      <div class="env-grid">
+        <div><span class="label">天候 / 風</span><strong id="env-weather">-</strong></div>
+        <div><span class="label">水温 / 潮回り</span><strong id="env-sea">-</strong></div>
+        <div><span class="label">本日の市場相場</span><strong id="env-market">-</strong></div>
+      </div>
+    </section>
+
+    <section class="glass-card">
+      <div class="section-head">
+        <h2>セーブスロット（最大5枠）</h2>
+        <span class="sync-status" id="sync-status">接続中...</span>
+      </div>
+      <div id="slot-list" class="slot-list"></div>
+    </section>
+
+    <section class="glass-card">
+      <div class="section-head">
+        <h2>🏆 今日の大物ランキング</h2>
+        <button class="btn-mini" id="btn-refresh-rank">更新</button>
+      </div>
+      <ol id="ranking-list" class="ranking-list">
+        <li class="muted">読み込み中...</li>
+      </ol>
+    </section>
   </div>
 
-  <!-- キャストパワーバー -->
-  <div class="cast-power-wrap hidden" id="cast-power-wrap">
-    <div class="cast-power-fill" id="cast-power-fill"></div>
-  </div>
-
-  <!-- Fishing Planet風 3本ゲージ（ライン・竿・リール） -->
-  <aside class="fp-gauges">
-    <div class="gauge-col">
-      <div class="gauge-track"><div class="gauge-fill" id="gauge-line-fill"></div></div>
-      <span>LINE</span>
-    </div>
-    <div class="gauge-col">
-      <div class="gauge-track"><div class="gauge-fill" id="gauge-rod-fill"></div></div>
-      <span>ROD</span>
-    </div>
-    <div class="gauge-col">
-      <div class="gauge-track"><div class="gauge-fill" id="gauge-reel-fill"></div></div>
-      <span>REEL</span>
-    </div>
-  </aside>
-
-  <!-- 左タッチパッド（照準・ロッドアクション・ポンピング） -->
-  <div id="touch-pad-left" aria-label="ロッド操作エリア">
-    <div class="pad-hint" id="pad-hint">ドラッグ/上スワイプで竿操作</div>
-  </div>
-
-  <!-- 下部操作コントロール -->
-  <footer class="controls-bottom">
-    <div class="controls-left">
-      <button class="action-btn" id="btn-rod-action">アワセ / しゃくり</button>
-    </div>
-
-    <div class="controls-right">
-      <div class="sub-controls">
-        <div class="control-box">
-          <span class="ctrl-label">DRAG</span>
-          <div class="ctrl-row">
-            <button class="mini-btn" id="btn-drag-minus">−</button>
-            <strong id="drag-val">4/8</strong>
-            <button class="mini-btn" id="btn-drag-plus">＋</button>
-          </div>
-        </div>
-        <div class="control-box">
-          <span class="ctrl-label">SPEED</span>
-          <button class="mini-btn wide" id="btn-speed">x<span id="speed-val">2</span></button>
+  <!-- ===== プレイ画面（釣り＋港HUD） ===== -->
+  <div id="play-screen" class="screen">
+    <header class="hud-top">
+      <div class="hud-left">
+        <button class="btn-icon" id="btn-back-home">🏠</button>
+        <div class="player-meta">
+          <strong id="hud-name">漁師</strong>
+          <span id="hud-money">¥0</span>
         </div>
       </div>
-
-      <button class="reel-btn" id="btn-reel">
-        <span id="reel-btn-label">キャスト</span>
-      </button>
-    </div>
-  </footer>
-
-  <!-- 釣果モーダル -->
-  <div class="modal-backdrop hidden" id="modal-catch">
-    <div class="modal-card">
-      <h2 id="catch-title">釣果！</h2>
-      <div id="catch-details" class="catch-details"></div>
-      <div class="modal-actions">
-        <button class="primary-btn" id="btn-catch-keep">クーラーに入れる</button>
-        <button class="secondary-btn" id="btn-catch-release">リリース</button>
+      <div class="hud-right">
+        <div class="stamina-pill">⚡ <span id="hud-stamina">100</span>/100</div>
+        <button class="btn-mini" id="btn-open-cooler">🧊 <span id="hud-cooler-count">0</span></button>
+        <button class="btn-mini" id="btn-open-dex">📖</button>
       </div>
+    </header>
+
+    <div class="area-bar">
+      <select id="area-select">
+        <option value="teibou">堤防（無料・定番）</option>
+        <option value="kakou">河口（汽水・スズキ/クロダイ）</option>
+        <option value="sunahama">砂浜（ヒラメ/マゴチ/シロギス）</option>
+        <option value="iso">磯（イシダイ/アオリイカ/メジナ）</option>
+        <option value="kinkai">近海（マダイ/ブリ/タチウオ）</option>
+        <option value="okiai">沖合（カンパチ/カツオ/ノドグロ）</option>
+        <option value="enyou">遠洋（クロマグロ/メカジキ）</option>
+        <option value="shinkai">深海（リュウグウノツカイ/アブラボウズ）</option>
+        <option value="nangoku">南国（ナポレオンフィッシュ）</option>
+      </select>
+      <span class="env-mini" id="hud-env-mini">-</span>
+    </div>
+
+    <!-- ファイト中3本ゲージ -->
+    <div id="fight-panel" class="fight-panel hidden">
+      <div class="fight-info">
+        <span id="fight-distance">距離: 25.0m</span>
+        <span id="fight-fish-stamina">魚体力: 100%</span>
+      </div>
+      <div class="gauge-row"><span>竿</span><div class="bar"><div id="bar-rod" class="fill"></div></div></div>
+      <div class="gauge-row"><span>糸</span><div class="bar"><div id="bar-line" class="fill"></div></div></div>
+      <div class="gauge-row"><span>リール</span><div class="bar"><div id="bar-reel" class="fill"></div></div></div>
+      <div class="drag-control">
+        <label>ドラグ強さ: <strong id="drag-val">50%</strong></label>
+        <input type="range" id="drag-slider" min="15" max="95" value="50" />
+      </div>
+    </div>
+
+    <!-- 中央ステータスメッセージ -->
+    <div id="status-banner" class="status-banner">キャストボタンを押して釣り開始！</div>
+
+    <!-- 下部アクション操作 -->
+    <div class="action-dock">
+      <button id="btn-main-action" class="btn-action">🎣 キャスト</button>
     </div>
   </div>
 
-  <!-- 市場・相場モーダル -->
-  <div class="modal-backdrop hidden" id="modal-market">
+  <!-- ===== モーダル（釣果 / クーラー / 図鑑） ===== -->
+  <div id="modal-overlay" class="modal-overlay hidden">
     <div class="modal-card">
-      <div class="modal-header">
-        <h2>本日の魚市場</h2>
-        <button class="close-btn" id="btn-close-market">✕</button>
+      <div class="modal-head">
+        <h3 id="modal-title">タイトル</h3>
+        <button class="btn-icon" id="btn-close-modal">✕</button>
       </div>
-      <p class="market-trend" id="market-trend"></p>
-      <div class="market-list" id="market-list"></div>
-      <div class="modal-actions">
-        <button class="primary-btn" id="btn-sell-all">すべて売却する</button>
-      </div>
+      <div id="modal-body" class="modal-body"></div>
     </div>
   </div>
 
