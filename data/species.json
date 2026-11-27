@@ -241,6 +241,319 @@
     "farmSeedPrice": 120
   },
   {
+    "id": "katakuchiiwashi",
+    "name": "カタクチイワシ",
+    "kana": "かたくちいわし",
+    "speciesType": "fish",
+    "category": "ao_mono",
+    "rank": "D",
+    "desc": "シラスや煮干しの原料となる群泳魚。フィッシュイーターの大好物。",
+    "tasteNote": "新鮮な刺身やアンチョビ風の加工で旨味が際立つ。",
+    "imageKey": null,
+    "areas": [
+      "teibou",
+      "sunahama",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "minDepth": 0.5,
+    "maxDepth": 8.0,
+    "minTemp": 12.0,
+    "maxTemp": 24.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 96,
+    "minKg": 0.02,
+    "maxKg": 0.07,
+    "trophyKg": 0.05,
+    "pullPower": 0.5,
+    "stamina": 6.0,
+    "speed": 1.8,
+    "favLures": [
+      "sabiki"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [
+      "toami",
+      "makiami"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "spring",
+      "autumn"
+    ],
+    "fatSeasons": [
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 750,
+    "sushiType": "hikarimono",
+    "omakaseTags": [
+      "standard",
+      "bait"
+    ],
+    "aquariumPop": 20,
+    "farmHours": 2.0,
+    "farmSeedPrice": 90
+  },
+  {
+    "id": "konoshiro",
+    "name": "コノシロ",
+    "kana": "このしろ",
+    "speciesType": "fish",
+    "category": "ao_mono",
+    "rank": "D",
+    "desc": "若魚はシンコ・コハダと呼ばれる出世魚。内湾や河口に群れで入る。",
+    "tasteNote": "酢締めにしたコハダの握りは江戸前寿司の華。",
+    "imageKey": null,
+    "areas": [
+      "teibou",
+      "kakou"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "minDepth": 0.5,
+    "maxDepth": 10.0,
+    "minTemp": 11.0,
+    "maxTemp": 25.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 88,
+    "minKg": 0.08,
+    "maxKg": 0.32,
+    "trophyKg": 0.25,
+    "pullPower": 1.0,
+    "stamina": 9.0,
+    "speed": 2.0,
+    "favLures": [
+      "sabiki"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [
+      "toami"
+    ],
+    "liveDurability": 2,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "autumn",
+      "winter"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 1150,
+    "sushiType": "hikarimono",
+    "omakaseTags": [
+      "standard",
+      "seasonal"
+    ],
+    "aquariumPop": 22,
+    "farmHours": 3.0,
+    "farmSeedPrice": 180
+  },
+  {
+    "id": "sayori",
+    "name": "サヨリ",
+    "kana": "さより",
+    "speciesType": "fish",
+    "category": "shiromi_coast",
+    "rank": "C",
+    "desc": "細長い銀色の体と突き出た下顎が特徴。澄んだ表層を優雅に泳ぐ。",
+    "tasteNote": "透き通る繊細な甘みの高級白身。春の寿司ネタの定番。",
+    "imageKey": null,
+    "areas": [
+      "teibou",
+      "sunahama",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 0.5,
+    "maxDepth": 4.0,
+    "minTemp": 12.0,
+    "maxTemp": 22.0,
+    "favWeather": [
+      "sunny"
+    ],
+    "favWind": "offshore",
+    "rarityWeight": 68,
+    "minKg": 0.06,
+    "maxKg": 0.24,
+    "trophyKg": 0.18,
+    "pullPower": 1.1,
+    "stamina": 10.0,
+    "speed": 2.8,
+    "favLures": [
+      "sabiki"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [
+      "toami"
+    ],
+    "liveDurability": 2,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "spring",
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 2400,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "seasonal"
+    ],
+    "aquariumPop": 32,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "kamasu",
+    "name": "アカカマス",
+    "kana": "あかかます",
+    "speciesType": "fish",
+    "category": "seabass",
+    "rank": "C",
+    "desc": "鋭い歯を持つ細身の肉食魚。秋に堤防や港内へ大群で回遊してくる。",
+    "tasteNote": "皮目を軽く炙った塩焼きや炙り握りは極上の香り。",
+    "imageKey": null,
+    "areas": [
+      "teibou",
+      "kinkai"
+    ],
+    "seasons": [
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 20.0,
+    "minTemp": 14.0,
+    "maxTemp": 26.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 70,
+    "minKg": 0.2,
+    "maxKg": 0.85,
+    "trophyKg": 0.65,
+    "pullPower": 2.1,
+    "stamina": 16.0,
+    "speed": 3.6,
+    "favLures": [
+      "minnow",
+      "jig",
+      "worm"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [
+      "toami",
+      "sashiami"
+    ],
+    "liveDurability": 2,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 2100,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "seasonal"
+    ],
+    "aquariumPop": 34,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
     "id": "mahaze",
     "name": "マハゼ",
     "kana": "まはぜ",
@@ -392,6 +705,163 @@
     "aquariumPop": 26,
     "farmHours": 3.0,
     "farmSeedPrice": 280
+  },
+  {
+    "id": "makogarei",
+    "name": "マコガレイ",
+    "kana": "まこがれい",
+    "speciesType": "fish",
+    "category": "hirame_karei",
+    "rank": "B",
+    "desc": "砂泥底に身を潜める高級カレイ。春の「花見ガレイ」は格別の旨さ。",
+    "tasteNote": "肉厚で甘みの強い白身。エンガワの握りは通を唸らせる。",
+    "imageKey": null,
+    "areas": [
+      "sunahama",
+      "teibou",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 2.0,
+    "maxDepth": 30.0,
+    "minTemp": 9.0,
+    "maxTemp": 21.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 50,
+    "minKg": 0.35,
+    "maxKg": 1.8,
+    "trophyKg": 1.3,
+    "pullPower": 2.8,
+    "stamina": 22.0,
+    "speed": 2.2,
+    "favLures": [
+      "worm"
+    ],
+    "favBaits": [
+      "isoma"
+    ],
+    "captureMethods": [
+      "sokobiki",
+      "sashiami"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "winter"
+    ],
+    "fatSeasons": [
+      "spring",
+      "summer"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 2800,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "seasonal"
+    ],
+    "aquariumPop": 44,
+    "farmHours": 16.0,
+    "farmSeedPrice": 850
+  },
+  {
+    "id": "ma_anago",
+    "name": "マアナゴ",
+    "kana": "まあなご",
+    "speciesType": "fish",
+    "category": "ne_zakana",
+    "rank": "B",
+    "desc": "夜になると砂泥から這い出して餌を探す細長い魚。堤防の夜釣りの主役。",
+    "tasteNote": "ふっくら煮上げた煮穴子の一本握りは寿司屋の花形。",
+    "imageKey": null,
+    "areas": [
+      "teibou",
+      "sunahama",
+      "kakou",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 2.0,
+    "maxDepth": 35.0,
+    "minTemp": 13.0,
+    "maxTemp": 25.0,
+    "favWeather": [
+      "cloudy",
+      "rain",
+      "fog"
+    ],
+    "favWind": "any",
+    "rarityWeight": 56,
+    "minKg": 0.2,
+    "maxKg": 1.1,
+    "trophyKg": 0.8,
+    "pullPower": 2.6,
+    "stamina": 22.0,
+    "speed": 2.5,
+    "favLures": [
+      "worm"
+    ],
+    "favBaits": [
+      "isoma",
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "kago",
+      "sokobiki"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "summer"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 3200,
+    "sushiType": "chinmi",
+    "omakaseTags": [
+      "standard",
+      "seasonal"
+    ],
+    "aquariumPop": 46,
+    "farmHours": 18.0,
+    "farmSeedPrice": 950
   },
   {
     "id": "kasago",
@@ -634,6 +1104,88 @@
     "aquariumPop": 48,
     "farmHours": 16.0,
     "farmSeedPrice": 750
+  },
+  {
+    "id": "chinu_kibire",
+    "name": "キビレ",
+    "kana": "きびれ",
+    "speciesType": "fish",
+    "category": "tai",
+    "rank": "B",
+    "desc": "腹ビレと尻ビレが鮮やかな黄色に染まるクロダイの近縁種。河口に多い。",
+    "tasteNote": "クセの少ないさっぱりした白身。夏のチニングで大人気。",
+    "imageKey": null,
+    "areas": [
+      "kakou",
+      "sunahama",
+      "teibou"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 15.0,
+    "minTemp": 15.0,
+    "maxTemp": 28.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 54,
+    "minKg": 0.45,
+    "maxKg": 2.4,
+    "trophyKg": 1.8,
+    "pullPower": 3.6,
+    "stamina": 27.0,
+    "speed": 3.4,
+    "favLures": [
+      "worm",
+      "vib",
+      "popper"
+    ],
+    "favBaits": [
+      "isoma",
+      "asari"
+    ],
+    "captureMethods": [
+      "sashiami"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "autumn"
+    ],
+    "fatSeasons": [
+      "summer",
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 1700,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "standard"
+    ],
+    "aquariumPop": 44,
+    "farmHours": 14.0,
+    "farmSeedPrice": 650
   },
   {
     "id": "suzuki",
@@ -950,6 +1502,309 @@
     "farmSeedPrice": 2400
   },
   {
+    "id": "ayu",
+    "name": "アユ",
+    "kana": "あゆ",
+    "speciesType": "fish",
+    "category": "tansui",
+    "rank": "A",
+    "desc": "清流の石の苔を食む「香魚」。夏には若魚が河口から勢いよく遡上する。",
+    "tasteNote": "スイカのような爽やかな香り。塩焼きや姿寿司は初夏の風物詩。",
+    "imageKey": null,
+    "areas": [
+      "tansui",
+      "kakou"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "minDepth": 0.5,
+    "maxDepth": 4.0,
+    "minTemp": 14.0,
+    "maxTemp": 24.0,
+    "favWeather": [
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 36,
+    "minKg": 0.08,
+    "maxKg": 0.28,
+    "trophyKg": 0.22,
+    "pullPower": 1.8,
+    "stamina": 16.0,
+    "speed": 3.5,
+    "favLures": [
+      "minnow"
+    ],
+    "favBaits": [],
+    "captureMethods": [
+      "toami"
+    ],
+    "liveDurability": 2,
+    "spawnSeasons": [
+      "autumn"
+    ],
+    "fatSeasons": [
+      "summer"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 4600,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "seasonal",
+      "luxury"
+    ],
+    "aquariumPop": 54,
+    "farmHours": 14.0,
+    "farmSeedPrice": 700
+  },
+  {
+    "id": "sakuramasu",
+    "name": "サクラマス",
+    "kana": "さくらます",
+    "speciesType": "fish",
+    "category": "tansui",
+    "rank": "A",
+    "desc": "海で大きく育ち桜の季節に母川へ戻る銀毛の鱒。釣り人の憧れ。",
+    "tasteNote": "きめ細かく脂が乗った桃色の身。押し寿司やルイベは最高級。",
+    "imageKey": null,
+    "areas": [
+      "tansui",
+      "kakou",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "winter"
+    ],
+    "activeHours": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      15,
+      16,
+      17,
+      18
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 25.0,
+    "minTemp": 7.0,
+    "maxTemp": 17.0,
+    "favWeather": [
+      "cloudy",
+      "sunny",
+      "fog"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 24,
+    "minKg": 1.2,
+    "maxKg": 4.8,
+    "trophyKg": 3.5,
+    "pullPower": 5.8,
+    "stamina": 42.0,
+    "speed": 5.4,
+    "favLures": [
+      "minnow",
+      "jig",
+      "vib"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [
+      "sashiami"
+    ],
+    "liveDurability": 2,
+    "spawnSeasons": [
+      "autumn"
+    ],
+    "fatSeasons": [
+      "spring"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 5200,
+    "sushiType": "akami",
+    "omakaseTags": [
+      "luxury",
+      "seasonal"
+    ],
+    "aquariumPop": 74,
+    "farmHours": 34.0,
+    "farmSeedPrice": 1700
+  },
+  {
+    "id": "akame",
+    "name": "アカメ",
+    "kana": "あかめ",
+    "speciesType": "fish",
+    "category": "seabass",
+    "rank": "S",
+    "desc": "光を反射して目がルビーのように赤く輝く幻の巨大汽水魚。",
+    "tasteNote": "引きの強さは別格。希少種のため水族館展示で圧倒的な人気を誇る。",
+    "imageKey": null,
+    "areas": [
+      "kakou"
+    ],
+    "seasons": [
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 12.0,
+    "minTemp": 18.0,
+    "maxTemp": 28.0,
+    "favWeather": [
+      "cloudy",
+      "rain",
+      "fog"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 5,
+    "minKg": 4.0,
+    "maxKg": 32.0,
+    "trophyKg": 20.0,
+    "pullPower": 13.5,
+    "stamina": 86.0,
+    "speed": 6.2,
+    "favLures": [
+      "minnow",
+      "popper",
+      "vib"
+    ],
+    "favBaits": [
+      "live_aji"
+    ],
+    "captureMethods": [],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 11500,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "legend",
+      "luxury"
+    ],
+    "aquariumPop": 96,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "gazami",
+    "name": "ワタリガニ",
+    "kana": "わたりがに",
+    "speciesType": "crustacean",
+    "category": "ebi_kani",
+    "rank": "B",
+    "desc": "一番後ろの脚がオール状になった泳ぐカニ。砂浜や河口の砂に潜む。",
+    "tasteNote": "秋から冬のメスの内子と甘い身は絶品。味噌汁や軍艦に。",
+    "imageKey": null,
+    "areas": [
+      "sunahama",
+      "kakou",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 25.0,
+    "minTemp": 12.0,
+    "maxTemp": 26.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 46,
+    "minKg": 0.25,
+    "maxKg": 0.95,
+    "trophyKg": 0.7,
+    "pullPower": 2.2,
+    "stamina": 16.0,
+    "speed": 1.8,
+    "favLures": [],
+    "favBaits": [
+      "saba_cut",
+      "asari"
+    ],
+    "captureMethods": [
+      "kago",
+      "sokobiki"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn",
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 3200,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "seasonal",
+      "chinmi"
+    ],
+    "aquariumPop": 56,
+    "farmHours": 18.0,
+    "farmSeedPrice": 900
+  },
+  {
     "id": "madai",
     "name": "マダイ",
     "kana": "まだい",
@@ -1028,6 +1883,83 @@
     "aquariumPop": 75,
     "farmHours": 36.0,
     "farmSeedPrice": 1500
+  },
+  {
+    "id": "renkodai",
+    "name": "レンコダイ",
+    "kana": "れんこだい",
+    "speciesType": "fish",
+    "category": "tai",
+    "rank": "C",
+    "desc": "黄色みを帯びた美しい桜色のタイ。近海の砂泥底に群れで棲む。",
+    "tasteNote": "水分が多く柔らかい身。酢締めにした小鯛の笹漬け握りが絶品。",
+    "imageKey": null,
+    "areas": [
+      "kinkai",
+      "okiai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 20.0,
+    "maxDepth": 90.0,
+    "minTemp": 12.0,
+    "maxTemp": 22.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 66,
+    "minKg": 0.25,
+    "maxKg": 1.1,
+    "trophyKg": 0.8,
+    "pullPower": 2.4,
+    "stamina": 18.0,
+    "speed": 2.8,
+    "favLures": [
+      "tairaba",
+      "jig"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [
+      "sokobiki"
+    ],
+    "liveDurability": 3,
+    "spawnSeasons": [
+      "spring",
+      "autumn"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 1750,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "standard"
+    ],
+    "aquariumPop": 42,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
   },
   {
     "id": "hirame",
@@ -1182,6 +2114,320 @@
     "farmSeedPrice": 1000
   },
   {
+    "id": "hobo",
+    "name": "ホウボウ",
+    "kana": "ほうぼう",
+    "speciesType": "fish",
+    "category": "ne_zakana",
+    "rank": "B",
+    "desc": "鮮やかな青い胸ビレを翼のように広げて海底を歩く美しい底魚。",
+    "tasteNote": "プリッと締まった上品な白身。薄造りや昆布締め握りが美味。",
+    "imageKey": null,
+    "areas": [
+      "sunahama",
+      "kinkai",
+      "okiai"
+    ],
+    "seasons": [
+      "spring",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 10.0,
+    "maxDepth": 70.0,
+    "minTemp": 11.0,
+    "maxTemp": 22.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 52,
+    "minKg": 0.4,
+    "maxKg": 1.8,
+    "trophyKg": 1.3,
+    "pullPower": 2.9,
+    "stamina": 22.0,
+    "speed": 2.6,
+    "favLures": [
+      "tairaba",
+      "jig"
+    ],
+    "favBaits": [
+      "okiami",
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "sokobiki"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter",
+      "spring"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 2600,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "seasonal"
+    ],
+    "aquariumPop": 66,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "ainame",
+    "name": "アイナメ",
+    "kana": "あいなめ",
+    "speciesType": "fish",
+    "category": "ne_zakana",
+    "rank": "B",
+    "desc": "磯や堤防のテトラ帯に棲むパワフルな根魚。首を振る強い引きが特徴。",
+    "tasteNote": "秋から冬は「ビール瓶サイズ」の極上白身。刺身も煮付けも最高。",
+    "imageKey": null,
+    "areas": [
+      "iso",
+      "teibou",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 2.0,
+    "maxDepth": 30.0,
+    "minTemp": 8.0,
+    "maxTemp": 20.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 50,
+    "minKg": 0.4,
+    "maxKg": 2.2,
+    "trophyKg": 1.6,
+    "pullPower": 3.6,
+    "stamina": 28.0,
+    "speed": 3.0,
+    "favLures": [
+      "worm",
+      "jig"
+    ],
+    "favBaits": [
+      "isoma",
+      "okiami"
+    ],
+    "captureMethods": [
+      "sashiami",
+      "kago"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "autumn",
+      "winter"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 2500,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "seasonal"
+    ],
+    "aquariumPop": 48,
+    "farmHours": 16.0,
+    "farmSeedPrice": 780
+  },
+  {
+    "id": "kijihata",
+    "name": "キジハタ",
+    "kana": "きじはた",
+    "speciesType": "fish",
+    "category": "ne_zakana",
+    "rank": "A",
+    "desc": "関西では「アコウ」と呼ばれる朱色の斑点が美しい超高級ハタ。",
+    "tasteNote": "もっちり甘い極上の白身と皮下の旨味。高級料亭が奪い合う逸品。",
+    "imageKey": null,
+    "areas": [
+      "iso",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21
+    ],
+    "minDepth": 5.0,
+    "maxDepth": 45.0,
+    "minTemp": 15.0,
+    "maxTemp": 26.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 28,
+    "minKg": 0.6,
+    "maxKg": 3.4,
+    "trophyKg": 2.4,
+    "pullPower": 5.2,
+    "stamina": 36.0,
+    "speed": 3.6,
+    "favLures": [
+      "worm",
+      "jig",
+      "tairaba"
+    ],
+    "favBaits": [
+      "live_aji",
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "sashiami",
+      "kago"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "summer",
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 6200,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "luxury",
+      "seasonal"
+    ],
+    "aquariumPop": 68,
+    "farmHours": 36.0,
+    "farmSeedPrice": 1900
+  },
+  {
+    "id": "aka_amadai",
+    "name": "アカアマダイ",
+    "kana": "あかあまだい",
+    "speciesType": "fish",
+    "category": "shiromi_coast",
+    "rank": "A",
+    "desc": "砂泥底に巣穴を掘って棲む気品ある桃色の高級魚。京都ではグジと呼ぶ。",
+    "tasteNote": "繊細で甘い身とパリッと揚げた松笠焼き・昆布締め握りが最高。",
+    "imageKey": null,
+    "areas": [
+      "kinkai",
+      "okiai"
+    ],
+    "seasons": [
+      "spring",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 30.0,
+    "maxDepth": 110.0,
+    "minTemp": 11.0,
+    "maxTemp": 21.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "offshore",
+    "rarityWeight": 26,
+    "minKg": 0.45,
+    "maxKg": 2.2,
+    "trophyKg": 1.6,
+    "pullPower": 3.4,
+    "stamina": 26.0,
+    "speed": 2.8,
+    "favLures": [
+      "tairaba",
+      "jig"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [
+      "sokobiki"
+    ],
+    "liveDurability": 2,
+    "spawnSeasons": [
+      "autumn"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 6800,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "luxury",
+      "seasonal"
+    ],
+    "aquariumPop": 58,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
     "id": "kawahagi",
     "name": "カワハギ",
     "kana": "かわはぎ",
@@ -1259,6 +2505,82 @@
     "farmSeedPrice": 420
   },
   {
+    "id": "umazurahagi",
+    "name": "ウマヅラハギ",
+    "kana": "うまづらはぎ",
+    "speciesType": "fish",
+    "category": "ne_zakana",
+    "rank": "C",
+    "desc": "面長な顔立ちが特徴のカワハギの仲間。中層まで群れで浮くことも多い。",
+    "tasteNote": "カワハギに負けない濃厚な肝と淡白な白身。鍋も刺身も人気。",
+    "imageKey": null,
+    "areas": [
+      "teibou",
+      "kinkai",
+      "okiai"
+    ],
+    "seasons": [
+      "spring",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 5.0,
+    "maxDepth": 50.0,
+    "minTemp": 12.0,
+    "maxTemp": 23.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 64,
+    "minKg": 0.2,
+    "maxKg": 0.85,
+    "trophyKg": 0.65,
+    "pullPower": 2.2,
+    "stamina": 18.0,
+    "speed": 2.7,
+    "favLures": [],
+    "favBaits": [
+      "okiami",
+      "asari"
+    ],
+    "captureMethods": [
+      "sashiami",
+      "sokobiki"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 1850,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "standard",
+      "chinmi"
+    ],
+    "aquariumPop": 40,
+    "farmHours": 4.0,
+    "farmSeedPrice": 320
+  },
+  {
     "id": "ishidai",
     "name": "イシダイ",
     "kana": "いしだい",
@@ -1332,6 +2654,81 @@
     "aquariumPop": 72,
     "farmHours": 40.0,
     "farmSeedPrice": 1800
+  },
+  {
+    "id": "ishigakidai",
+    "name": "イシガキダイ",
+    "kana": "いしがきだい",
+    "speciesType": "fish",
+    "category": "tai",
+    "rank": "A",
+    "desc": "石垣模様の斑点が美しい磯の強敵。老成魚は口元が白く「クチジロ」になる。",
+    "tasteNote": "イシダイ以上に脂が乗るとも評される極上白身。刺身が絶品。",
+    "imageKey": null,
+    "areas": [
+      "iso",
+      "kinkai",
+      "nangoku"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 4.0,
+    "maxDepth": 35.0,
+    "minTemp": 17.0,
+    "maxTemp": 27.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 24,
+    "minKg": 0.8,
+    "maxKg": 5.0,
+    "trophyKg": 3.6,
+    "pullPower": 6.4,
+    "stamina": 46.0,
+    "speed": 4.6,
+    "favLures": [],
+    "favBaits": [
+      "sazae",
+      "asari"
+    ],
+    "captureMethods": [
+      "sashiami"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "spring",
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 4600,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "luxury"
+    ],
+    "aquariumPop": 74,
+    "farmHours": 40.0,
+    "farmSeedPrice": 1900
   },
   {
     "id": "mejina",
@@ -1565,6 +2962,84 @@
     "farmSeedPrice": 0
   },
   {
+    "id": "torafugu",
+    "name": "トラフグ",
+    "kana": "とらふぐ",
+    "speciesType": "fish",
+    "category": "fugu",
+    "rank": "S",
+    "desc": "「フグの王様」。冬の産卵期に向けて旨味と白子が最高潮に達する。",
+    "tasteNote": "専門免許で捌くてっさ・白子握りは冬の高級料亭の頂点。",
+    "imageKey": null,
+    "areas": [
+      "kinkai",
+      "okiai"
+    ],
+    "seasons": [
+      "autumn",
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 10.0,
+    "maxDepth": 80.0,
+    "minTemp": 10.0,
+    "maxTemp": 21.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 10,
+    "minKg": 1.0,
+    "maxKg": 5.5,
+    "trophyKg": 3.8,
+    "pullPower": 5.4,
+    "stamina": 42.0,
+    "speed": 3.4,
+    "favLures": [
+      "jig"
+    ],
+    "favBaits": [
+      "okiami",
+      "asari"
+    ],
+    "captureMethods": [
+      "sashiami",
+      "sokobiki"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 13500,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "luxury",
+      "seasonal",
+      "legend"
+    ],
+    "aquariumPop": 84,
+    "farmHours": 54.0,
+    "farmSeedPrice": 4800
+  },
+  {
     "id": "aoriika",
     "name": "アオリイカ",
     "kana": "あおりいか",
@@ -1641,6 +3116,165 @@
     "aquariumPop": 78,
     "farmHours": 36.0,
     "farmSeedPrice": 1600
+  },
+  {
+    "id": "yariika",
+    "name": "ヤリイカ",
+    "kana": "やりいか",
+    "speciesType": "cephalopod",
+    "category": "ika_tako",
+    "rank": "B",
+    "desc": "槍のように細長い上品なイカ。冬から春にかけて産卵のため沿岸へ寄る。",
+    "tasteNote": "透き通る繊細な甘みとコリコリ食感。姿造りや握りで大好評。",
+    "imageKey": null,
+    "areas": [
+      "kinkai",
+      "okiai"
+    ],
+    "seasons": [
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 15.0,
+    "maxDepth": 120.0,
+    "minTemp": 9.0,
+    "maxTemp": 18.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "offshore",
+    "rarityWeight": 46,
+    "minKg": 0.2,
+    "maxKg": 0.9,
+    "trophyKg": 0.65,
+    "pullPower": 2.2,
+    "stamina": 18.0,
+    "speed": 3.5,
+    "favLures": [
+      "egi",
+      "jig"
+    ],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "sokobiki"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter",
+      "spring"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 3600,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "seasonal"
+    ],
+    "aquariumPop": 60,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "kouika",
+    "name": "コウイカ",
+    "kana": "こういか",
+    "speciesType": "cephalopod",
+    "category": "ika_tako",
+    "rank": "C",
+    "desc": "背中に白い甲羅を持つ肉厚なイカ。砂地の底をゆっくり泳ぐ。",
+    "tasteNote": "肉厚でもっちりした強い甘み。スミイカの握りは江戸前寿司の名品。",
+    "imageKey": null,
+    "areas": [
+      "teibou",
+      "sunahama",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "minDepth": 2.0,
+    "maxDepth": 35.0,
+    "minTemp": 12.0,
+    "maxTemp": 24.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 64,
+    "minKg": 0.25,
+    "maxKg": 1.2,
+    "trophyKg": 0.85,
+    "pullPower": 2.1,
+    "stamina": 16.0,
+    "speed": 2.2,
+    "favLures": [
+      "egi"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [
+      "sokobiki",
+      "sashiami"
+    ],
+    "liveDurability": 3,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter",
+      "spring"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 2500,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "standard",
+      "seasonal"
+    ],
+    "aquariumPop": 52,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
   },
   {
     "id": "madako",
@@ -1727,6 +3361,97 @@
     "farmSeedPrice": 900
   },
   {
+    "id": "mizudako",
+    "name": "ミズダコ",
+    "kana": "みずだこ",
+    "speciesType": "cephalopod",
+    "category": "ika_tako",
+    "rank": "A",
+    "desc": "世界最大級の大型タコ。冷たい海域の岩陰に潜み、吸盤の力が凄まじい。",
+    "tasteNote": "柔らかく瑞々しい甘み。薄切りの生タコしゃぶや炙り握りが絶品。",
+    "imageKey": null,
+    "areas": [
+      "kinkai",
+      "okiai",
+      "shinkai"
+    ],
+    "seasons": [
+      "autumn",
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 20.0,
+    "maxDepth": 180.0,
+    "minTemp": 4.0,
+    "maxTemp": 15.0,
+    "favWeather": [
+      "cloudy",
+      "fog"
+    ],
+    "favWind": "any",
+    "rarityWeight": 26,
+    "minKg": 3.0,
+    "maxKg": 18.0,
+    "trophyKg": 12.0,
+    "pullPower": 9.2,
+    "stamina": 62.0,
+    "speed": 2.4,
+    "favLures": [
+      "jig"
+    ],
+    "favBaits": [
+      "saba_cut",
+      "asari"
+    ],
+    "captureMethods": [
+      "kago",
+      "sokobiki"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 3200,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "luxury",
+      "seasonal"
+    ],
+    "aquariumPop": 82,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
     "id": "utsubo",
     "name": "ウツボ",
     "kana": "うつぼ",
@@ -1800,6 +3525,81 @@
     "aquariumPop": 60,
     "farmHours": 0.0,
     "farmSeedPrice": 0
+  },
+  {
+    "id": "kuruma_ebi",
+    "name": "クルマエビ",
+    "kana": "くるまえび",
+    "speciesType": "crustacean",
+    "category": "ebi_kani",
+    "rank": "A",
+    "desc": "美しい横縞を持つ高級エビ。昼は砂に潜り、夜に泳ぎ出して活動する。",
+    "tasteNote": "踊り食いも茹で握りも別格の甘みと香り。高級寿司の絶対的エース。",
+    "imageKey": null,
+    "areas": [
+      "sunahama",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 35.0,
+    "minTemp": 16.0,
+    "maxTemp": 27.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 28,
+    "minKg": 0.04,
+    "maxKg": 0.14,
+    "trophyKg": 0.1,
+    "pullPower": 1.2,
+    "stamina": 10.0,
+    "speed": 2.5,
+    "favLures": [],
+    "favBaits": [
+      "isoma"
+    ],
+    "captureMethods": [
+      "sokobiki",
+      "sashiami"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn",
+      "winter"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 11000,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "luxury",
+      "seasonal"
+    ],
+    "aquariumPop": 60,
+    "farmHours": 24.0,
+    "farmSeedPrice": 1500
   },
   {
     "id": "ise_ebi",
@@ -2110,6 +3910,84 @@
     "farmSeedPrice": 3000
   },
   {
+    "id": "sawara",
+    "name": "サワラ",
+    "kana": "さわら",
+    "speciesType": "fish",
+    "category": "ao_mono",
+    "rank": "A",
+    "desc": "鋭い歯で小魚を高速で切り裂く細長い回遊魚。冬の寒ザワラが特に旨い。",
+    "tasteNote": "しっとりとろける上品な白身。皮を炙った焼き霜握りが最高。",
+    "imageKey": null,
+    "areas": [
+      "kinkai",
+      "okiai"
+    ],
+    "seasons": [
+      "spring",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      15,
+      16,
+      17,
+      18
+    ],
+    "minDepth": 2.0,
+    "maxDepth": 45.0,
+    "minTemp": 11.0,
+    "maxTemp": 22.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 34,
+    "minKg": 1.5,
+    "maxKg": 6.0,
+    "trophyKg": 4.2,
+    "pullPower": 5.8,
+    "stamina": 38.0,
+    "speed": 6.6,
+    "favLures": [
+      "minnow",
+      "jig",
+      "vib"
+    ],
+    "favBaits": [
+      "live_aji"
+    ],
+    "captureMethods": [
+      "sashiami",
+      "makiami"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter",
+      "spring"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 3800,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "luxury",
+      "seasonal"
+    ],
+    "aquariumPop": 58,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
     "id": "katsuo",
     "name": "カツオ",
     "kana": "かつお",
@@ -2185,6 +4063,86 @@
     "aquariumPop": 56,
     "farmHours": 0.0,
     "farmSeedPrice": 0
+  },
+  {
+    "id": "suma",
+    "name": "スマガツオ",
+    "kana": "すまがつお",
+    "speciesType": "fish",
+    "category": "maguro_katsuo",
+    "rank": "A",
+    "desc": "胸ビレの下に黒い斑点がある「全身トロ」と称される幻のカツオ。",
+    "tasteNote": "マグロのトロに匹敵するキメ細かい脂乗り。見つけたら絶対の逸品。",
+    "imageKey": null,
+    "areas": [
+      "okiai",
+      "enyou",
+      "nangoku"
+    ],
+    "seasons": [
+      "autumn",
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 2.0,
+    "maxDepth": 50.0,
+    "minTemp": 17.0,
+    "maxTemp": 27.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 22,
+    "minKg": 1.5,
+    "maxKg": 5.5,
+    "trophyKg": 4.0,
+    "pullPower": 6.4,
+    "stamina": 40.0,
+    "speed": 7.2,
+    "favLures": [
+      "jig",
+      "minnow",
+      "popper"
+    ],
+    "favBaits": [
+      "live_aji"
+    ],
+    "captureMethods": [
+      "makiami"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn",
+      "winter"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 5600,
+    "sushiType": "akami",
+    "omakaseTags": [
+      "luxury",
+      "seasonal"
+    ],
+    "aquariumPop": 62,
+    "farmHours": 36.0,
+    "farmSeedPrice": 2400
   },
   {
     "id": "shimaaji",
@@ -2410,6 +4368,321 @@
       "seasonal"
     ],
     "aquariumPop": 32,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "surumeika",
+    "name": "スルメイカ",
+    "kana": "するめいか",
+    "speciesType": "cephalopod",
+    "category": "ika_tako",
+    "rank": "C",
+    "desc": "沖合から遠洋を大群で回遊する定番イカ。夜の集魚灯に集まる。",
+    "tasteNote": "コリコリの刺身・イカそうめん・濃厚なイカワタ料理まで大活躍。",
+    "imageKey": null,
+    "areas": [
+      "okiai",
+      "enyou"
+    ],
+    "seasons": [
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 10.0,
+    "maxDepth": 120.0,
+    "minTemp": 10.0,
+    "maxTemp": 22.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 74,
+    "minKg": 0.2,
+    "maxKg": 0.65,
+    "trophyKg": 0.5,
+    "pullPower": 1.8,
+    "stamina": 15.0,
+    "speed": 3.2,
+    "favLures": [
+      "egi",
+      "jig"
+    ],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "makiami"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "winter"
+    ],
+    "fatSeasons": [
+      "summer",
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 1800,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "standard"
+    ],
+    "aquariumPop": 38,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "binnaga",
+    "name": "ビンナガマグロ",
+    "kana": "びんながまぐろ",
+    "speciesType": "fish",
+    "category": "maguro_katsuo",
+    "rank": "B",
+    "desc": "長い胸ビレが特徴のマグロ。回転寿司でおなじみの「ビントロ」の正体。",
+    "tasteNote": "淡いピンク色の柔らかな身。脂の乗ったビントロは大人気。",
+    "imageKey": null,
+    "areas": [
+      "okiai",
+      "enyou"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "minDepth": 15.0,
+    "maxDepth": 120.0,
+    "minTemp": 15.0,
+    "maxTemp": 24.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 42,
+    "minKg": 6.0,
+    "maxKg": 28.0,
+    "trophyKg": 20.0,
+    "pullPower": 10.5,
+    "stamina": 68.0,
+    "speed": 7.6,
+    "favLures": [
+      "jig",
+      "popper"
+    ],
+    "favBaits": [
+      "live_aji",
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "makiami"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "winter",
+      "spring"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 3200,
+    "sushiType": "akami",
+    "omakaseTags": [
+      "standard",
+      "seasonal"
+    ],
+    "aquariumPop": 70,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "kihada",
+    "name": "キハダマグロ",
+    "kana": "きはだまぐろ",
+    "speciesType": "fish",
+    "category": "maguro_katsuo",
+    "rank": "A",
+    "desc": "黄色く伸びた背ビレと尻ビレが美しい夏の遠洋の大物ターゲット。",
+    "tasteNote": "さっぱりとした美しい赤身。夏のマグロキャスティングの主役。",
+    "imageKey": null,
+    "areas": [
+      "okiai",
+      "enyou",
+      "nangoku"
+    ],
+    "seasons": [
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "minDepth": 5.0,
+    "maxDepth": 120.0,
+    "minTemp": 20.0,
+    "maxTemp": 29.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 24,
+    "minKg": 15.0,
+    "maxKg": 75.0,
+    "trophyKg": 50.0,
+    "pullPower": 15.5,
+    "stamina": 96.0,
+    "speed": 8.6,
+    "favLures": [
+      "popper",
+      "jig"
+    ],
+    "favBaits": [
+      "live_aji"
+    ],
+    "captureMethods": [
+      "makiami"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 5800,
+    "sushiType": "akami",
+    "omakaseTags": [
+      "luxury",
+      "seasonal"
+    ],
+    "aquariumPop": 84,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "mebachi",
+    "name": "メバチマグロ",
+    "kana": "めばちまぐろ",
+    "speciesType": "fish",
+    "category": "maguro_katsuo",
+    "rank": "A",
+    "desc": "大きな目と丸みのある体型の大型マグロ。やや深いタナを回遊する。",
+    "tasteNote": "濃厚な赤身の旨味と程よい中トロ。寿司屋を支える頼もしい高級マグロ。",
+    "imageKey": null,
+    "areas": [
+      "okiai",
+      "enyou"
+    ],
+    "seasons": [
+      "autumn",
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "minDepth": 25.0,
+    "maxDepth": 160.0,
+    "minTemp": 13.0,
+    "maxTemp": 23.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 22,
+    "minKg": 18.0,
+    "maxKg": 95.0,
+    "trophyKg": 65.0,
+    "pullPower": 16.5,
+    "stamina": 104.0,
+    "speed": 8.4,
+    "favLures": [
+      "jig",
+      "popper"
+    ],
+    "favBaits": [
+      "saba_cut",
+      "live_aji"
+    ],
+    "captureMethods": [
+      "makiami"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn",
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 6800,
+    "sushiType": "akami",
+    "omakaseTags": [
+      "luxury"
+    ],
+    "aquariumPop": 85,
     "farmHours": 0.0,
     "farmSeedPrice": 0
   },
@@ -2649,6 +4922,400 @@
     "farmSeedPrice": 0
   },
   {
+    "id": "bashoukajiki",
+    "name": "バショウカジキ",
+    "kana": "ばしょうかじき",
+    "speciesType": "fish",
+    "category": "maguro_katsuo",
+    "rank": "S",
+    "desc": "巨大な扇のような背ビレを広げる世界最速クラスの優雅なカジキ。",
+    "tasteNote": "鮮やかな姿と豪快なジャンプは圧巻。新鮮な刺身は上品な甘み。",
+    "imageKey": null,
+    "areas": [
+      "enyou",
+      "nangoku"
+    ],
+    "seasons": [
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "minDepth": 2.0,
+    "maxDepth": 60.0,
+    "minTemp": 22.0,
+    "maxTemp": 30.0,
+    "favWeather": [
+      "sunny"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 7,
+    "minKg": 18.0,
+    "maxKg": 85.0,
+    "trophyKg": 58.0,
+    "pullPower": 17.5,
+    "stamina": 110.0,
+    "speed": 9.8,
+    "favLures": [
+      "popper",
+      "minnow"
+    ],
+    "favBaits": [
+      "live_aji"
+    ],
+    "captureMethods": [],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 8800,
+    "sushiType": "akami",
+    "omakaseTags": [
+      "luxury",
+      "legend"
+    ],
+    "aquariumPop": 96,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "shirokajiki",
+    "name": "シロカジキ",
+    "kana": "しろかじき",
+    "speciesType": "fish",
+    "category": "maguro_katsuo",
+    "rank": "S",
+    "desc": "遠洋の巨獣「ブラックマーリン」。重戦車のような馬力で海を裂く。",
+    "tasteNote": "脂の乗った大型個体は高級魚市場でも別格の扱いを受ける。",
+    "imageKey": null,
+    "areas": [
+      "enyou"
+    ],
+    "seasons": [
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "minDepth": 5.0,
+    "maxDepth": 150.0,
+    "minTemp": 19.0,
+    "maxTemp": 28.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 5,
+    "minKg": 45.0,
+    "maxKg": 260.0,
+    "trophyKg": 170.0,
+    "pullPower": 23.0,
+    "stamina": 145.0,
+    "speed": 9.4,
+    "favLures": [
+      "popper",
+      "jig"
+    ],
+    "favBaits": [
+      "live_aji"
+    ],
+    "captureMethods": [],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 11000,
+    "sushiType": "akami",
+    "omakaseTags": [
+      "luxury",
+      "legend"
+    ],
+    "aquariumPop": 97,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "manbou",
+    "name": "マンボウ",
+    "kana": "まんぼう",
+    "speciesType": "fish",
+    "category": "fugu",
+    "rank": "S",
+    "desc": "丸く平たいユーモラスな姿で海面で日向ぼっこをする巨大なフグの仲間。",
+    "tasteNote": "水族館の超人気アイドル！地元漁師の間では腸の刺身「コワタ」が珍味。",
+    "imageKey": null,
+    "areas": [
+      "okiai",
+      "enyou"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 80.0,
+    "minTemp": 14.0,
+    "maxTemp": 24.0,
+    "favWeather": [
+      "sunny"
+    ],
+    "favWind": "offshore",
+    "rarityWeight": 6,
+    "minKg": 30.0,
+    "maxKg": 180.0,
+    "trophyKg": 120.0,
+    "pullPower": 12.0,
+    "stamina": 90.0,
+    "speed": 2.8,
+    "favLures": [
+      "jig"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [
+      "makiami"
+    ],
+    "liveDurability": 2,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [],
+    "coldWaterBonus": false,
+    "basePricePerKg": 6500,
+    "sushiType": "chinmi",
+    "omakaseTags": [
+      "legend",
+      "aquarium_only"
+    ],
+    "aquariumPop": 100,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "zuwaigani",
+    "name": "ズワイガニ",
+    "kana": "ずわいがに",
+    "speciesType": "crustacean",
+    "category": "ebi_kani",
+    "rank": "S",
+    "desc": "冬の日本海を代表する「冬の味覚の王様」。冷たい泥底に棲息する。",
+    "tasteNote": "繊細で甘みの強い脚身と濃厚なカニ味噌。高級寿司の冬の主役。",
+    "imageKey": null,
+    "areas": [
+      "okiai",
+      "shinkai"
+    ],
+    "seasons": [
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 120.0,
+    "maxDepth": 350.0,
+    "minTemp": 2.0,
+    "maxTemp": 10.0,
+    "favWeather": [
+      "cloudy",
+      "rough"
+    ],
+    "favWind": "any",
+    "rarityWeight": 10,
+    "minKg": 0.5,
+    "maxKg": 1.4,
+    "trophyKg": 1.0,
+    "pullPower": 2.5,
+    "stamina": 18.0,
+    "speed": 1.4,
+    "favLures": [],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "kago",
+      "sokobiki"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "winter"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 16500,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "luxury",
+      "seasonal",
+      "deepsea"
+    ],
+    "aquariumPop": 82,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "tarabagani",
+    "name": "タラバガニ",
+    "kana": "たらばがに",
+    "speciesType": "crustacean",
+    "category": "ebi_kani",
+    "rank": "S",
+    "desc": "極寒の深場に棲むトゲだらけの超大型甲殻類（実はヤドカリの仲間）。",
+    "tasteNote": "プリプリで食べ応え抜群の極太の脚肉。市場でも寿司でも最高峰。",
+    "imageKey": null,
+    "areas": [
+      "okiai",
+      "shinkai"
+    ],
+    "seasons": [
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 80.0,
+    "maxDepth": 300.0,
+    "minTemp": 1.0,
+    "maxTemp": 9.0,
+    "favWeather": [
+      "cloudy",
+      "rough",
+      "fog"
+    ],
+    "favWind": "any",
+    "rarityWeight": 8,
+    "minKg": 1.5,
+    "maxKg": 5.5,
+    "trophyKg": 3.8,
+    "pullPower": 4.2,
+    "stamina": 30.0,
+    "speed": 1.5,
+    "favLures": [],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "kago",
+      "sokobiki"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 15000,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "luxury",
+      "seasonal",
+      "legend"
+    ],
+    "aquariumPop": 88,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
     "id": "nodoguro",
     "name": "ノドグロ",
     "kana": "のどぐろ",
@@ -2805,6 +5472,163 @@
     "farmSeedPrice": 0
   },
   {
+    "id": "kuromutsu",
+    "name": "クロムツ",
+    "kana": "くろむつ",
+    "speciesType": "fish",
+    "category": "shinkai",
+    "rank": "A",
+    "desc": "漆黒の体と鋭い牙を持つ中深海の肉食高級魚。冬場に最も旨くなる。",
+    "tasteNote": "ノドグロに迫る極上の脂乗り。皮目を炙った握りは絶品。",
+    "imageKey": null,
+    "areas": [
+      "okiai",
+      "shinkai"
+    ],
+    "seasons": [
+      "autumn",
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 90.0,
+    "maxDepth": 300.0,
+    "minTemp": 5.0,
+    "maxTemp": 14.0,
+    "favWeather": [
+      "cloudy",
+      "fog"
+    ],
+    "favWind": "any",
+    "rarityWeight": 25,
+    "minKg": 0.6,
+    "maxKg": 4.2,
+    "trophyKg": 2.8,
+    "pullPower": 5.4,
+    "stamina": 40.0,
+    "speed": 3.8,
+    "favLures": [
+      "jig"
+    ],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "sokobiki"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [
+      "winter"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 7800,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "luxury",
+      "deepsea"
+    ],
+    "aquariumPop": 64,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "onikasago",
+    "name": "オニカサゴ",
+    "kana": "おにかさご",
+    "speciesType": "fish",
+    "category": "shinkai",
+    "rank": "B",
+    "desc": "背ビレに強い毒トゲを持つ中深海の厳つい根魚。見かけによらず美味。",
+    "tasteNote": "ぷりぷりの極上白身と濃厚な胃袋・肝。薄造りや握りで大好評。",
+    "imageKey": null,
+    "areas": [
+      "okiai",
+      "shinkai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "minDepth": 60.0,
+    "maxDepth": 200.0,
+    "minTemp": 8.0,
+    "maxTemp": 16.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 40,
+    "minKg": 0.5,
+    "maxKg": 2.6,
+    "trophyKg": 1.8,
+    "pullPower": 4.4,
+    "stamina": 34.0,
+    "speed": 2.5,
+    "favLures": [
+      "jig"
+    ],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "sokobiki",
+      "kago"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 4400,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "seasonal",
+      "deepsea"
+    ],
+    "aquariumPop": 58,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
     "id": "ankou",
     "name": "アンコウ",
     "kana": "あんこう",
@@ -2889,6 +5713,76 @@
       "deepsea"
     ],
     "aquariumPop": 70,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "chouchinankou",
+    "name": "チョウチンアンコウ",
+    "kana": "ちょうちんあんこう",
+    "speciesType": "fish",
+    "category": "shinkai",
+    "rank": "A",
+    "desc": "頭の先で青白く光る発光器を持つ深海生物の代表格。",
+    "tasteNote": "食用ではなく深海展示のアイドル。暗闇水槽で圧倒的な集客力を誇る。",
+    "imageKey": null,
+    "areas": [
+      "shinkai"
+    ],
+    "seasons": [
+      "autumn",
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 200.0,
+    "maxDepth": 500.0,
+    "minTemp": 2.0,
+    "maxTemp": 10.0,
+    "favWeather": [
+      "fog",
+      "rough",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 14,
+    "minKg": 1.0,
+    "maxKg": 6.5,
+    "trophyKg": 4.5,
+    "pullPower": 5.6,
+    "stamina": 44.0,
+    "speed": 2.0,
+    "favLures": [
+      "jig"
+    ],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "sokobiki"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [],
+    "fatSeasons": [],
+    "coldWaterBonus": false,
+    "basePricePerKg": 7200,
+    "sushiType": "none",
+    "omakaseTags": [
+      "deepsea",
+      "aquarium_only"
+    ],
+    "aquariumPop": 92,
     "farmHours": 0.0,
     "farmSeedPrice": 0
   },
@@ -3046,6 +5940,625 @@
     "farmSeedPrice": 0
   },
   {
+    "id": "rabuka",
+    "name": "ラブカ",
+    "kana": "らぶか",
+    "speciesType": "fish",
+    "category": "shinkai",
+    "rank": "S",
+    "desc": "「生きた化石」と呼ばれる古代そのままの姿を残す深海ザメ。",
+    "tasteNote": "学術的・展示的価値が計り知れない深海の神秘。水族館の超目玉。",
+    "imageKey": null,
+    "areas": [
+      "shinkai"
+    ],
+    "seasons": [
+      "winter",
+      "spring",
+      "autumn"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 200.0,
+    "maxDepth": 500.0,
+    "minTemp": 2.0,
+    "maxTemp": 11.0,
+    "favWeather": [
+      "fog",
+      "rough"
+    ],
+    "favWind": "any",
+    "rarityWeight": 4,
+    "minKg": 4.0,
+    "maxKg": 22.0,
+    "trophyKg": 15.0,
+    "pullPower": 11.0,
+    "stamina": 78.0,
+    "speed": 3.8,
+    "favLures": [
+      "jig"
+    ],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "sokobiki"
+    ],
+    "liveDurability": 1,
+    "spawnSeasons": [],
+    "fatSeasons": [],
+    "coldWaterBonus": false,
+    "basePricePerKg": 22000,
+    "sushiType": "none",
+    "omakaseTags": [
+      "deepsea",
+      "legend",
+      "aquarium_only"
+    ],
+    "aquariumPop": 99,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "daiouika",
+    "name": "ダイオウイカ",
+    "kana": "だいおういか",
+    "speciesType": "cephalopod",
+    "category": "ika_tako",
+    "rank": "S",
+    "desc": "深海の闇に潜む伝説の超巨大イカ。サッカーボール大の目を持つ。",
+    "tasteNote": "身はアンモニア臭が強く食用不向きだが、水族館展示で伝説級の人気！",
+    "imageKey": null,
+    "areas": [
+      "shinkai"
+    ],
+    "seasons": [
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 220.0,
+    "maxDepth": 500.0,
+    "minTemp": 2.0,
+    "maxTemp": 10.0,
+    "favWeather": [
+      "fog",
+      "rough"
+    ],
+    "favWind": "any",
+    "rarityWeight": 3,
+    "minKg": 35.0,
+    "maxKg": 190.0,
+    "trophyKg": 120.0,
+    "pullPower": 20.0,
+    "stamina": 130.0,
+    "speed": 4.6,
+    "favLures": [
+      "jig"
+    ],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [],
+    "liveDurability": 1,
+    "spawnSeasons": [],
+    "fatSeasons": [],
+    "coldWaterBonus": false,
+    "basePricePerKg": 24000,
+    "sushiType": "none",
+    "omakaseTags": [
+      "deepsea",
+      "legend",
+      "aquarium_only"
+    ],
+    "aquariumPop": 100,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "benizuwai",
+    "name": "ベニズワイガニ",
+    "kana": "べにずわいがに",
+    "speciesType": "crustacean",
+    "category": "ebi_kani",
+    "rank": "A",
+    "desc": "水深500m級の深海に棲む鮮やかな紅色のカニ。カニかご漁の主役。",
+    "tasteNote": "瑞々しく強い甘みの脚身。コスパ良く回転寿司でも大人気。",
+    "imageKey": null,
+    "areas": [
+      "shinkai"
+    ],
+    "seasons": [
+      "spring",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 180.0,
+    "maxDepth": 500.0,
+    "minTemp": 1.0,
+    "maxTemp": 9.0,
+    "favWeather": [
+      "cloudy",
+      "fog"
+    ],
+    "favWind": "any",
+    "rarityWeight": 24,
+    "minKg": 0.45,
+    "maxKg": 1.3,
+    "trophyKg": 0.95,
+    "pullPower": 2.2,
+    "stamina": 16.0,
+    "speed": 1.4,
+    "favLures": [],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "kago",
+      "sokobiki"
+    ],
+    "liveDurability": 3,
+    "spawnSeasons": [
+      "winter"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 6200,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "deepsea",
+      "seasonal"
+    ],
+    "aquariumPop": 68,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "takaashigani",
+    "name": "タカアシガニ",
+    "kana": "たかあしがに",
+    "speciesType": "crustacean",
+    "category": "ebi_kani",
+    "rank": "S",
+    "desc": "脚を広げると3mを超える世界最大の節足動物。深海海溝の主。",
+    "tasteNote": "大迫力の姿は水族館の看板スター！蒸しガニも濃厚で美味。",
+    "imageKey": null,
+    "areas": [
+      "shinkai"
+    ],
+    "seasons": [
+      "autumn",
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 150.0,
+    "maxDepth": 450.0,
+    "minTemp": 4.0,
+    "maxTemp": 13.0,
+    "favWeather": [
+      "cloudy",
+      "fog"
+    ],
+    "favWind": "any",
+    "rarityWeight": 7,
+    "minKg": 4.0,
+    "maxKg": 18.0,
+    "trophyKg": 12.0,
+    "pullPower": 6.2,
+    "stamina": 48.0,
+    "speed": 1.6,
+    "favLures": [],
+    "favBaits": [
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "kago",
+      "sokobiki"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 14000,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "deepsea",
+      "legend",
+      "luxury"
+    ],
+    "aquariumPop": 96,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "kumanomi",
+    "name": "カクレクマノミ",
+    "kana": "かくれくまのみ",
+    "speciesType": "fish",
+    "category": "nangoku",
+    "rank": "B",
+    "desc": "イソギンチャクと共生するオレンジと白の縞模様が愛らしい南国の小魚。",
+    "tasteNote": "観賞専門のアイドルフィッシュ。水族館に入れると子ども客が大喜び！",
+    "imageKey": null,
+    "areas": [
+      "nangoku"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 15.0,
+    "minTemp": 22.0,
+    "maxTemp": 30.0,
+    "favWeather": [
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 48,
+    "minKg": 0.03,
+    "maxKg": 0.12,
+    "trophyKg": 0.09,
+    "pullPower": 0.8,
+    "stamina": 8.0,
+    "speed": 2.2,
+    "favLures": [
+      "worm"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [
+      "toami"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [],
+    "coldWaterBonus": false,
+    "basePricePerKg": 4500,
+    "sushiType": "none",
+    "omakaseTags": [
+      "aquarium_only"
+    ],
+    "aquariumPop": 86,
+    "farmHours": 12.0,
+    "farmSeedPrice": 950
+  },
+  {
+    "id": "tamankai",
+    "name": "ハマフエフキ",
+    "kana": "はまふえふき",
+    "speciesType": "fish",
+    "category": "nangoku",
+    "rank": "B",
+    "desc": "南国で「タマン」と呼ばれる強烈な突っ込みを見せるサンゴ礁の好敵手。",
+    "tasteNote": "引き締まったクセのない白身。刺身やマース煮、握りで大人気。",
+    "imageKey": null,
+    "areas": [
+      "nangoku"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 3.0,
+    "maxDepth": 40.0,
+    "minTemp": 21.0,
+    "maxTemp": 30.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 46,
+    "minKg": 1.2,
+    "maxKg": 7.5,
+    "trophyKg": 5.2,
+    "pullPower": 8.2,
+    "stamina": 52.0,
+    "speed": 5.6,
+    "favLures": [
+      "minnow",
+      "jig",
+      "popper"
+    ],
+    "favBaits": [
+      "saba_cut",
+      "live_aji"
+    ],
+    "captureMethods": [
+      "sashiami"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "spring",
+      "summer"
+    ],
+    "fatSeasons": [
+      "summer"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 3200,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "seasonal"
+    ],
+    "aquariumPop": 62,
+    "farmHours": 24.0,
+    "farmSeedPrice": 1200
+  },
+  {
+    "id": "sujiara",
+    "name": "スジアラ",
+    "kana": "すじあら",
+    "speciesType": "fish",
+    "category": "nangoku",
+    "rank": "A",
+    "desc": "南国三大高級魚「アカジンミーバイ」。真っ赤な体に青い斑点が輝く。",
+    "tasteNote": "弾力と甘みのバランスが完璧な超高級白身。高級寿司で超高評価。",
+    "imageKey": null,
+    "areas": [
+      "nangoku"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "minDepth": 5.0,
+    "maxDepth": 60.0,
+    "minTemp": 22.0,
+    "maxTemp": 30.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 24,
+    "minKg": 1.2,
+    "maxKg": 8.0,
+    "trophyKg": 5.5,
+    "pullPower": 8.8,
+    "stamina": 56.0,
+    "speed": 5.0,
+    "favLures": [
+      "jig",
+      "popper",
+      "minnow"
+    ],
+    "favBaits": [
+      "live_aji",
+      "saba_cut"
+    ],
+    "captureMethods": [
+      "sashiami"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "autumn",
+      "winter"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 9200,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "luxury"
+    ],
+    "aquariumPop": 80,
+    "farmHours": 44.0,
+    "farmSeedPrice": 2800
+  },
+  {
+    "id": "rouninaji",
+    "name": "ロウニンアジ",
+    "kana": "ろうにんあじ",
+    "speciesType": "fish",
+    "category": "nangoku",
+    "rank": "S",
+    "desc": "「GT（ジャイアントトレバリー）」の名で世界中の釣り人が憧れる南国最強の暴君。",
+    "tasteNote": "桁外れのパワーで竿を極限まで曲げる。釣り上げれば一躍ヒーロー。",
+    "imageKey": null,
+    "areas": [
+      "nangoku"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "minDepth": 2.0,
+    "maxDepth": 50.0,
+    "minTemp": 22.0,
+    "maxTemp": 30.0,
+    "favWeather": [
+      "sunny",
+      "cloudy",
+      "rough"
+    ],
+    "favWind": "onshore",
+    "rarityWeight": 8,
+    "minKg": 12.0,
+    "maxKg": 58.0,
+    "trophyKg": 38.0,
+    "pullPower": 19.5,
+    "stamina": 125.0,
+    "speed": 8.8,
+    "favLures": [
+      "popper",
+      "jig"
+    ],
+    "favBaits": [
+      "live_aji"
+    ],
+    "captureMethods": [],
+    "liveDurability": 3,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [],
+    "coldWaterBonus": false,
+    "basePricePerKg": 9800,
+    "sushiType": "shiromi",
+    "omakaseTags": [
+      "legend",
+      "luxury"
+    ],
+    "aquariumPop": 94,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
     "id": "napoleon_fish",
     "name": "ナポレオンフィッシュ",
     "kana": "なぽれおんふぃっしゅ",
@@ -3115,6 +6628,75 @@
       "legend"
     ],
     "aquariumPop": 98,
+    "farmHours": 0.0,
+    "farmSeedPrice": 0
+  },
+  {
+    "id": "jinbeizame",
+    "name": "ジンベエザメ",
+    "kana": "じんべえざめ",
+    "speciesType": "fish",
+    "category": "nangoku",
+    "rank": "S",
+    "desc": "水玉模様の穏やかな巨人。世界最大の魚類が南国と遠洋の境目に現れる。",
+    "tasteNote": "食用厳禁の海の宝。水族館の大水槽に迎えれば入場料が爆増する！",
+    "imageKey": null,
+    "areas": [
+      "nangoku",
+      "enyou"
+    ],
+    "seasons": [
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "minDepth": 2.0,
+    "maxDepth": 80.0,
+    "minTemp": 21.0,
+    "maxTemp": 30.0,
+    "favWeather": [
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 2,
+    "minKg": 80.0,
+    "maxKg": 350.0,
+    "trophyKg": 240.0,
+    "pullPower": 24.0,
+    "stamina": 155.0,
+    "speed": 6.2,
+    "favLures": [
+      "popper",
+      "jig"
+    ],
+    "favBaits": [
+      "okiami"
+    ],
+    "captureMethods": [],
+    "liveDurability": 3,
+    "spawnSeasons": [],
+    "fatSeasons": [],
+    "coldWaterBonus": false,
+    "basePricePerKg": 28000,
+    "sushiType": "none",
+    "omakaseTags": [
+      "legend",
+      "aquarium_only"
+    ],
+    "aquariumPop": 100,
     "farmHours": 0.0,
     "farmSeedPrice": 0
   },
@@ -3292,6 +6874,264 @@
     "farmSeedPrice": 160
   },
   {
+    "id": "baka_gai",
+    "name": "アオヤギ",
+    "kana": "あおやぎ",
+    "speciesType": "shellfish",
+    "category": "nimaigai",
+    "rank": "C",
+    "desc": "正式名バカガイ。砂浜に大群で生息し、鮮やかなオレンジの舌足が特徴。",
+    "tasteNote": "甘みと磯の香りが強い江戸前寿司の定番貝。小柱の軍艦は最高。",
+    "imageKey": null,
+    "areas": [
+      "sunahama",
+      "kakou"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 0.0,
+    "maxDepth": 6.0,
+    "minTemp": 10.0,
+    "maxTemp": 25.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 80,
+    "minKg": 0.03,
+    "maxKg": 0.1,
+    "trophyKg": 0.08,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "shiohigari",
+      "ketabiki"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "spring",
+      "winter"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 2200,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "standard",
+      "shellfish"
+    ],
+    "aquariumPop": 22,
+    "farmHours": 3.0,
+    "farmSeedPrice": 240
+  },
+  {
+    "id": "mategai",
+    "name": "マテガイ",
+    "kana": "まてがい",
+    "speciesType": "shellfish",
+    "category": "nimaigai",
+    "rank": "C",
+    "desc": "細長い筒状の殻を持つ面白い二枚貝。巣穴に塩を入れると飛び出す！",
+    "tasteNote": "クセがなく濃厚な旨味とプリプリ食感。バター焼きや炙り握りで美味。",
+    "imageKey": null,
+    "areas": [
+      "sunahama",
+      "kakou"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 0.0,
+    "maxDepth": 3.0,
+    "minTemp": 12.0,
+    "maxTemp": 26.0,
+    "favWeather": [
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 76,
+    "minKg": 0.02,
+    "maxKg": 0.08,
+    "trophyKg": 0.06,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "shiohigari"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "spring",
+      "summer"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 1900,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "standard",
+      "shellfish"
+    ],
+    "aquariumPop": 28,
+    "farmHours": 3.0,
+    "farmSeedPrice": 220
+  },
+  {
+    "id": "hokkigai",
+    "name": "ホッキガイ",
+    "kana": "ほっきがい",
+    "speciesType": "shellfish",
+    "category": "nimaigai",
+    "rank": "B",
+    "desc": "冷たい外洋の砂浜から近海に棲む肉厚な大型二枚貝。正式名ウバガイ。",
+    "tasteNote": "湯通しすると鮮やかな紅色に！甘みとシコシコ食感が寿司で大定番。",
+    "imageKey": null,
+    "areas": [
+      "sunahama",
+      "kinkai"
+    ],
+    "seasons": [
+      "autumn",
+      "winter",
+      "spring"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 20.0,
+    "minTemp": 4.0,
+    "maxTemp": 18.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 50,
+    "minKg": 0.12,
+    "maxKg": 0.38,
+    "trophyKg": 0.28,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "shiohigari",
+      "ketabiki"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter",
+      "spring"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 3200,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "standard",
+      "shellfish",
+      "seasonal"
+    ],
+    "aquariumPop": 36,
+    "farmHours": 16.0,
+    "farmSeedPrice": 750
+  },
+  {
     "id": "hamaguri",
     "name": "ハマグリ",
     "kana": "はまぐり",
@@ -3378,6 +7218,179 @@
     "aquariumPop": 42,
     "farmHours": 30.0,
     "farmSeedPrice": 1200
+  },
+  {
+    "id": "mirugai",
+    "name": "ミルガイ",
+    "kana": "みるがい",
+    "speciesType": "shellfish",
+    "category": "nimaigai",
+    "rank": "A",
+    "desc": "長大な水管を持つ高級二枚貝（本ミル）。砂泥の奥深くに潜んでいる。",
+    "tasteNote": "シャキシャキとした極上の歯ごたえと上品な甘み。高級寿司の常連。",
+    "imageKey": null,
+    "areas": [
+      "sunahama",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 2.0,
+    "maxDepth": 25.0,
+    "minTemp": 10.0,
+    "maxTemp": 23.0,
+    "favWeather": [
+      "cloudy",
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 26,
+    "minKg": 0.25,
+    "maxKg": 0.9,
+    "trophyKg": 0.65,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "shiohigari",
+      "ketabiki"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "spring"
+    ],
+    "fatSeasons": [
+      "winter",
+      "spring"
+    ],
+    "coldWaterBonus": true,
+    "basePricePerKg": 6800,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "luxury",
+      "shellfish"
+    ],
+    "aquariumPop": 46,
+    "farmHours": 34.0,
+    "farmSeedPrice": 1650
+  },
+  {
+    "id": "torigai",
+    "name": "トリガイ",
+    "kana": "とりがい",
+    "speciesType": "shellfish",
+    "category": "nimaigai",
+    "rank": "A",
+    "desc": "鳥のくちばしのような黒紫の足を持つ高級二枚貝。近海の泥底に棲む。",
+    "tasteNote": "生トリガイのぷっくり甘い食感は春の高級寿司で絶大な人気。",
+    "imageKey": null,
+    "areas": [
+      "kinkai",
+      "okiai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 5.0,
+    "maxDepth": 35.0,
+    "minTemp": 12.0,
+    "maxTemp": 24.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 30,
+    "minKg": 0.08,
+    "maxKg": 0.26,
+    "trophyKg": 0.2,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "ketabiki"
+    ],
+    "liveDurability": 3,
+    "spawnSeasons": [
+      "spring",
+      "autumn"
+    ],
+    "fatSeasons": [
+      "spring",
+      "summer"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 6600,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "luxury",
+      "shellfish",
+      "seasonal"
+    ],
+    "aquariumPop": 44,
+    "farmHours": 28.0,
+    "farmSeedPrice": 1450
   },
   {
     "id": "hotategai",
@@ -3467,6 +7480,93 @@
     "farmSeedPrice": 1100
   },
   {
+    "id": "hiougigai",
+    "name": "ヒオウギガイ",
+    "kana": "ひおうぎがい",
+    "speciesType": "shellfish",
+    "category": "nimaigai",
+    "rank": "B",
+    "desc": "赤・橙・黄・紫と天然の極彩色に輝く美しいホタテの仲間。",
+    "tasteNote": "ホタテ以上に濃厚な甘みの貝柱！鮮やかな殻は水族館展示でも映える。",
+    "imageKey": null,
+    "areas": [
+      "kinkai",
+      "nangoku"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "minDepth": 3.0,
+    "maxDepth": 30.0,
+    "minTemp": 15.0,
+    "maxTemp": 27.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "any",
+    "rarityWeight": 44,
+    "minKg": 0.08,
+    "maxKg": 0.25,
+    "trophyKg": 0.18,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "ketabiki",
+      "isodori"
+    ],
+    "liveDurability": 4,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "winter",
+      "spring"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 3900,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "seasonal",
+      "shellfish"
+    ],
+    "aquariumPop": 64,
+    "farmHours": 20.0,
+    "farmSeedPrice": 880
+  },
+  {
     "id": "magaki",
     "name": "マガキ",
     "kana": "まがき",
@@ -3553,6 +7653,81 @@
     "farmSeedPrice": 600
   },
   {
+    "id": "iwagaki",
+    "name": "イワガキ",
+    "kana": "いわがき",
+    "speciesType": "shellfish",
+    "category": "nimaigai",
+    "rank": "A",
+    "desc": "夏に旬を迎える巨大な天然カキ。荒波の磯の岩肌にがっちり張り付く。",
+    "tasteNote": "手のひらサイズの超肉厚で濃厚クリーミーな「夏のミルク」。",
+    "imageKey": null,
+    "areas": [
+      "iso",
+      "kinkai"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "minDepth": 1.0,
+    "maxDepth": 18.0,
+    "minTemp": 14.0,
+    "maxTemp": 26.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "offshore",
+    "rarityWeight": 30,
+    "minKg": 0.25,
+    "maxKg": 0.95,
+    "trophyKg": 0.7,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "isodori",
+      "ketabiki"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "autumn"
+    ],
+    "fatSeasons": [
+      "summer"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 5400,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "luxury",
+      "shellfish",
+      "seasonal"
+    ],
+    "aquariumPop": 40,
+    "farmHours": 32.0,
+    "farmSeedPrice": 1400
+  },
+  {
     "id": "sazae",
     "name": "サザエ",
     "kana": "さざえ",
@@ -3625,6 +7800,79 @@
     "aquariumPop": 48,
     "farmHours": 32.0,
     "farmSeedPrice": 1300
+  },
+  {
+    "id": "tokobushi",
+    "name": "トコブシ",
+    "kana": "とこぶし",
+    "speciesType": "shellfish",
+    "category": "makigai",
+    "rank": "B",
+    "desc": "アワビにそっくりな小柄の巻貝（別名ナガレコ）。磯の石の裏に隠れる。",
+    "tasteNote": "丸ごと柔らかく煮付けた旨煮は絶品。コリコリした刺身も美味。",
+    "imageKey": null,
+    "areas": [
+      "iso",
+      "teibou"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "minDepth": 0.5,
+    "maxDepth": 10.0,
+    "minTemp": 14.0,
+    "maxTemp": 25.0,
+    "favWeather": [
+      "sunny",
+      "cloudy"
+    ],
+    "favWind": "offshore",
+    "rarityWeight": 48,
+    "minKg": 0.04,
+    "maxKg": 0.14,
+    "trophyKg": 0.1,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "isodori"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "autumn"
+    ],
+    "fatSeasons": [
+      "summer"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 4800,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "seasonal",
+      "shellfish"
+    ],
+    "aquariumPop": 38,
+    "farmHours": 18.0,
+    "farmSeedPrice": 820
   },
   {
     "id": "akagai",
@@ -3954,5 +8202,80 @@
     "aquariumPop": 85,
     "farmHours": 48.0,
     "farmSeedPrice": 5500
+  },
+  {
+    "id": "shakogai",
+    "name": "ヒメジャコガイ",
+    "kana": "ひめじゃこがい",
+    "speciesType": "shellfish",
+    "category": "nimaigai",
+    "rank": "S",
+    "desc": "南国のサンゴ礁や暖かい磯に棲む、鮮やかな青紫の外套膜を持つ美しい貝。",
+    "tasteNote": "コリコリとした独特の歯応えと甘み。水族館でも宝石のように輝く！",
+    "imageKey": null,
+    "areas": [
+      "iso",
+      "nangoku"
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
+    "activeHours": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "minDepth": 0.5,
+    "maxDepth": 15.0,
+    "minTemp": 20.0,
+    "maxTemp": 30.0,
+    "favWeather": [
+      "sunny"
+    ],
+    "favWind": "any",
+    "rarityWeight": 9,
+    "minKg": 0.2,
+    "maxKg": 1.1,
+    "trophyKg": 0.8,
+    "pullPower": 0.0,
+    "stamina": 0.0,
+    "speed": 0.0,
+    "favLures": [],
+    "favBaits": [],
+    "captureMethods": [
+      "isodori"
+    ],
+    "liveDurability": 5,
+    "spawnSeasons": [
+      "summer"
+    ],
+    "fatSeasons": [
+      "summer"
+    ],
+    "coldWaterBonus": false,
+    "basePricePerKg": 12500,
+    "sushiType": "kai_ika",
+    "omakaseTags": [
+      "luxury",
+      "shellfish",
+      "legend"
+    ],
+    "aquariumPop": 92,
+    "farmHours": 46.0,
+    "farmSeedPrice": 3800
   }
 ]
