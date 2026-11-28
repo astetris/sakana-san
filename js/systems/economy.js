@@ -1,4 +1,4 @@
-import { getGachaGearList } from "./gacha.js?v=20261128_051000";
+import { getGachaGearList } from "./gacha.js?v=20261128_051607";
 
 export const BOATS = [
   { id: "boat_none", tier: 0, name: "徒歩（船なし）", buyPrice: 0, rentPrice: 0, maxFuel: 0, speed: 0, desc: "港・堤防・砂浜・河口・磯を自由に歩いて探索" },
