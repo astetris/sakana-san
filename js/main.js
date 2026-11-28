@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_035435";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_035435";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_035435";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_035435";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_035435";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_035849";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_035849";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_035849";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_035849";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_035849";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_035435";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_035435";
+} from "./systems/economy.js?v=20261128_035849";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_035849";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_035435";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_035435";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_035435";
+} from "./systems/business.js?v=20261128_035849";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_035849";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_035849";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_035435";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_035435";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_035435";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_035435";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_035435";
+} from "./systems/pearlShop.js?v=20261128_035849";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_035849";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_035849";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_035849";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_035849";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_035435";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_035435";
+} from "./systems/fishingEngine.js?v=20261128_035849";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_035849";
 
 
 // ===== オンライン／オフライン履歴 ＆ 右上人数バッジ同期 ＆ 「アワセる！」スタミナ消費 =====
@@ -3164,6 +3164,7 @@ function isForbiddenRosterName(name) {
   const s = String(name || "").trim();
   if (!s) return true;
   const badWords = [
+    "分前", "時間前", "秒前", "日前", "たった今アクティブ", "オフライン（履歴）",
     "一括売却", "セーブスロット", "続きから", "新規作成", "削除", "更新",
     "今日のランキング", "大物重量", "1匹最高額", "今日の匹数", "貝マスター", "売上王",
     "港・堤防", "港周辺", "港町", "オンライン", "オフライン", "クラウド同期OK",
@@ -3173,17 +3174,21 @@ function isForbiddenRosterName(name) {
     "一緒に釣り中", "マルチ", "釣り中", "乗船中", "探索中", "プレイ中"
   ];
   if (badWords.some((w) => s.includes(w))) return true;
-  if (/^[❖◆◇■□▲▼★☆♪♫⚡🎣🐟⚓]+/.test(s) && /釣り|マルチ|港|船|潮|風|天候|水温|相場|売却|スロット/.test(s)) {
-    return true;
-  }
-  if (/^[🥇🥈🥉🏅👑\d\.\s]+$/.test(s)) return true;
+  if (/^[❖◆◇■□▲▼★☆♪♫⚡🎣🐟⚓🥇🥈🥉🏅👑\d\.\s]+$/.test(s)) return true;
   if (/^\d+(\.\d+)?(kg|円|個|人|分|時間|日)$/.test(s)) return true;
   return false;
 }
 
 function formatRosterDisplayName(rawName) {
   const s = String(rawName || "").trim();
-  if (!s || /^ゲスト/i.test(s) || /^guest/i.test(s) || /^anonymous/i.test(s) || /^漁師\([0-9a-zA-Z_-]+\)$/.test(s)) {
+  if (
+    !s ||
+    /^ゲスト/i.test(s) ||
+    /^guest/i.test(s) ||
+    /^anonymous/i.test(s) ||
+    /^漁師\([0-9a-zA-Z_-]+\)$/.test(s) ||
+    /^player_[0-9a-zA-Z_-]+$/i.test(s)
+  ) {
     return "ゲスト";
   }
   return s;
@@ -3207,12 +3212,12 @@ function openOnlineRosterModal() {
 
   const save = currentSave();
   const myUid = typeof getCurrentUid === "function" ? (getCurrentUid() || "local_me") : "local_me";
-  const myDisplayName = formatRosterDisplayName(save?.name || "アステ");
+  const myDisplayName = formatRosterDisplayName(save?.name || "ゲスト");
   const now = Date.now();
 
   const candidates = [];
 
-  // 1. 過去の履歴（正確なタイムスタンプがあるもののみ保持）
+  // 1. 過去の接続履歴（不正名・UI文言は除外）
   if (typeof loadSeenPlayersHistory === "function") {
     for (const h of loadSeenPlayersHistory()) {
       if (!h) continue;
@@ -3231,7 +3236,7 @@ function openOnlineRosterModal() {
     }
   }
 
-  // 2. 現在のワールド同期（remotePlayersCache）
+  // 2. 現在のワールド同期データ（remotePlayersCache）
   if (typeof remotePlayersCache !== "undefined" && remotePlayersCache && typeof remotePlayersCache === "object") {
     for (const [uid, info] of Object.entries(remotePlayersCache)) {
       if (!info) continue;
@@ -3250,25 +3255,24 @@ function openOnlineRosterModal() {
     }
   }
 
-  // 3. ランキング表示中のプレイヤー名（時刻データがない場合は lastSeenAt: null にして偽の「2時間前」を出さない）
-  document.querySelectorAll("div, li, tr").forEach((el) => {
-    if (el.children.length > 4) return;
-    const txt = (el.textContent || "").replace(/\s+/g, " ").trim();
-    if (!txt || txt.length > 64) return;
-    const m = txt.match(/^[🥇🥈🥉🏅👑\d\.\s]*([^\s(（]+(?:\s+[^\s(（]+)?)\s*[（(][^）)]+[）)]/);
-    if (!m || !m[1]) return;
-    const dispName = formatRosterDisplayName(m[1].trim());
-    if (isForbiddenRosterName(dispName)) return;
-    if (dispName === myDisplayName) return;
-    candidates.push({
-      uid: "rank_" + dispName,
-      name: dispName,
-      area: "港町",
-      status: "オフライン",
-      online: false,
-      lastSeenAt: null
-    });
-  });
+  // 3. フレンドリスト
+  if (Array.isArray(save?.friends)) {
+    for (const fr of save.friends) {
+      if (!fr) continue;
+      const dispName = formatRosterDisplayName(fr.name);
+      if (isForbiddenRosterName(dispName)) continue;
+      const ts = Number(fr.lastOnlineAt || fr.updatedAt || 0);
+      const isOnline = ts > 0 && (now - ts) <= ONLINE_ACTIVE_MS;
+      candidates.push({
+        uid: String(fr.uid || fr.id || ("friend_" + dispName)),
+        name: dispName,
+        area: fr.area || "港町",
+        status: isOnline ? "オンライン" : "オフライン",
+        online: isOnline,
+        lastSeenAt: ts > 0 ? ts : null
+      });
+    }
+  }
 
   // 4. 自分自身
   candidates.push({
@@ -3280,7 +3284,7 @@ function openOnlineRosterModal() {
     lastSeenAt: now
   });
 
-  // 5. 同じ名前（uid違い含む）を厳密に1件へ統合
+  // 5. 同じ名前（uid違い含む）を1人に統合
   const byName = new Map();
   for (const c of candidates) {
     const prev = byName.get(c.name);
@@ -3303,16 +3307,15 @@ function openOnlineRosterModal() {
     }
   }
 
-  // クリーンな履歴だけ保存し直す
   if (typeof saveSeenPlayersHistory === "function") {
     const cleanHist = [...byName.values()]
-      .filter((p) => p.uid !== String(myUid) && Number(p.lastSeenAt || 0) > 0)
+      .filter((p) => p.uid !== String(myUid) && !isForbiddenRosterName(p.name))
       .map((p) => ({
         uid: p.uid,
         name: p.name,
         area: p.area,
         status: p.online ? p.status : "オフライン",
-        lastSeenAt: Number(p.lastSeenAt)
+        lastSeenAt: Number(p.lastSeenAt || 0) || null
       }));
     saveSeenPlayersHistory(cleanHist);
   }
@@ -3325,7 +3328,7 @@ function openOnlineRosterModal() {
   const fmtTimeLabel = (p) => {
     if (p.online) return "たった今アクティブ";
     const ts = Number(p.lastSeenAt || 0);
-    if (!ts) return "オフライン（履歴）";
+    if (!ts) return "オフライン";
     const d = new Date(ts);
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
