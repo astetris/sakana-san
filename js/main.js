@@ -24,32 +24,94 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_025945";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_025945";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_025945";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_025945";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_025945";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_030627";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_030627";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_030627";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_030627";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_030627";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_025945";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_025945";
+} from "./systems/economy.js?v=20261128_030627";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_030627";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_025945";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_025945";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_025945";
+} from "./systems/business.js?v=20261128_030627";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_030627";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_030627";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_025945";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_025945";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_025945";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_025945";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_025945";
+} from "./systems/pearlShop.js?v=20261128_030627";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_030627";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_030627";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_030627";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_030627";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_025945";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_025945";
+} from "./systems/fishingEngine.js?v=20261128_030627";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_030627";
+
+
+// ===== オンライン／オフライン履歴 ＆ 右上人数バッジ同期 ＆ 「アワセる！」スタミナ消費 =====
+const SEEN_PLAYERS_STORAGE_KEY = "sakana_seen_players_history_v2";
+const ONLINE_ACTIVE_MS = 120000; // 2分以内をオンライン扱い
+
+function loadSeenPlayersHistory() {
+  try {
+    const raw = localStorage.getItem(SEEN_PLAYERS_STORAGE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveSeenPlayersHistory(list) {
+  try {
+    localStorage.setItem(SEEN_PLAYERS_STORAGE_KEY, JSON.stringify(list.slice(0, 100)));
+  } catch (_) {}
+}
+
+function recordSeenPlayers(entries = []) {
+  if (!Array.isArray(entries) || !entries.length) return;
+  const now = Date.now();
+  const map = new Map();
+  for (const item of loadSeenPlayersHistory()) {
+    if (item && item.uid) map.set(String(item.uid), { ...item });
+  }
+  for (const e of entries) {
+    if (!e || !e.uid) continue;
+    const key = String(e.uid);
+    const prev = map.get(key) || {};
+    map.set(key, {
+      uid: key,
+      name: e.name || prev.name || `漁師(${key.slice(0, 5)})`,
+      area: e.area || prev.area || "港・堤防",
+      status: e.status || prev.status || "オフライン",
+      lastSeenAt: Number(e.lastSeenAt || prev.lastSeenAt || now)
+    });
+  }
+  const merged = [...map.values()].sort((a, b) => (b.lastSeenAt || 0) - (a.lastSeenAt || 0));
+  saveSeenPlayersHistory(merged);
+}
+
+function syncTopRightOnlineBadge(activeOnlineCount) {
+  const cnt = Math.max(1, Number(activeOnlineCount || 1));
+  const el = document.getElementById("online-count");
+  if (el) {
+    el.textContent = String(cnt);
+  }
+  const badge = document.querySelector(".online-badge");
+  if (badge) {
+    const numSpan = badge.querySelector("strong");
+    if (numSpan) numSpan.textContent = String(cnt);
+  }
+}
+
+function consumeStrikeStamina(save) {
+  if (!save || typeof save.stamina !== "number") return;
+  save.stamina = Math.max(0, save.stamina - 2);
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -2849,10 +2911,33 @@ async function boot() {
   window.addEventListener("pointerdown", () => audioEngine.unlock(), { once: true });
   await loadSpeciesMaster();
   await loadGachaBanners();
-  await initFirebase({ onOnlineCount: (n) => { $("online-count").textContent = n; }, onStatus: (msg) => { $("sync-status").textContent = msg; } });
+  await initFirebase({ onOnlineCount: (n) => { syncTopRightOnlineBadge(Math.min(Number(n) || 1, 1 + Object.keys(remotePlayersCache || {}).length)); }, onStatus: (msg) => { $("sync-status").textContent = msg; } });
 
   // リアルタイム同期購読
-  subscribeWorldPlayers((others) => { remotePlayersCache = others; scene3d.syncRemotePlayers(others); });
+  subscribeWorldPlayers((others) => {
+  remotePlayersCache = others;
+  scene3d.syncRemotePlayers(others);
+  const now = Date.now();
+  const entries = [];
+  let liveOthers = 0;
+  if (others && typeof others === "object") {
+    for (const [uid, info] of Object.entries(others)) {
+      if (!info) continue;
+      const ts = Number(info.updatedAt || info.lastSeen || info.ts || now);
+      const isLive = (now - ts) <= ONLINE_ACTIVE_MS;
+      if (isLive) liveOthers += 1;
+      entries.push({
+        uid,
+        name: info.name || info.playerName || `漁師(${String(uid).slice(0, 5)})`,
+        area: info.areaName || info.area || "港周辺",
+        status: isLive ? (info.isBoating ? "乗船中" : (info.isFishing ? "釣り中" : "探索中")) : "オフライン",
+        lastSeenAt: ts
+      });
+    }
+  }
+  recordSeenPlayers(entries);
+  syncTopRightOnlineBadge(1 + liveOthers);
+});
   subscribeWorldFeed((item) => { if (!item || (item.ts || 0) < bootTime - 25000) return; showLiveTicker(`📣 ${item.text}`); });
   subscribeChatRoom("global", (list) => {
     globalChatCache = list;
@@ -3069,35 +3154,36 @@ boot();
 })();
 
 
+
+
 function openOnlineRosterModal() {
   const save = currentSave();
   const myUid = typeof getCurrentUid === "function" ? (getCurrentUid() || "local_me") : "local_me";
+  const myName = save?.name || "アステ";
   const now = Date.now();
 
-  // ランキング表示中のプレイヤー名なども過去履歴として補完
   const extraEntries = [{
     uid: myUid,
-    name: save?.name || "アステ",
+    name: myName,
     area: (typeof currentArea !== "undefined" && currentArea?.name) ? currentArea.name : "港・堤防",
     status: (typeof phase !== "undefined" && phase !== "idle") ? "釣り中" : "プレイ中",
     lastSeenAt: now
   }];
 
-  document.querySelectorAll("table tr, .list-row, .ranking-row, [data-player-name]").forEach((row) => {
-    const raw = (row.dataset?.playerName || row.textContent || "").trim();
+  // 画面上のランキング行などから過去のプレイヤー名もオフライン履歴として拾う
+  document.querySelectorAll("table tr, .list-row, .ranking-row").forEach((row) => {
+    const raw = (row.textContent || "").replace(/\s+/g, " ").trim();
     if (!raw) return;
-    const cleanName = raw.replace(/\s+/g, " ").split(/[（(]/)[0].trim();
-    if (cleanName && cleanName.length <= 24 && !/^\d+(\.\d+)?(kg|円|個|人)?$/.test(cleanName)) {
-      const idKey = "hist_" + cleanName;
-      if (cleanName !== (save?.name || "アステ")) {
-        extraEntries.push({
-          uid: idKey,
-          name: cleanName,
-          area: "港町",
-          status: "オフライン",
-          lastSeenAt: now - 3600000
-        });
-      }
+    const m = raw.match(/^[🥇🥈🥉🏅\d\.\s]*([^\s(（]+(?:\s+[^\s(（]+)?)/);
+    const cand = m ? m[1].trim() : "";
+    if (cand && cand !== myName && !/^(大物|1匹|今日|貝|売上|アステ|スロット)/.test(cand)) {
+      extraEntries.push({
+        uid: "past_" + cand,
+        name: cand,
+        area: "港町",
+        status: "オフライン",
+        lastSeenAt: now - 3600000
+      });
     }
   });
   recordSeenPlayers(extraEntries);
@@ -3134,28 +3220,9 @@ function openOnlineRosterModal() {
     }
   }
 
-  if (Array.isArray(save?.friends)) {
-    for (const fr of save.friends) {
-      const fid = String(fr.uid || fr.id || fr.name || "");
-      if (!fid) continue;
-      const lastAt = Number(fr.lastOnlineAt || fr.updatedAt || 0);
-      const isOnline = lastAt > 0 && (now - lastAt) <= ONLINE_ACTIVE_MS;
-      if (!peopleMap.has(fid)) {
-        peopleMap.set(fid, {
-          uid: fid,
-          name: fr.name || "フレンド",
-          area: fr.area || "港町",
-          status: isOnline ? "オンライン" : "オフライン",
-          online: isOnline,
-          lastAt
-        });
-      }
-    }
-  }
-
   peopleMap.set(String(myUid), {
     uid: String(myUid),
-    name: save?.name || "アステ",
+    name: myName,
     area: (typeof currentArea !== "undefined" && currentArea?.name) ? currentArea.name : "港・堤防",
     status: (typeof phase !== "undefined" && phase !== "idle") ? "釣り中" : "プレイ中",
     online: true,
@@ -3201,12 +3268,11 @@ function openOnlineRosterModal() {
   );
 }
 
-// 在席人数バッジ（例: "● 3人"）をタップしたら一覧モーダルを開く
 document.addEventListener("click", (ev) => {
-  const target = ev.target?.closest("button, [role='button'], .online-badge, .hud-online, [data-online-badge]");
+  const target = ev.target?.closest(".online-badge, #online-count, button, [role='button']");
   if (!target) return;
   const txt = (target.textContent || "").replace(/\s+/g, " ").trim();
-  if (target.matches("[data-online-badge], .online-badge, .hud-online") || /^[●🟢⚫]?\s*\d+\s*人$/.test(txt)) {
+  if (target.matches(".online-badge, #online-count") || target.closest(".online-badge") || /^[●🟢⚫]?\s*\d+\s*人$/.test(txt)) {
     ev.preventDefault();
     ev.stopPropagation();
     openOnlineRosterModal();
