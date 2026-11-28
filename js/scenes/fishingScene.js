@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_022307";
-import { audioEngine } from "../systems/audioEngine.js?v=20261128_022307";
+import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_022555";
+import { audioEngine } from "../systems/audioEngine.js?v=20261128_022555";
 
 // ===== リアル海面シェーダー（日替わり波高・6層セット波・岸壁衝突白波・桟橋/防波堤泡・ウキ波紋） =====
 const OCEAN_VERTEX_SHADER = `
@@ -1090,34 +1090,34 @@ export class FishingScene {
     this.playerRig.add(this.portLight);
 
     // リアル釣り竿
-    // 釣り竿をアバターの右手（rightArm）に装着し、竿先(rodTipMesh)を正確に追跡できるようにする
+    // 釣り竿をアバター右手に装着（後ろ姿からも見やすい角度・サイズに調整）
     this.rodGroup = new THREE.Group();
     const rodShaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.011, 0.022, 2.35, 10),
-      new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.45, roughness: 0.35 })
+      new THREE.CylinderGeometry(0.018, 0.032, 2.55, 10),
+      new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.35, roughness: 0.4 })
     );
-    rodShaft.rotation.x = -Math.PI * 0.34;
-    rodShaft.position.set(0, -0.32, -1.02);
+    rodShaft.rotation.x = -Math.PI * 0.28;
+    rodShaft.position.set(0.06, 0.15, -1.12);
 
     const rodTip = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.006, 0.011, 0.55, 8),
-      new THREE.MeshStandardMaterial({ color: 0xff5a36, roughness: 0.3 })
+      new THREE.CylinderGeometry(0.012, 0.018, 0.65, 8),
+      new THREE.MeshStandardMaterial({ color: 0xff5a36, roughness: 0.25 })
     );
-    rodTip.rotation.x = -Math.PI * 0.34;
-    rodTip.position.set(0, 0.14, -2.06);
+    rodTip.rotation.x = -Math.PI * 0.28;
+    rodTip.position.set(0.06, 0.68, -2.22);
 
     const reel = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.045, 0.045, 0.055, 12),
-      new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.75, roughness: 0.25 })
+      new THREE.CylinderGeometry(0.06, 0.06, 0.08, 12),
+      new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.7, roughness: 0.25 })
     );
     reel.rotation.z = Math.PI / 2;
-    reel.position.set(0, -0.62, -0.44);
+    reel.position.set(0.06, -0.18, -0.45);
 
     this.rodTipObj = new THREE.Object3D();
-    this.rodTipObj.position.set(0, 0.25, -2.28);
+    this.rodTipObj.position.set(0.06, 0.84, -2.52);
 
     this.rodGroup.add(rodShaft, rodTip, reel, this.rodTipObj);
-    this.rodGroup.position.set(0, -0.52, -0.04);
+    this.rodGroup.position.set(0.04, -0.35, -0.05);
     const rArm = this.localAvatar?.userData?.rig?.rightArm;
     if (rArm) rArm.add(this.rodGroup);
     else this.playerRig.add(this.rodGroup);
@@ -3474,9 +3474,11 @@ export class FishingScene {
       }
 
       // 竿先(rodTipObj)のワールド座標を playerRig ローカル座標へ変換して釣り糸の始点に完全一致させる
+      this.rodGroup.visible = true;
+      this.scene.updateMatrixWorld(true);
       const tipWorld = new THREE.Vector3();
       if (this.rodTipObj) this.rodTipObj.getWorldPosition(tipWorld);
-      else if (this.rodTipLocal) tipWorld.copy(this.rodTipLocal).applyMatrix4(this.rodGroup.matrixWorld);
+      else tipWorld.set(this.pos.x + Math.sin(this.yaw) * 1.4, rigY + 1.85, this.pos.y + Math.cos(this.yaw) * 1.4);
       const tip = this.playerRig.worldToLocal(tipWorld);
       const end = new THREE.Vector3(0, by + 0.12, bz);
       const sag = Math.max(0.05, (1.0 - this.rodBend) * 0.85);
