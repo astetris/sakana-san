@@ -3213,7 +3213,10 @@ export class FishingScene {
     const camTargetZ = this.isBoating ? 6.4 : 4.45;
     this.camera.position.y += (camTargetY - this.camera.position.y) * Math.min(1, dt * 6);
     this.camera.position.z += (camTargetZ - this.camera.position.z) * Math.min(1, dt * 6);
-    this.camera.lookAt(0, this.isBoating ? 1.15 : 1.38, this.isBoating ? -8.0 : -2.5);
+    const lookTargetY = this.isBoating ? 1.15 : 1.38;
+    const lookTargetZ = this.isBoating ? -8.0 : -2.5;
+    const camPitch = Math.atan2(lookTargetY - this.camera.position.y, this.camera.position.z - lookTargetZ);
+    this.camera.rotation.set(camPitch, 0, 0);
 
     if (this.localAvatar) {
       const stepDx = this.pos.x - (this._prevPosX ?? this.pos.x);
