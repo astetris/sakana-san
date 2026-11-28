@@ -1,4 +1,4 @@
-const CACHE_NAME = "sakana-san-20261128_034103";
+const CACHE_NAME = "sakana-san-20261128_034601";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();

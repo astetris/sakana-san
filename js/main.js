@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_034103";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_034103";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_034103";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_034103";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_034103";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_034601";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_034601";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_034601";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_034601";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_034601";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_034103";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_034103";
+} from "./systems/economy.js?v=20261128_034601";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_034601";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_034103";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_034103";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_034103";
+} from "./systems/business.js?v=20261128_034601";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_034601";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_034601";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_034103";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_034103";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_034103";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_034103";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_034103";
+} from "./systems/pearlShop.js?v=20261128_034601";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_034601";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_034601";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_034601";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_034601";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_034103";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_034103";
+} from "./systems/fishingEngine.js?v=20261128_034601";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_034601";
 
 
 // ===== オンライン／オフライン履歴 ＆ 右上人数バッジ同期 ＆ 「アワセる！」スタミナ消費 =====
@@ -3159,51 +3159,72 @@ boot();
 function openOnlineRosterModal() {
   const save = currentSave();
   const myUid = typeof getCurrentUid === "function" ? (getCurrentUid() || "local_me") : "local_me";
-  const myName = (save?.name || "アステ").trim();
+  const myName = ((save?.name || "").trim() || "ゲスト");
   const now = Date.now();
 
+  const normalizePlayerName = (rawName, uidStr = "") => {
+    const s = String(rawName || "").trim();
+    if (!s || /^ゲスト/i.test(s) || /^guest/i.test(s) || /^漁師\([0-9a-zA-Z_-]+\)$/.test(s)) {
+      return "ゲスト";
+    }
+    return s;
+  };
+
+  const isJunkUiLabel = (name) => {
+    if (!name) return true;
+    const forbidden = [
+      "一括売却", "セーブスロット", "続きから", "新規作成", "削除", "更新",
+      "今日のランキング", "大物重量", "1匹最高額", "今日の匹数", "貝マスター", "売上王",
+      "港・堤防", "港周辺", "港町", "オンライン", "オフライン", "クラウド同期OK",
+      "天候", "水温", "潮回り", "本日の市場相場", "さかなサン", "プレイヤー一覧",
+      "オンライン中のプレイヤーと", "過去にオフラインになったプレイヤーを表示しています。"
+    ];
+    if (forbidden.some((w) => name.includes(w))) return true;
+    if (/^\d+(\.\d+)?(kg|円|個|人|分|時間|日)$/.test(name)) return true;
+    return false;
+  };
+
   const extraEntries = [{
-    uid: myUid,
-    name: myName,
+    uid: String(myUid),
+    name: normalizePlayerName(myName, myUid),
     area: (typeof currentArea !== "undefined" && currentArea?.name) ? currentArea.name : "港・堤防",
     status: (typeof phase !== "undefined" && phase !== "idle") ? "釣り中" : "プレイ中",
     lastSeenAt: now
   }];
 
-  const rankCandidates = [];
-  document.querySelectorAll("div, li, tr, span, strong").forEach((el) => {
-    if (el.children.length > 3) return;
+  // ランキング行の形式（例: "🥈 ともんくす (シロタケノコメバル) 0.51kg"）からプレイヤー名だけを厳密抽出
+  document.querySelectorAll("div, li, tr").forEach((el) => {
+    if (el.children.length > 4) return;
     const txt = (el.textContent || "").replace(/\s+/g, " ").trim();
-    if (!txt || txt.length > 60) return;
-    const m = txt.match(/^[🥇🥈🥉🏅👑\d\.\s]*([^\s(（]+)\s*[（(][^）)]+[）)]/);
-    if (m && m[1]) {
-      rankCandidates.push(m[1].trim());
-    }
-  });
-
-  for (const cand of rankCandidates) {
-    if (!cand || cand === myName) continue;
-    if (/^(スロット|大物|1匹|今日|貝|売上|港|堤防|市場|ランキング)/.test(cand)) continue;
+    if (!txt || txt.length > 64) return;
+    const m = txt.match(/^[🥇🥈🥉🏅👑\d\.\s]*([^\s(（]+(?:\s+[^\s(（]+)?)\s*[（(][^）)]+[）)]/);
+    if (!m || !m[1]) return;
+    const cand = normalizePlayerName(m[1].trim());
+    if (isJunkUiLabel(cand)) return;
+    if (cand === normalizePlayerName(myName, myUid)) return;
     extraEntries.push({
-      uid: "offline_" + cand,
+      uid: "name_" + cand,
       name: cand,
       area: "港町",
       status: "オフライン",
       lastSeenAt: now - 7200000
     });
-  }
+  });
 
   recordSeenPlayers(extraEntries);
 
-  const peopleMap = new Map();
+  // 1. まず全ソースから候補を集める
+  const rawPeople = [];
 
   for (const h of loadSeenPlayersHistory()) {
     if (!h?.uid) continue;
+    const normName = normalizePlayerName(h.name, h.uid);
+    if (isJunkUiLabel(normName)) continue;
     const lastAt = Number(h.lastSeenAt || 0);
     const isOnline = String(h.uid) === String(myUid) || (lastAt > 0 && (now - lastAt) <= ONLINE_ACTIVE_MS && h.status !== "オフライン");
-    peopleMap.set(String(h.uid), {
+    rawPeople.push({
       uid: String(h.uid),
-      name: h.name || "漁師",
+      name: normName,
       area: h.area || "港町",
       status: isOnline ? (h.status || "オンライン") : "オフライン",
       online: isOnline,
@@ -3214,11 +3235,13 @@ function openOnlineRosterModal() {
   if (typeof remotePlayersCache !== "undefined" && remotePlayersCache && typeof remotePlayersCache === "object") {
     for (const [uid, info] of Object.entries(remotePlayersCache)) {
       if (!info) continue;
+      const normName = normalizePlayerName(info.name || info.playerName, uid);
+      if (isJunkUiLabel(normName)) continue;
       const lastAt = Number(info.updatedAt || info.lastSeen || info.ts || now);
       const isOnline = (now - lastAt) <= ONLINE_ACTIVE_MS;
-      peopleMap.set(String(uid), {
+      rawPeople.push({
         uid: String(uid),
-        name: info.name || info.playerName || `漁師(${String(uid).slice(0, 5)})`,
+        name: normName,
         area: info.areaName || info.area || "港周辺",
         status: isOnline ? (info.isBoating ? "乗船中" : (info.isFishing ? "釣り中" : "探索中")) : "オフライン",
         online: isOnline,
@@ -3227,16 +3250,37 @@ function openOnlineRosterModal() {
     }
   }
 
-  peopleMap.set(String(myUid), {
+  rawPeople.push({
     uid: String(myUid),
-    name: myName,
+    name: normalizePlayerName(myName, myUid),
     area: (typeof currentArea !== "undefined" && currentArea?.name) ? currentArea.name : "港・堤防",
     status: (typeof phase !== "undefined" && phase !== "idle") ? "釣り中" : "プレイ中",
     online: true,
     lastAt: now
   });
 
-  const list = [...peopleMap.values()].sort((a, b) => Number(b.online) - Number(a.online) || (b.lastAt - a.lastAt));
+  // 2. 同じ名前（uidが別でも同名のもの）を1人に統合（オンライン優先＆最新lastAt優先）
+  const dedupByName = new Map();
+  for (const p of rawPeople) {
+    const key = p.name;
+    const prev = dedupByName.get(key);
+    if (!prev) {
+      dedupByName.set(key, { ...p });
+    } else {
+      const mergedOnline = Boolean(prev.online || p.online);
+      const useNew = (!prev.online && p.online) || ((p.lastAt || 0) >= (prev.lastAt || 0));
+      dedupByName.set(key, {
+        uid: useNew ? p.uid : prev.uid,
+        name: key,
+        area: useNew ? p.area : prev.area,
+        status: mergedOnline ? (useNew ? p.status : prev.status) : "オフライン",
+        online: mergedOnline,
+        lastAt: Math.max(Number(prev.lastAt || 0), Number(p.lastAt || 0))
+      });
+    }
+  }
+
+  const list = [...dedupByName.values()].sort((a, b) => Number(b.online) - Number(a.online) || (b.lastAt - a.lastAt));
   const onlineCnt = list.filter((p) => p.online).length;
   const offlineCnt = list.length - onlineCnt;
   syncTopRightOnlineBadge(onlineCnt);
