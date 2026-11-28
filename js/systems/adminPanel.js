@@ -1,11 +1,11 @@
-import { SHOP_ITEMS, BOATS } from "./economy.js?v=20261128_130852";
-import { BUSINESS_DEFS } from "./business.js?v=20261128_130852";
-import { getAllSpecies } from "./fishingEngine.js?v=20261128_130852";
-import { getGachaGearList } from "./gacha.js?v=20261128_130852";
-import { setEnvOverride, getEnvOverride } from "./environment.js?v=20261128_130852";
-import { grantMonthlyPass, grantWeeklyPass, isMonthlyPassActive, isWeeklyPassActive } from "./pearlShop.js?v=20261128_130852";
-import { createCouponCode, resetTodayDailyRankings } from "../config/firebase.js?v=20261128_130852";
-import { audioEngine } from "./audioEngine.js?v=20261128_130852";
+import { SHOP_ITEMS, BOATS } from "./economy.js?v=20261128_150217";
+import { BUSINESS_DEFS } from "./business.js?v=20261128_150217";
+import { getAllSpecies } from "./fishingEngine.js?v=20261128_150217";
+import { getGachaGearList } from "./gacha.js?v=20261128_150217";
+import { setEnvOverride, getEnvOverride } from "./environment.js?v=20261128_150217";
+import { grantMonthlyPass, grantWeeklyPass, isMonthlyPassActive, isWeeklyPassActive } from "./pearlShop.js?v=20261128_150217";
+import { createCouponCode, resetTodayDailyRankings } from "../config/firebase.js?v=20261128_150217";
+import { audioEngine } from "./audioEngine.js?v=20261128_150217";
 
 export const ADMIN_PASSCODE = "sakana-admin";
 
@@ -334,7 +334,7 @@ export function openAdminPanel({ save, scene3d, openModal, onSaveAndRefresh, onE
       const code = randCode("OFF");
       const ok = await createCouponCode(code, { kind: "discount", discountType, value, target, maxUses });
       const out = document.getElementById("adm-code-out");
-      if (ok && out) { out.innerHTML = `✅ 割引コード: <strong style="color:#ffd166;user-select:text;">${code}</strong>（上限${maxUses}人・1人1回）`; audioEngine.playCash(); }
+      if (ok && out) { out.innerHTML = `<div style="margin-top:6px;">✅ 割引コード: <strong style="color:#ffd166;user-select:text;">${code}</strong> <button type="button" class="btn-mini" id="adm-copy-latest" data-copy-code="${code}">📋 コピー</button>（上限${maxUses}人・1人1回）</div><input type="text" readonly value="${code}" onclick="this.select();" style="width:100%;margin-top:4px;padding:5px 8px;border-radius:6px;background:#0f172a;color:#ffd166;border:1px solid rgba(255,255,255,0.2);font-size:12px;" />`; const cb = document.getElementById("adm-copy-latest"); if (cb) cb.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); copyCodeReliable(code, cb); }; audioEngine.playCash(); }
       else alert("発行失敗（Firebase RTDBルールにcouponsを追加してください）");
     };
 
