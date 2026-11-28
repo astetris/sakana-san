@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_063608";
-import { audioEngine } from "../systems/audioEngine.js?v=20261128_063608";
+import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_130852";
+import { audioEngine } from "../systems/audioEngine.js?v=20261128_130852";
 
 // ===== リアル海面シェーダー（日替わり波高・6層セット波・岸壁衝突白波・桟橋/防波堤泡・ウキ波紋） =====
 const OCEAN_VERTEX_SHADER = `
@@ -253,14 +253,23 @@ const OCEAN_FRAGMENT_SHADER = `
 
     // 夜の港町の街灯・家明かり・赤白灯台が水面に揺らめく映り込み
     if (uNightFactor > 0.05) {
+      // 角度をずらした多層ノイズ＋波法線で水玉・格子模様のない自然な水面ゆらぎを生成
+      vec2 np1 = vec2(p.x * 0.42 + p.y * 0.19, -p.x * 0.17 + p.y * 0.58) + nXZ * 2.2;
+      vec2 np2 = vec2(p.x * 1.15 - p.y * 0.52, p.x * 0.48 + p.y * 1.35) - nXZ * 3.4;
+      float nA = vnoise(np1 + vec2(t * 0.45, -t * 0.72));
+      float nB = vnoise(np2 + vec2(-t * 0.85, t * 0.62));
+      float nC = vnoise(p * 2.7 + nXZ * 4.5 + vec2(t * 1.15, t * 0.95));
+      float rippleMix = nA * 0.52 + nB * 0.33 + nC * 0.15;
+      float slopeGlint = smoothstep(0.08, 0.42, abs(nXZ.x * 0.7 + nXZ.y * 1.15));
+      float shimmer = smoothstep(0.32, 0.88, rippleMix) * (0.45 + 0.55 * slopeGlint);
+
       float townGlow = exp(-length((vWorldPos.xz - vec2(0.0, 2.0)) * vec2(0.013, 0.028)));
-      float shimmer = pow(max(0.0, sin(p.x * 1.35 + t * 2.1 + nXZ.x * 4.0) * cos(p.y * 1.85 - t * 2.7 + nXZ.y * 4.0) * 0.5 + 0.5), 2.8);
-      col += vec3(1.0, 0.68, 0.32) * townGlow * (0.26 + 0.64 * shimmer) * uNightFactor;
+      col += vec3(1.0, 0.68, 0.32) * townGlow * (0.20 + 0.58 * shimmer) * uNightFactor;
 
       float redLh = exp(-length((vWorldPos.xz - vec2(22.0, -43.5)) * 0.075));
-      col += vec3(1.0, 0.22, 0.22) * redLh * (0.35 + 0.4 * shimmer) * uNightFactor;
+      col += vec3(1.0, 0.22, 0.22) * redLh * (0.26 + 0.44 * shimmer) * uNightFactor;
       float whtLh = exp(-length((vWorldPos.xz - vec2(-22.0, -43.5)) * 0.075));
-      col += vec3(0.75, 1.0, 0.85) * whtLh * (0.32 + 0.4 * shimmer) * uNightFactor;
+      col += vec3(0.75, 1.0, 0.85) * whtLh * (0.24 + 0.44 * shimmer) * uNightFactor;
     }
 
     // ===== 港護岸・桟橋杭・砂浜引き波・テトラポッド・防波堤の自然な白波と泡 =====
