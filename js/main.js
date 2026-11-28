@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_052634";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_052634";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_052634";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_052634";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_052634";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_053106";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_053106";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_053106";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_053106";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_053106";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_052634";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_052634";
+} from "./systems/economy.js?v=20261128_053106";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_053106";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_052634";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_052634";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_052634";
+} from "./systems/business.js?v=20261128_053106";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_053106";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_053106";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_052634";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_052634";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_052634";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_052634";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_052634";
+} from "./systems/pearlShop.js?v=20261128_053106";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_053106";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_053106";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_053106";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_053106";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_052634";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_052634";
+} from "./systems/fishingEngine.js?v=20261128_053106";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_053106";
 
 
 // ===== オンライン／オフライン履歴 ＆ 右上人数バッジ同期 ＆ 「合わせる」スタミナ消費 =====
@@ -800,7 +800,7 @@ function doShellHarvest() {
       }
       const buff = getActiveBuff(save);
       const qBonus = quality === "great" ? 1.35 : 1.0;
-      const res = rollShellfish(areaId, env, (getEquippedStats(save).shellBonus || 1) * (buff?.rareBonus ? 1.25 : 1) * qBonus);
+      let res = rollShellfish(areaId, env, (getEquippedStats(save).shellBonus || 1) * (buff?.rareBonus ? 1.25 : 1) * qBonus); if (!res && window.__shellSpotBonus?.grade === "rich") { res = rollShellfish(areaId, env, (getEquippedStats(save).shellBonus || 1) * (buff?.rareBonus ? 1.25 : 1) * qBonus); }
       if (!res) { $("status-banner").textContent = "ここでは貝が見つからなかった…"; updateHud(); return; }
 
       const sp = res.species;
@@ -3426,33 +3426,176 @@ function consumeHarvestPhase2Stamina(cost, label = "採取") {
 function runShellPhase1BeforePhase2(areaLabel, cost, onProceedPhase2) {
   const existing = document.getElementById("shell-phase1-overlay");
   if (existing) existing.remove();
+
+  const terrains = [
+    { icon: "🪨", name: "岩陰" },
+    { icon: "🌊", name: "潮だまり" },
+    { icon: "🌿", name: "海藻の陰" },
+    { icon: "🏖️", name: "砂地" },
+    { icon: "🧱", name: "岸壁際" },
+    { icon: "🪨", name: "割れ目" },
+    { icon: "🌊", name: "浅瀬" },
+    { icon: "🌿", name: "藻場" },
+    { icon: "🏖️", name: "砂利場" }
+  ];
+
+  // スポット配置（大密集×2、気配あり×3、少なめ×4 をシャッフル）
+  const grades = ["rich", "rich", "normal", "normal", "normal", "poor", "poor", "poor", "poor"];
+  for (let i = grades.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [grades[i], grades[j]] = [grades[j], grades[i]];
+  }
+
+  // ヒント（泡サイン）：大密集のマスは高確率、気配ありは中確率、少なめは低確率で🫧が見える
+  const cells = terrains.map((t, idx) => {
+    const g = grades[idx];
+    const hintBubble =
+      (g === "rich" && Math.random() < 0.78) ||
+      (g === "normal" && Math.random() < 0.35) ||
+      (g === "poor" && Math.random() < 0.12);
+    return {
+      idx,
+      icon: t.icon,
+      name: t.name,
+      grade: g,
+      hintBubble,
+      revealed: false
+    };
+  });
+
+  const maxScans = 3;
+  let scansLeft = maxScans;
+  let selectedIdx = null;
+
+  const gradeMeta = {
+    rich: { badge: "★★★", label: "大密集！", color: "#fbbf24", bg: "rgba(251,191,36,0.18)", border: "#f59e0b" },
+    normal: { badge: "★★", label: "気配あり", color: "#38bdf8", bg: "rgba(56,189,248,0.15)", border: "#0284c7" },
+    poor: { badge: "★", label: "少なめ", color: "#94a3b8", bg: "rgba(148,163,184,0.12)", border: "#475569" }
+  };
+
   const ov = document.createElement("div");
   ov.id = "shell-phase1-overlay";
-  ov.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(8,18,32,0.72);display:flex;align-items:center;justify-content:center;padding:16px;";
+  ov.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(8,18,32,0.78);display:flex;align-items:center;justify-content:center;padding:14px;";
   ov.innerHTML = `
-    <div style="width:100%;max-width:340px;background:#0f172a;border:1px solid rgba(148,163,184,0.35);border-radius:16px;padding:18px;color:#f8fafc;box-shadow:0 16px 40px rgba(0,0,0,0.45);text-align:center;">
-      <div style="font-size:12px;color:#38bdf8;font-weight:700;margin-bottom:4px;">第1フェーズ：ポイント探索</div>
-      <div style="font-size:17px;font-weight:700;margin-bottom:10px;">🐚 ${areaLabel || "岸壁・岩場"}を探る</div>
-      <div style="font-size:12px;color:#cbd5e1;line-height:1.6;margin-bottom:14px;">
-        波間と岩陰をチェックして貝・海藻の気配を見つけよう。<br>
-        <span style="color:#94a3b8;">（※ここではスタミナは消費しません）</span>
+    <div style="width:100%;max-width:360px;background:#0f172a;border:1px solid rgba(148,163,184,0.35);border-radius:16px;padding:16px;color:#f8fafc;box-shadow:0 16px 40px rgba(0,0,0,0.5);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-size:11px;color:#38bdf8;font-weight:700;">第1フェーズ：スポット探し（消費なし）</span>
+        <span id="shell-scan-left" style="font-size:11px;color:#fbbf24;font-weight:700;">残り調査：${scansLeft}回</span>
       </div>
-      <div style="display:flex;gap:8px;justify-content:center;">
+      <div style="font-size:16px;font-weight:800;margin-bottom:6px;">🐚 ${areaLabel || "岸壁・岩場"}の貝スポットを探そう</div>
+      <div style="font-size:11px;color:#cbd5e1;line-height:1.5;margin-bottom:10px;">
+        🫧泡が出ている場所ほど貝が多いかも！最大${maxScans}箇所を無料で探って、採取する場所を決めよう。
+      </div>
+      <div id="shell-spot-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;"></div>
+      <div id="shell-spot-summary" style="font-size:12px;color:#94a3b8;text-align:center;min-height:20px;margin-bottom:12px;">
+        まずは気になる場所をタップして探ってみよう
+      </div>
+      <div style="display:flex;gap:8px;">
         <button id="btn-shell-p1-cancel" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid #475569;background:#1e293b;color:#cbd5e1;font-weight:700;">やめる</button>
-        <button id="btn-shell-p1-go" style="flex:2;padding:10px 12px;border-radius:10px;border:none;background:#f59e0b;color:#0f172a;font-weight:800;">採取する（⚡${cost}）</button>
+        <button id="btn-shell-p1-go" disabled style="flex:2;padding:10px 12px;border-radius:10px;border:none;background:#475569;color:#94a3b8;font-weight:800;">場所を選んでね</button>
       </div>
     </div>
   `;
   document.body.appendChild(ov);
-  document.getElementById("btn-shell-p1-cancel").onclick = () => {
+
+  const gridEl = ov.querySelector("#shell-spot-grid");
+  const scanLeftEl = ov.querySelector("#shell-scan-left");
+  const summaryEl = ov.querySelector("#shell-spot-summary");
+  const goBtn = ov.querySelector("#btn-shell-p1-go");
+  const cancelBtn = ov.querySelector("#btn-shell-p1-cancel");
+
+  function renderGrid() {
+    scanLeftEl.textContent = `残り調査：${scansLeft}回`;
+    gridEl.innerHTML = "";
+    cells.forEach((c) => {
+      const btn = document.createElement("button");
+      const isSel = selectedIdx === c.idx;
+      if (!c.revealed) {
+        btn.style.cssText = `
+          padding:10px 4px;border-radius:10px;border:1px solid ${c.hintBubble ? "rgba(56,189,248,0.6)" : "rgba(148,163,184,0.28)"};
+          background:${c.hintBubble ? "rgba(14,116,144,0.25)" : "#1e293b"};color:#e2e8f0;
+          display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;
+          opacity:${scansLeft > 0 ? "1" : "0.45"};
+        `;
+        btn.innerHTML = `
+          <div style="font-size:18px;line-height:1.1;">${c.icon}${c.hintBubble ? '<span style="font-size:12px;">🫧</span>' : ""}</div>
+          <div style="font-size:11px;font-weight:700;">${c.name}</div>
+          <div style="font-size:10px;color:#94a3b8;">${scansLeft > 0 ? "タップで調査" : "調査終了"}</div>
+        `;
+        btn.onclick = () => {
+          if (scansLeft <= 0) return;
+          c.revealed = true;
+          scansLeft -= 1;
+          // まだ未選択、または今見つけた方が高ランクなら自動選択
+          const rankVal = { poor: 1, normal: 2, rich: 3 };
+          if (selectedIdx === null || rankVal[c.grade] >= rankVal[cells[selectedIdx].grade]) {
+            selectedIdx = c.idx;
+          }
+          renderGrid();
+        };
+      } else {
+        const meta = gradeMeta[c.grade];
+        btn.style.cssText = `
+          padding:10px 4px;border-radius:10px;
+          border:${isSel ? `2px solid ${meta.border}` : "1px solid rgba(148,163,184,0.35)"};
+          background:${meta.bg};color:#f8fafc;
+          display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;
+          box-shadow:${isSel ? `0 0 0 2px ${meta.color}44` : "none"};
+        `;
+        btn.innerHTML = `
+          <div style="font-size:11px;font-weight:800;color:${meta.color};">${meta.badge}</div>
+          <div style="font-size:12px;font-weight:800;">${meta.label}</div>
+          <div style="font-size:10px;color:#cbd5e1;">${c.name}${isSel ? " ✓" : ""}</div>
+        `;
+        btn.onclick = () => {
+          selectedIdx = c.idx;
+          renderGrid();
+        };
+      }
+      gridEl.appendChild(btn);
+    });
+
+    if (selectedIdx !== null) {
+      const sel = cells[selectedIdx];
+      const meta = gradeMeta[sel.grade];
+      summaryEl.innerHTML = `選択中：<strong>${sel.name}</strong>（<span style="color:${meta.color};font-weight:800;">${meta.badge} ${meta.label}</span>）`;
+      goBtn.disabled = false;
+      goBtn.style.background = "#f59e0b";
+      goBtn.style.color = "#0f172a";
+      goBtn.textContent = `ここで採取する（⚡${cost}）`;
+    } else {
+      summaryEl.textContent = "まずは気になる場所をタップして探ってみよう";
+      goBtn.disabled = true;
+      goBtn.style.background = "#475569";
+      goBtn.style.color = "#94a3b8";
+      goBtn.textContent = "場所を選んでね";
+    }
+  }
+
+  cancelBtn.onclick = () => {
+    window.__shellSpotBonus = null;
     ov.remove();
     if (typeof $ === "function" && $("status-banner")) {
       $("status-banner").textContent = "貝類採取をキャンセルしました";
     }
   };
-  document.getElementById("btn-shell-p1-go").onclick = () => {
+
+  goBtn.onclick = () => {
+    if (selectedIdx === null) return;
+    const sel = cells[selectedIdx];
+    const meta = gradeMeta[sel.grade];
+    window.__shellSpotBonus = {
+      grade: sel.grade,
+      spotName: sel.name,
+      label: `${meta.badge} ${meta.label}`
+    };
     ov.remove();
     if (!consumeHarvestPhase2Stamina(cost, "貝類採取")) return;
+    if (typeof $ === "function" && $("status-banner")) {
+      $("status-banner").textContent = `🐚 ${sel.name}（${meta.label}）で採取開始！`;
+    }
     if (typeof onProceedPhase2 === "function") onProceedPhase2();
   };
+
+  renderGrid();
 }
