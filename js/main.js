@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_053602";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_053602";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_053602";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_053602";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_053602";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_055203";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_055203";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_055203";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_055203";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_055203";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_053602";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_053602";
+} from "./systems/economy.js?v=20261128_055203";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_055203";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_053602";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_053602";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_053602";
+} from "./systems/business.js?v=20261128_055203";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_055203";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_055203";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_053602";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_053602";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_053602";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_053602";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_053602";
+} from "./systems/pearlShop.js?v=20261128_055203";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_055203";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_055203";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_055203";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_055203";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_053602";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_053602";
+} from "./systems/fishingEngine.js?v=20261128_055203";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_055203";
 
 
 // ===== オンライン／オフライン履歴 ＆ 右上人数バッジ同期 ＆ 「合わせる」スタミナ消費 =====
@@ -644,7 +644,7 @@ function resetActionState() {
   const save = currentSave(), areaId = currentArea?.id || "teibou", btn = $("btn-main-action");
   if (harvestMode === "shell" && save) {
     const m = getShellMethodForArea(areaId);
-    btn.className = "btn-action shell"; btn.textContent = `🐚 ${m ? m.label : "貝採取"}（⚡3）`;
+    btn.className = "btn-action shell"; btn.textContent = `🐚 ${m ? m.label : "貝採取"}（⚡1+2）`;
     $("status-banner").textContent = `${currentArea?.name || "海岸"}で${m ? m.label : "貝採取"}！`;
   } else if (harvestMode === "net" && save) {
     const { net } = getEquippedStats(save);
@@ -766,7 +766,7 @@ function doNetHarvest() {
 
 function doShellHarvest() {
   const _areaLbl = (typeof currentArea !== 'undefined' && currentArea?.name) ? currentArea.name : '岸壁・岩場';
-  runShellPhase1BeforePhase2(_areaLbl, 2, () => {
+  runShellPhase1BeforePhase2(_areaLbl, 1, 2, () => {
 
   const save = currentSave();
   if (!save || phase !== "idle") return;
@@ -3423,7 +3423,12 @@ function consumeHarvestPhase2Stamina(cost, label = "採取") {
   return true;
 }
 
-function runShellPhase1BeforePhase2(areaLabel, cost, onProceedPhase2) {
+function runShellPhase1BeforePhase2(areaLabel, scanCost = 1, harvestCost = 2, onProceedPhase2 = null) {
+  if (typeof harvestCost === "function") {
+    onProceedPhase2 = harvestCost;
+    harvestCost = Number(scanCost) || 2;
+    scanCost = 1;
+  }
   const existing = document.getElementById("shell-phase1-overlay");
   if (existing) existing.remove();
 
@@ -3464,6 +3469,7 @@ function runShellPhase1BeforePhase2(areaLabel, cost, onProceedPhase2) {
 
   const maxScans = 3;
   let scansLeft = maxScans;
+  let scanPaid = false;
 
   const gradeMeta = {
     rich: { badge: "★★★", label: "大密集！", color: "#fbbf24", bg: "rgba(251,191,36,0.20)", border: "#f59e0b" },
@@ -3481,7 +3487,7 @@ function runShellPhase1BeforePhase2(areaLabel, cost, onProceedPhase2) {
         <button id="btn-shell-p1-close" aria-label="閉じる" style="width:30px;height:30px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#cbd5e1;font-size:15px;font-weight:700;cursor:pointer;">×</button>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:10px;">
-        <span style="color:#cbd5e1;">探す→無料 ／ 開いたマスをタップ→採取（⚡${cost}）</span>
+        <span style="color:#cbd5e1;">探索：⚡${scanCost}（3回） ／ 採取：⚡${harvestCost}</span>
         <span id="shell-scan-left" style="color:#fbbf24;font-weight:700;white-space:nowrap;margin-left:6px;">残り${scansLeft}回</span>
       </div>
       <div id="shell-spot-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
@@ -3495,13 +3501,13 @@ function runShellPhase1BeforePhase2(areaLabel, cost, onProceedPhase2) {
 
   function startPhase2WithCell(c) {
     const meta = gradeMeta[c.grade];
+    if (!consumeHarvestPhase2Stamina(harvestCost, "貝類採取")) return;
     window.__shellSpotBonus = {
       grade: c.grade,
       spotName: c.name,
       label: `${meta.badge} ${meta.label}`
     };
     ov.remove();
-    if (!consumeHarvestPhase2Stamina(cost, "貝類採取")) return;
     if (typeof $ === "function" && $("status-banner")) {
       $("status-banner").textContent = `🐚 ${c.name}（${meta.label}）で採取開始！`;
     }
@@ -3509,12 +3515,13 @@ function runShellPhase1BeforePhase2(areaLabel, cost, onProceedPhase2) {
   }
 
   function renderGrid() {
-    scanLeftEl.textContent = scansLeft > 0 ? `調査 残り${scansLeft}回` : "採取する場所をタップ";
+    scanLeftEl.textContent = scansLeft > 0 ? `探索 残り${scansLeft}回` : "採取する場所をタップ";
     gridEl.innerHTML = "";
     cells.forEach((c) => {
       const btn = document.createElement("button");
       if (!c.revealed) {
         const canScan = scansLeft > 0;
+        const scanTag = !canScan ? "—" : (scanPaid ? "探る" : `探る（⚡${scanCost}）`);
         btn.style.cssText = `
           padding:11px 4px;border-radius:10px;
           border:1px solid ${c.hintBubble ? "rgba(56,189,248,0.6)" : "rgba(148,163,184,0.28)"};
@@ -3526,10 +3533,14 @@ function runShellPhase1BeforePhase2(areaLabel, cost, onProceedPhase2) {
         btn.innerHTML = `
           <div style="font-size:18px;line-height:1.1;">${c.icon}${c.hintBubble ? '<span style="font-size:12px;">🫧</span>' : ""}</div>
           <div style="font-size:11px;font-weight:700;">${c.name}</div>
-          <div style="font-size:10px;color:#94a3b8;">${canScan ? "探る" : "—"}</div>
+          <div style="font-size:10px;color:${scanPaid ? "#94a3b8" : "#fde68a"};">${scanTag}</div>
         `;
         btn.onclick = () => {
           if (scansLeft <= 0) return;
+          if (!scanPaid) {
+            if (!consumeHarvestPhase2Stamina(scanCost, "スポット探索")) return;
+            scanPaid = true;
+          }
           c.revealed = true;
           scansLeft -= 1;
           renderGrid();
@@ -3545,7 +3556,7 @@ function runShellPhase1BeforePhase2(areaLabel, cost, onProceedPhase2) {
         btn.innerHTML = `
           <div style="font-size:11px;font-weight:800;color:${meta.color};">${meta.badge}</div>
           <div style="font-size:12px;font-weight:800;">${meta.label}</div>
-          <div style="font-size:10px;color:#fde68a;font-weight:700;">採取（⚡${cost}）</div>
+          <div style="font-size:10px;color:#fde68a;font-weight:700;">採取（⚡${harvestCost}）</div>
         `;
         btn.onclick = () => startPhase2WithCell(c);
       }
@@ -3556,6 +3567,9 @@ function runShellPhase1BeforePhase2(areaLabel, cost, onProceedPhase2) {
   closeBtn.onclick = () => {
     window.__shellSpotBonus = null;
     ov.remove();
+    if (scanPaid && typeof $ === "function" && $("status-banner")) {
+      $("status-banner").textContent = "スポット探索を切り上げました（消費⚡1）";
+    }
   };
 
   renderGrid();
