@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_030627";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_030627";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_030627";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_030627";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_030627";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_032740";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_032740";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_032740";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_032740";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_032740";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_030627";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_030627";
+} from "./systems/economy.js?v=20261128_032740";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_032740";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_030627";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_030627";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_030627";
+} from "./systems/business.js?v=20261128_032740";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_032740";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_032740";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_030627";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_030627";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_030627";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_030627";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_030627";
+} from "./systems/pearlShop.js?v=20261128_032740";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_032740";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_032740";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_032740";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_032740";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_030627";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_030627";
+} from "./systems/fishingEngine.js?v=20261128_032740";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_032740";
 
 
 // ===== オンライン／オフライン履歴 ＆ 右上人数バッジ同期 ＆ 「アワセる！」スタミナ消費 =====
@@ -3159,7 +3159,7 @@ boot();
 function openOnlineRosterModal() {
   const save = currentSave();
   const myUid = typeof getCurrentUid === "function" ? (getCurrentUid() || "local_me") : "local_me";
-  const myName = save?.name || "アステ";
+  const myName = (save?.name || "アステ").trim();
   const now = Date.now();
 
   const extraEntries = [{
@@ -3170,22 +3170,29 @@ function openOnlineRosterModal() {
     lastSeenAt: now
   }];
 
-  // 画面上のランキング行などから過去のプレイヤー名もオフライン履歴として拾う
-  document.querySelectorAll("table tr, .list-row, .ranking-row").forEach((row) => {
-    const raw = (row.textContent || "").replace(/\s+/g, " ").trim();
-    if (!raw) return;
-    const m = raw.match(/^[🥇🥈🥉🏅\d\.\s]*([^\s(（]+(?:\s+[^\s(（]+)?)/);
-    const cand = m ? m[1].trim() : "";
-    if (cand && cand !== myName && !/^(大物|1匹|今日|貝|売上|アステ|スロット)/.test(cand)) {
-      extraEntries.push({
-        uid: "past_" + cand,
-        name: cand,
-        area: "港町",
-        status: "オフライン",
-        lastSeenAt: now - 3600000
-      });
+  const rankCandidates = [];
+  document.querySelectorAll("div, li, tr, span, strong").forEach((el) => {
+    if (el.children.length > 3) return;
+    const txt = (el.textContent || "").replace(/\s+/g, " ").trim();
+    if (!txt || txt.length > 60) return;
+    const m = txt.match(/^[🥇🥈🥉🏅👑\d\.\s]*([^\s(（]+)\s*[（(][^）)]+[）)]/);
+    if (m && m[1]) {
+      rankCandidates.push(m[1].trim());
     }
   });
+
+  for (const cand of rankCandidates) {
+    if (!cand || cand === myName) continue;
+    if (/^(スロット|大物|1匹|今日|貝|売上|港|堤防|市場|ランキング)/.test(cand)) continue;
+    extraEntries.push({
+      uid: "offline_" + cand,
+      name: cand,
+      area: "港町",
+      status: "オフライン",
+      lastSeenAt: now - 7200000
+    });
+  }
+
   recordSeenPlayers(extraEntries);
 
   const peopleMap = new Map();
@@ -3193,7 +3200,7 @@ function openOnlineRosterModal() {
   for (const h of loadSeenPlayersHistory()) {
     if (!h?.uid) continue;
     const lastAt = Number(h.lastSeenAt || 0);
-    const isOnline = String(h.uid) === String(myUid) || (lastAt > 0 && (now - lastAt) <= ONLINE_ACTIVE_MS);
+    const isOnline = String(h.uid) === String(myUid) || (lastAt > 0 && (now - lastAt) <= ONLINE_ACTIVE_MS && h.status !== "オフライン");
     peopleMap.set(String(h.uid), {
       uid: String(h.uid),
       name: h.name || "漁師",
@@ -3252,7 +3259,7 @@ function openOnlineRosterModal() {
       ? `<span style="display:inline-flex;align-items:center;gap:5px;color:#4ade80;font-weight:700;"><span style="width:9px;height:9px;border-radius:50%;background:#22c55e;display:inline-block;"></span>オンライン</span>`
       : `<span style="display:inline-flex;align-items:center;gap:5px;color:#94a3b8;font-weight:700;"><span style="width:9px;height:9px;border-radius:50%;background:#64748b;display:inline-block;"></span>オフライン</span>`;
     return `
-      <div class="list-row" style="opacity:${p.online ? "1" : "0.75"};">
+      <div class="list-row" style="opacity:${p.online ? "1" : "0.78"};">
         <div>
           <div style="display:flex;align-items:center;gap:8px;">${badge} <strong>${escapeHtml(p.name)}</strong></div>
           <div class="muted" style="font-size:11px;">📍 ${escapeHtml(p.area)} / ${escapeHtml(p.status)}</div>
