@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_041447";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_041447";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_041447";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_041447";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_041447";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_045247";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_045247";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_045247";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_045247";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_045247";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_041447";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_041447";
+} from "./systems/economy.js?v=20261128_045247";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_045247";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_041447";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_041447";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_041447";
+} from "./systems/business.js?v=20261128_045247";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_045247";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_045247";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_041447";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_041447";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_041447";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_041447";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_041447";
+} from "./systems/pearlShop.js?v=20261128_045247";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_045247";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_045247";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_045247";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_045247";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_041447";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_041447";
+} from "./systems/fishingEngine.js?v=20261128_045247";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_045247";
 
 
 // ===== オンライン／オフライン履歴 ＆ 右上人数バッジ同期 ＆ 「アワセる！」スタミナ消費 =====
@@ -72,27 +72,8 @@ function saveSeenPlayersHistory(list) {
   } catch (_) {}
 }
 
-function recordSeenPlayers(entries = []) {
-  if (!Array.isArray(entries) || !entries.length) return;
-  const now = Date.now();
-  const map = new Map();
-  for (const item of loadSeenPlayersHistory()) {
-    if (item && item.uid) map.set(String(item.uid), { ...item });
-  }
-  for (const e of entries) {
-    if (!e || !e.uid) continue;
-    const key = String(e.uid);
-    const prev = map.get(key) || {};
-    map.set(key, {
-      uid: key,
-      name: e.name || prev.name || `漁師(${key.slice(0, 5)})`,
-      area: e.area || prev.area || "港・堤防",
-      status: e.status || prev.status || "オフライン",
-      lastSeenAt: Number(e.lastSeenAt || prev.lastSeenAt || now)
-    });
-  }
-  const merged = [...map.values()].sort((a, b) => (b.lastSeenAt || 0) - (a.lastSeenAt || 0));
-  saveSeenPlayersHistory(merged);
+function recordSeenPlayers(_entries = []) {
+  // ゲストのログイン履歴は今後は導入しないため何もしない
 }
 
 function syncTopRightOnlineBadge(activeOnlineCount) {
@@ -870,7 +851,7 @@ function startCast() {
   waitTimer = setTimeout(() => {
     if (phase !== "waiting") return;
     phase = "bite"; scene3d.setBobber(true, dist, 0.35); audioEngine.playBite();
-    $("btn-main-action").className = "btn-action bite"; $("btn-main-action").textContent = "⚡ アワセる！";
+    $("btn-main-action").className = "btn-action bite"; $("btn-main-action").textContent = "⚡ アワセる！ (⚡2)";
     $("status-banner").textContent = "ヒット！！今すぐタップしてアワセろ！";
     biteTimer = setTimeout(() => { if (phase === "bite") { audioEngine.playFail(); $("status-banner").textContent = "逃げられてしまった…"; setTimeout(resetActionState, 900); } }, 1800);
   }, waitMs);
@@ -3331,11 +3312,7 @@ function openOnlineRosterModal() {
       status: p.online ? p.status : "オフライン",
       lastSeenAt: Number(p.lastSeenAt || 0) || null
     }));
-  if (typeof saveSeenPlayersHistory === "function") {
-    saveSeenPlayersHistory(cleanSaveList);
-  }
-
-  const list = [...byName.values()].sort((a, b) => Number(b.online) - Number(a.online) || (Number(b.lastSeenAt || 0) - Number(a.lastSeenAt || 0)));
+const list = [...byName.values()].sort((a, b) => Number(b.online) - Number(a.online) || (Number(b.lastSeenAt || 0) - Number(a.lastSeenAt || 0)));
   const onlineCnt = list.filter((p) => p.online).length;
   const offlineCnt = list.length - onlineCnt;
   if (typeof syncTopRightOnlineBadge === "function") syncTopRightOnlineBadge(onlineCnt);
