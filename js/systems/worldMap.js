@@ -219,28 +219,32 @@ export function canCastFrom(x, z, yaw, isBoating) {
   const fz = -Math.cos(yaw);
 
   if (isBoating) {
-    const okNear = isWaterPoint(x + fx * 8, z + fz * 8);
-    const okMid = isWaterPoint(x + fx * 14, z + fz * 14);
-    if (!okNear && !okMid) {
-      return { ok: false, msg: "⚠️ 陸地側を向いています！海の方を向いて投げよう" };
+    if (!isWaterPoint(x, z)) {
+      return { ok: false, msg: "⚠️ 陸地や浅瀬に近づきすぎています！海面へ出よう" };
+    }
+    const okNear = isWaterPoint(x + fx * 6.5, z + fz * 6.5);
+    const okMid = isWaterPoint(x + fx * 12.0, z + fz * 12.0);
+    if (!okNear || !okMid) {
+      return { ok: false, msg: "⚠️ 陸地や防波堤側を向いています！海の方を向いて投げよう" };
     }
     return { ok: true, msg: "" };
   }
 
-  const onPier = Math.abs(x) <= 4.6 && z <= 1.5;
-  const nearSeaShore = z <= 5.2;
+  const onPier = Math.abs(x) <= 4.6 && z <= 1.5 && z >= -15.5;
+  const nearSeaShore = z <= 5.2 && z >= -22.0;
   const nearRiver = (x >= -146.5 && x <= -121.5 && z <= 34.0);
   if (!onPier && !nearSeaShore && !nearRiver) {
-    return { ok: false, msg: "⚠️ 陸地では釣れません！海辺・桟橋・川岸まで歩こう" };
+    return { ok: false, msg: "⚠️ 陸地や水辺から離れています！海辺・桟橋・川岸まで歩こう" };
   }
 
-  const sampleDists = nearRiver && z > 5.2 ? [4.5, 7.5, 10.5] : [6.5, 10.5, 14.5];
-  let waterHits = 0;
-  for (const d of sampleDists) {
-    if (isWaterPoint(x + fx * d, z + fz * d)) waterHits += 1;
-  }
-  if (waterHits === 0) {
-    return { ok: false, msg: "⚠️ 陸地に向かって投げられません！海や川の方を向こう" };
+  // 実際にウキが着水する予定の地点（近〜中距離）がすべて水面（isWaterPoint）か厳密チェック
+  const checkDists = nearRiver && z > 5.2 ? [4.0, 7.0, 10.0] : [5.5, 9.5, 13.5];
+  for (const d of checkDists) {
+    const tx = x + fx * d;
+    const tz = z + fz * d;
+    if (!isWaterPoint(tx, tz)) {
+      return { ok: false, msg: "⚠️ そちらは陸地や岸壁・桟橋の上です！海面へ向けて投げよう" };
+    }
   }
   return { ok: true, msg: "" };
 }

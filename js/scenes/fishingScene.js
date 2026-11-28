@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_022555";
-import { audioEngine } from "../systems/audioEngine.js?v=20261128_022555";
+import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_023628";
+import { audioEngine } from "../systems/audioEngine.js?v=20261128_023628";
 
 // ===== リアル海面シェーダー（日替わり波高・6層セット波・岸壁衝突白波・桟橋/防波堤泡・ウキ波紋） =====
 const OCEAN_VERTEX_SHADER = `
@@ -1090,34 +1090,34 @@ export class FishingScene {
     this.playerRig.add(this.portLight);
 
     // リアル釣り竿
-    // 釣り竿をアバター右手に装着（後ろ姿からも見やすい角度・サイズに調整）
+    // 釣り竿をアバター右手に装着（後ろ姿からもハッキリ視認できる太さ・角度・赤穂先）
     this.rodGroup = new THREE.Group();
     const rodShaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.018, 0.032, 2.55, 10),
-      new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.35, roughness: 0.4 })
+      new THREE.CylinderGeometry(0.024, 0.042, 2.75, 10),
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, emissive: 0x0b1324, metalness: 0.3, roughness: 0.4 })
     );
-    rodShaft.rotation.x = -Math.PI * 0.28;
-    rodShaft.position.set(0.06, 0.15, -1.12);
+    rodShaft.rotation.x = -Math.PI * 0.24;
+    rodShaft.position.set(0.12, 0.25, -1.25);
 
     const rodTip = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.012, 0.018, 0.65, 8),
-      new THREE.MeshStandardMaterial({ color: 0xff5a36, roughness: 0.25 })
+      new THREE.CylinderGeometry(0.016, 0.024, 0.75, 8),
+      new THREE.MeshStandardMaterial({ color: 0xff4500, emissive: 0x551200, roughness: 0.25 })
     );
-    rodTip.rotation.x = -Math.PI * 0.28;
-    rodTip.position.set(0.06, 0.68, -2.22);
+    rodTip.rotation.x = -Math.PI * 0.24;
+    rodTip.position.set(0.12, 0.84, -2.42);
 
     const reel = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.06, 0.06, 0.08, 12),
-      new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.7, roughness: 0.25 })
+      new THREE.CylinderGeometry(0.075, 0.075, 0.09, 12),
+      new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.65, roughness: 0.25 })
     );
     reel.rotation.z = Math.PI / 2;
-    reel.position.set(0.06, -0.18, -0.45);
+    reel.position.set(0.12, -0.14, -0.52);
 
     this.rodTipObj = new THREE.Object3D();
-    this.rodTipObj.position.set(0.06, 0.84, -2.52);
+    this.rodTipObj.position.set(0.12, 1.04, -2.76);
 
     this.rodGroup.add(rodShaft, rodTip, reel, this.rodTipObj);
-    this.rodGroup.position.set(0.04, -0.35, -0.05);
+    this.rodGroup.position.set(0.08, -0.32, -0.05);
     const rArm = this.localAvatar?.userData?.rig?.rightArm;
     if (rArm) rArm.add(this.rodGroup);
     else this.playerRig.add(this.rodGroup);
@@ -3439,9 +3439,14 @@ export class FishingScene {
       rp.needsUpdate = true;
     }
 
-    this.rodGroup.visible = Boolean(this.bobber?.visible || this.isBoating || (this.rodBend && this.rodBend > 0.01));
+    const showRod = Boolean(this.bobber?.visible || this.isBoating || (this.rodBend && this.rodBend > 0.01));
+    this.rodGroup.visible = showRod;
     this.rodGroup.rotation.x = -this.rodBend * 0.42 + Math.sin(t * 2.2) * 0.02;
-    this.playerRig.updateMatrixWorld(true);
+    if (this.localAvatar && this.rodGroup.parent !== (this.localAvatar.userData?.rig?.rightArm || this.playerRig)) {
+      const rArm = this.localAvatar.userData?.rig?.rightArm;
+      if (rArm) rArm.add(this.rodGroup);
+    }
+    this.scene.updateMatrixWorld(true);
 
     if (this.bobber.visible) {
       const bz = 2.5 - this.bobberDist * 0.6;

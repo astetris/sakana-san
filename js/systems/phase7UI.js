@@ -2,10 +2,10 @@ import {
   PAYMENT_URLS, PAYMENT_METHODS, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF, PEARL_USES,
   getTotalPearls, spendPearls, isMonthlyPassActive, isWeeklyPassActive,
   canClaimAnyPass, claimAllDailyPassRewards, grantMonthlyPass, grantWeeklyPass, calcDiscountedPrice, startStripeCheckout
-} from "./pearlShop.js?v=20261128_022555";
-import { getActiveBanners, getExchangeCatalog, getGachaGearList, executeGachaDraw, applyGachaPrize } from "./gacha.js?v=20261128_022555";
-import { previewCouponCode, redeemCouponCode, getCurrentUid } from "../config/firebase.js?v=20261128_022555";
-import { audioEngine } from "./audioEngine.js?v=20261128_022555";
+} from "./pearlShop.js?v=20261128_023628";
+import { getActiveBanners, getExchangeCatalog, getGachaGearList, executeGachaDraw, applyGachaPrize } from "./gacha.js?v=20261128_023628";
+import { previewCouponCode, redeemCouponCode, getCurrentUid } from "../config/firebase.js?v=20261128_023628";
+import { audioEngine } from "./audioEngine.js?v=20261128_023628";
 
 let pearlTab = "buy";
 let gachaTab = "draw";
@@ -117,15 +117,15 @@ export function openPearlShopUI({ save, slotIndex = -1, scene3d, openModal, onSa
       </div>
       <div class="bank-box">
         <strong>💳 お支払い方法</strong>
-        /* hide-payment-method-selector */
       <!-- <div class="pay-grid">${payOpts}</div> -->
       </div>
       ${packRows}
       <div class="bank-box">
         <strong>🎫 クーポン / 引換コード入力（1人1回限り）</strong>
-        <div class="chat-input-row">
-          <input id="redeem-input" class="field-input" placeholder="コードを入力" />
-          <button id="btn-redeem" class="btn-sub">適用・引換</button>
+        <div class="chat-input-row" style="gap:6px;">
+          <input id="redeem-input" class="field-input" placeholder="コードを入力" style="flex:1;text-transform:uppercase;" />
+          <button type="button" id="btn-paste-redeem" class="btn-mini" style="padding:8px 10px;">📋 貼付</button>
+          <button type="button" id="btn-redeem" class="btn-sub">適用・引換</button>
         </div>
       </div>
     `);
@@ -179,6 +179,26 @@ export function openPearlShopUI({ save, slotIndex = -1, scene3d, openModal, onSa
         }
       };
     });
+
+    
+    const pasteBtn = document.getElementById("btn-paste-redeem");
+    const redeemInp = document.getElementById("redeem-input");
+    if (pasteBtn && redeemInp) {
+      pasteBtn.onclick = async () => {
+        try {
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            const clip = (await navigator.clipboard.readText() || "").trim();
+            if (clip) {
+              redeemInp.value = clip;
+              audioEngine.playOk?.();
+              return;
+            }
+          }
+        } catch (_) {}
+        redeemInp.focus();
+        alert("入力欄を長押しして「貼り付け」を選んでください。");
+      };
+    }
 
     document.getElementById("btn-redeem").onclick = async () => {
       const rawCode = document.getElementById("redeem-input").value.trim().toUpperCase();

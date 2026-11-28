@@ -1,11 +1,11 @@
-import { SHOP_ITEMS, BOATS } from "./economy.js?v=20261128_022555";
-import { BUSINESS_DEFS } from "./business.js?v=20261128_022555";
-import { getAllSpecies } from "./fishingEngine.js?v=20261128_022555";
-import { getGachaGearList } from "./gacha.js?v=20261128_022555";
-import { setEnvOverride, getEnvOverride } from "./environment.js?v=20261128_022555";
-import { grantMonthlyPass, grantWeeklyPass, isMonthlyPassActive, isWeeklyPassActive } from "./pearlShop.js?v=20261128_022555";
-import { createCouponCode, resetTodayDailyRankings } from "../config/firebase.js?v=20261128_022555";
-import { audioEngine } from "./audioEngine.js?v=20261128_022555";
+import { SHOP_ITEMS, BOATS } from "./economy.js?v=20261128_023628";
+import { BUSINESS_DEFS } from "./business.js?v=20261128_023628";
+import { getAllSpecies } from "./fishingEngine.js?v=20261128_023628";
+import { getGachaGearList } from "./gacha.js?v=20261128_023628";
+import { setEnvOverride, getEnvOverride } from "./environment.js?v=20261128_023628";
+import { grantMonthlyPass, grantWeeklyPass, isMonthlyPassActive, isWeeklyPassActive } from "./pearlShop.js?v=20261128_023628";
+import { createCouponCode, resetTodayDailyRankings } from "../config/firebase.js?v=20261128_023628";
+import { audioEngine } from "./audioEngine.js?v=20261128_023628";
 
 export const ADMIN_PASSCODE = "sakana-admin";
 
@@ -22,6 +22,46 @@ export function verifyAdminAccess() {
   }
   if (input !== null) alert("パスコードが違います。");
   return false;
+}
+
+
+async function copyCodeReliable(codeText, triggerBtn = null) {
+  const txt = String(codeText || "").trim();
+  if (!txt) return;
+  let copied = false;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(txt);
+      copied = true;
+    }
+  } catch (_) {}
+  if (!copied) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = txt;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.top = "50%";
+      ta.style.left = "50%";
+      ta.style.opacity = "0.01";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, txt.length);
+      copied = document.execCommand("copy");
+      document.body.removeChild(ta);
+    } catch (_) {}
+  }
+  if (triggerBtn) {
+    const oldTxt = triggerBtn.textContent;
+    triggerBtn.textContent = copied ? "✅ コピー済" : "📋 表示中";
+    setTimeout(() => { if (triggerBtn.isConnected) triggerBtn.textContent = oldTxt; }, 1600);
+  }
+  if (copied) {
+    alert(`コピーしました: ${txt}`);
+  } else {
+    prompt("長押しまたは選択してコピーしてください:", txt);
+  }
 }
 
 export function openAdminPanel({ save, scene3d, openModal, onSaveAndRefresh, onEnvChanged }) {
@@ -309,7 +349,7 @@ export function openAdminPanel({ save, scene3d, openModal, onSaveAndRefresh, onE
       const code = randCode(pre);
       const ok = await createCouponCode(code, payload);
       const out = document.getElementById("adm-code-out");
-      if (ok && out) { out.innerHTML = `✅ 配布コード: <strong style="color:#ffd166;user-select:text;">${code}</strong> <button class="btn-mini" data-copy-code="${code}">📋 コピー</button>（上限${maxUses}人・1人1回）`; audioEngine.playCash(); }
+      if (ok && out) { out.innerHTML = `<div style="margin-top:6px;">✅ 配布コード: <strong style="color:#ffd166;user-select:text;">${code}</strong> <button type="button" class="btn-mini" id="adm-copy-latest" data-copy-code="${code}">📋 コピー</button>（上限${maxUses}人・1人1回）</div><input type="text" readonly value="${code}" onclick="this.select();" style="width:100%;margin-top:4px;padding:5px 8px;border-radius:6px;background:#0f172a;color:#ffd166;border:1px solid rgba(255,255,255,0.2);font-size:12px;" />`; const cb = document.getElementById("adm-copy-latest"); if (cb) cb.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); copyCodeReliable(code, cb); }; audioEngine.playCash(); }
       else alert("発行失敗（Firebase RTDBルールにcouponsを追加してください）");
     };
 
@@ -318,20 +358,7 @@ export function openAdminPanel({ save, scene3d, openModal, onSaveAndRefresh, onE
       catch { prompt("コピー:", JSON.stringify(save)); }
     };
     
-    /* admin-code-one-tap-copy */
-    document.querySelectorAll("[data-copy-code]").forEach((btn) => {
-      btn.onclick = async () => {
-        const codeText = btn.dataset.copyCode || "";
-        if (!codeText) return;
-        try {
-          await navigator.clipboard.writeText(codeText);
-          alert(`コピーしました: ${codeText}`);
-        } catch {
-          prompt("コピーしてください:", codeText);
-        }
-      };
-    });
-    
+    document.querySelectorAll("[data-copy-code]").forEach((btn) => { btn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); copyCodeReliable(btn.dataset.copyCode || "", btn); }; });
     document.getElementById("adm-lock").onclick = () => { adminUnlocked = false; sessionStorage.removeItem("sakana_admin_ok"); document.getElementById("btn-close-modal")?.click(); };
   }
 }

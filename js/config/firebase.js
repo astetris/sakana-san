@@ -338,16 +338,38 @@ export async function createCouponCode(code, payload) {
   } catch (e) { console.warn("クーポン発行エラー:", e); return false; }
 }
 
+async function lookupCodeRecord(rawCode) {
+  const clean = String(rawCode || "").trim().toUpperCase();
+  if (!clean) return { ok: false, msg: "コードを入力してください" };
+  const cSnap = await get(ref(rtdb, `coupons/${clean}`));
+  if (cSnap.exists()) {
+    return { ok: true, clean, path: `coupons/${clean}`, store: "coupons", val: cSnap.val() };
+  }
+  const rSnap = await get(ref(rtdb, `redeem_codes/${clean}`));
+  if (rSnap.exists()) {
+    const rv = rSnap.val() || {};
+    const normalized = rv.kind ? rv : {
+      kind: rv.kind || "pearls",
+      pearlType: rv.pearlType || "free",
+      amount: rv.amount || rv.pearls || 500,
+      maxUses: rv.maxUses || 1,
+      usedCount: rv.used ? 1 : 0,
+      usedBy: rv.usedBy ? { [rv.usedBy]: true } : {}
+    };
+    return { ok: true, clean, path: `redeem_codes/${clean}`, store: "redeem_codes", val: normalized };
+  }
+  return { ok: false, msg: "無効なコードです" };
+}
+
 export async function previewCouponCode(code) {
   if (!ready || !currentUid) return { ok: false, msg: "オンライン接続が必要です" };
   try {
-    const clean = code.trim().toUpperCase();
-    const snap = await get(ref(rtdb, `coupons/${clean}`));
-    if (!snap.exists()) return { ok: false, msg: "無効なコードです" };
-    const d = snap.val();
+    const found = await lookupCodeRecord(code);
+    if (!found.ok) return { ok: false, msg: found.msg };
+    const d = found.val || {};
     if (d.usedBy && d.usedBy[currentUid]) return { ok: false, msg: "このコードはすでに使用済みです（1人1回限り）" };
     if ((d.usedCount || 0) >= (d.maxUses || 1)) return { ok: false, msg: "このコードは利用上限人数に達しました" };
-    return { ok: true, data: d };
+    return { ok: true, data: d, store: found.store, clean: found.clean };
   } catch (e) { return { ok: false, msg: "コード確認に失敗しました（RTDBルール確認）" }; }
 }
 
@@ -355,8 +377,9 @@ export async function redeemCouponCode(code) {
   const pre = await previewCouponCode(code);
   if (!pre.ok) return pre;
   try {
-    const clean = code.trim().toUpperCase();
-    const codeRef = ref(rtdb, `coupons/${clean}`);
+    const clean = pre.clean || String(code || "").trim().toUpperCase();
+    const store = pre.store || "coupons";
+    const codeRef = ref(rtdb, `${store}/${clean}`);
     let rejectReason = "使用できませんでした";
     const tx = await runTransaction(codeRef, (cur) => {
       if (!cur) return cur;
@@ -364,7 +387,7 @@ export async function redeemCouponCode(code) {
       if (usedBy[currentUid]) { rejectReason = "このコードはすでに使用済みです（1人1回限り）"; return; }
       if ((cur.usedCount || 0) >= (cur.maxUses || 1)) { rejectReason = "利用上限人数に達しました"; return; }
       usedBy[currentUid] = Date.now();
-      return { ...cur, usedCount: (cur.usedCount || 0) + 1, usedBy };
+      return { ...cur, usedCount: (cur.usedCount || 0) + 1, usedBy, used: true };
     });
     if (!tx.committed) return { ok: false, msg: rejectReason };
     return { ok: true, data: tx.snapshot.val() };
