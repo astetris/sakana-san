@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_042032";
-import { audioEngine } from "../systems/audioEngine.js?v=20261128_042032";
+import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_020610";
+import { audioEngine } from "../systems/audioEngine.js?v=20261128_020610";
 
 // ===== リアル海面シェーダー（日替わり波高・6層セット波・岸壁衝突白波・桟橋/防波堤泡・ウキ波紋） =====
 const OCEAN_VERTEX_SHADER = `
@@ -3293,19 +3293,21 @@ export class FishingScene {
     }
     this.playerRig.position.set(this.pos.x, rigY, this.pos.y);
     this.playerRig.rotation.y = this.yaw;
-    // 原神風オービットカメラ：注視点を中心に上下左右360°回転＆地面めり込み自動防止
+    // 原神風オービットカメラ：常にプレイヤー(0, focusY, 0)を中心に360°回転（lookAt不使用で絶対ズレない）
     const focusY = this.isBoating ? 1.45 : 1.48;
     const minLocalCamY = this.isBoating ? 0.65 : 0.42;
-    let effDist = this.camDist;
-    const sinP = Math.sin(this.camPitch);
-    const cosP = Math.cos(this.camPitch);
+    let effDist = this.camDist ?? (this.isBoating ? 6.8 : 4.7);
+    const pitch = this.camPitch ?? 0.27;
+    const sinP = Math.sin(pitch);
+    const cosP = Math.cos(pitch);
     if (sinP < 0 && (focusY + sinP * effDist) < minLocalCamY) {
       effDist = Math.max(1.35, (minLocalCamY - focusY) / sinP);
     }
     const camY = Math.max(minLocalCamY, focusY + sinP * effDist);
-    const camZ = cosP * effDist;
+    const camZ = Math.max(0.6, cosP * effDist);
+    const actualPitch = Math.atan2(camY - focusY, camZ);
     this.camera.position.set(0, camY, camZ);
-    this.camera.rotation.set(-this.camPitch, 0, 0);
+    this.camera.rotation.set(-actualPitch, 0, 0);
 
     if (this.localAvatar) {
       const stepDx = this.pos.x - (this._prevPosX ?? this.pos.x);
