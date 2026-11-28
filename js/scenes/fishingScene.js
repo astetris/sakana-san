@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_021706";
-import { audioEngine } from "../systems/audioEngine.js?v=20261128_021706";
+import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_022307";
+import { audioEngine } from "../systems/audioEngine.js?v=20261128_022307";
 
 // ===== リアル海面シェーダー（日替わり波高・6層セット波・岸壁衝突白波・桟橋/防波堤泡・ウキ波紋） =====
 const OCEAN_VERTEX_SHADER = `
@@ -935,20 +935,20 @@ function buildHighQualityAngler(avatarOpt = null, withRod = true, fallbackName =
   return root;
 }
 
-function animateAnglerRig(angler, walkPhase, speedFactor, isBoating, timeSec = 0) {
+function animateAnglerRig(angler, walkPhase, speedFactor, isBoating, timeSec = 0, isFishing = false, rodBend = 0) {
   const rig = angler?.userData?.rig;
   if (!rig) return;
   if (isBoating) {
     rig.leftLeg.rotation.x = -1.1;
     rig.rightLeg.rotation.x = -1.1;
     rig.leftArm.rotation.x = -0.55;
-    rig.rightArm.rotation.x = -0.55;
+    rig.rightArm.rotation.x = -0.72;
     rig.torso.rotation.x = 0;
     rig.torso.position.y = 1.05;
     return;
   }
   const spd = Math.max(0, Math.min(1, speedFactor || 0));
-  if (spd > 0.04) {
+  if (spd > 0.04 && !isFishing) {
     const amp = 0.78 * spd;
     const s = Math.sin(walkPhase) * amp;
     const bounce = Math.abs(Math.sin(walkPhase)) * 0.065 * spd;
@@ -959,14 +959,15 @@ function animateAnglerRig(angler, walkPhase, speedFactor, isBoating, timeSec = 0
     rig.torso.rotation.x = -0.14 * spd;
     rig.torso.position.y = 1.05 + bounce;
   } else {
-    // 待機中は手足を滑らかにニュートラルへ戻し、自然な呼吸モーション
     const k = 0.18;
     rig.leftLeg.rotation.x *= (1 - k);
     rig.rightLeg.rotation.x *= (1 - k);
     rig.leftArm.rotation.x *= (1 - k);
-    rig.rightArm.rotation.x *= (1 - k);
     rig.torso.rotation.x *= (1 - k);
     rig.torso.position.y = 1.05 + Math.sin(timeSec * 2.2) * 0.014;
+    // 釣り中・待機中は右手を前方に構えて竿を保持
+    const targetRightArmX = isFishing ? (-0.88 - rodBend * 0.28) : -0.42;
+    rig.rightArm.rotation.x += (targetRightArmX - rig.rightArm.rotation.x) * 0.25;
   }
 }
 
@@ -1089,35 +1090,37 @@ export class FishingScene {
     this.playerRig.add(this.portLight);
 
     // リアル釣り竿
+    // 釣り竿をアバターの右手（rightArm）に装着し、竿先(rodTipMesh)を正確に追跡できるようにする
     this.rodGroup = new THREE.Group();
-    this.rodGroup.position.set(0.46, 1.36, -0.15);
     const rodShaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.014, 0.036, 3.7, 10),
-      new THREE.MeshStandardMaterial({ color: 0x161e2a, metalness: 0.65, roughness: 0.25 })
+      new THREE.CylinderGeometry(0.011, 0.022, 2.35, 10),
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.45, roughness: 0.35 })
     );
-    rodShaft.rotation.x = -Math.PI / 2.6;
-    rodShaft.position.set(0, 0.42, -1.45);
+    rodShaft.rotation.x = -Math.PI * 0.34;
+    rodShaft.position.set(0, -0.32, -1.02);
+
     const rodTip = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.011, 0.015, 0.55, 8),
-      new THREE.MeshStandardMaterial({ color: 0xff5a36, emissive: 0x330800, roughness: 0.3 })
+      new THREE.CylinderGeometry(0.006, 0.011, 0.55, 8),
+      new THREE.MeshStandardMaterial({ color: 0xff5a36, roughness: 0.3 })
     );
-    rodTip.rotation.x = -Math.PI / 2.6;
-    rodTip.position.set(0, 1.12, -3.12);
-    const corkGrip = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.046, 0.052, 0.62, 10),
-      new THREE.MeshStandardMaterial({ color: 0xc2935b, roughness: 0.85 })
+    rodTip.rotation.x = -Math.PI * 0.34;
+    rodTip.position.set(0, 0.14, -2.06);
+
+    const reel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045, 0.045, 0.055, 12),
+      new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.75, roughness: 0.25 })
     );
-    corkGrip.rotation.x = -Math.PI / 2.6;
-    corkGrip.position.set(0, -0.18, -0.02);
-    const reelBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.085, 0.085, 0.14, 12),
-      new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.78, roughness: 0.22 })
-    );
-    reelBody.rotation.z = Math.PI / 2;
-    reelBody.position.set(0, -0.1, -0.34);
-    this.rodTipLocal = new THREE.Vector3(0, 1.24, -3.38);
-    this.rodGroup.add(rodShaft, rodTip, corkGrip, reelBody);
-    this.playerRig.add(this.rodGroup);
+    reel.rotation.z = Math.PI / 2;
+    reel.position.set(0, -0.62, -0.44);
+
+    this.rodTipObj = new THREE.Object3D();
+    this.rodTipObj.position.set(0, 0.25, -2.28);
+
+    this.rodGroup.add(rodShaft, rodTip, reel, this.rodTipObj);
+    this.rodGroup.position.set(0, -0.52, -0.04);
+    const rArm = this.localAvatar?.userData?.rig?.rightArm;
+    if (rArm) rArm.add(this.rodGroup);
+    else this.playerRig.add(this.rodGroup);
 
     // 紅白玉ウキ＋波紋リング
     this.bobber = new THREE.Group();
@@ -2792,6 +2795,11 @@ export class FishingScene {
     }
     this.localAvatar = buildHighQualityAngler(cfg, false, fallbackName);
     this.localAvatar.position.set(0, this.isBoating ? 0.44 : 0.0, this.isBoating ? 0.22 : 0.0);
+    if (this.rodGroup) {
+      const rArm = this.localAvatar?.userData?.rig?.rightArm;
+      if (rArm) rArm.add(this.rodGroup);
+      else this.playerRig?.add(this.rodGroup);
+    }
     if (this.playerRig) this.playerRig.add(this.localAvatar);
   }
 
@@ -3335,7 +3343,7 @@ export class FishingScene {
       if (spd > 0.08 && !this.isBoating) this.localWalkPhase += dt * 9.5;
       this.localAvatar.position.set(0, this.isBoating ? 0.44 : 0.0, this.isBoating ? 0.22 : 0.0);
       this.localAvatar.rotation.y = (this.bodyYaw ?? this.yaw) - this.yaw;
-      animateAnglerRig(this.localAvatar, this.localWalkPhase, this.isBoating ? 0 : spd, this.isBoating, t);
+      animateAnglerRig(this.localAvatar, this.localWalkPhase, this.isBoating ? 0 : spd, this.isBoating, t, !!(this.bobber?.visible || this.rodGroup?.visible), this.rodBend || 0);
     }
     for (const av of this.remoteAvatars.values()) {
       const dMove = Math.hypot((av.targetX ?? 0) - av.group.position.x, (av.targetZ ?? 0) - av.group.position.z);
@@ -3431,8 +3439,10 @@ export class FishingScene {
       rp.needsUpdate = true;
     }
 
-    this.rodGroup.rotation.x = -this.rodBend * 0.48 + Math.sin(t * 2) * 0.015;
-    this.rodGroup.visible = this.rodGroup.visible && (this.bobber.visible || this.isBoating);
+    this.rodGroup.visible = Boolean(this.bobber?.visible || this.isBoating || (this.rodBend && this.rodBend > 0.01));
+    this.rodGroup.rotation.x = -this.rodBend * 0.42 + Math.sin(t * 2.2) * 0.02;
+    this.playerRig.updateMatrixWorld(true);
+
     if (this.bobber.visible) {
       const bz = 2.5 - this.bobberDist * 0.6;
       const bwx = this.pos.x + Math.sin(this.yaw) * bz;
@@ -3449,13 +3459,11 @@ export class FishingScene {
       this.bobberRipple.scale.set(rs, rs, 1);
       this.bobberRipple.material.opacity = (1.0 - rCycle) * (0.48 + bitePow * 0.32);
 
-      // シェーダーのリアル水面波紋を更新
       this.waterUniforms.uBobberPos.value.set(bwx, bwz);
       this.waterUniforms.uBobberActive.value = 1.0;
       this.waterUniforms.uSplashAge.value = Math.max(0, t - this.bobberSplashAt);
       this.waterUniforms.uBiteIntensity.value = bitePow;
 
-      // アタリ・ファイト中はウキ周りに細かい水しぶき＆波紋を連続発生
       if (bitePow > 0.16) {
         this.biteSprayAcc += dt;
         if (this.biteSprayAcc > 0.16) {
@@ -3465,9 +3473,13 @@ export class FishingScene {
         }
       }
 
-      const tip = this.rodTipLocal.clone().applyMatrix4(this.rodGroup.matrix);
-      const end = new THREE.Vector3(0, by + 0.14, bz);
-      const sag = Math.max(0.06, (1.0 - this.rodBend) * 0.95);
+      // 竿先(rodTipObj)のワールド座標を playerRig ローカル座標へ変換して釣り糸の始点に完全一致させる
+      const tipWorld = new THREE.Vector3();
+      if (this.rodTipObj) this.rodTipObj.getWorldPosition(tipWorld);
+      else if (this.rodTipLocal) tipWorld.copy(this.rodTipLocal).applyMatrix4(this.rodGroup.matrixWorld);
+      const tip = this.playerRig.worldToLocal(tipWorld);
+      const end = new THREE.Vector3(0, by + 0.12, bz);
+      const sag = Math.max(0.05, (1.0 - this.rodBend) * 0.85);
       const lp = this.fishingLineGeo.attributes.position;
       const minLineY = (oceanY + 0.02) - rigY;
       for (let i = 0; i < 12; i++) {
