@@ -1,5 +1,5 @@
-import { saveCloudSlots, loadCloudSlots, getJstDateKey } from "../config/firebase.js?v=20261128_050205";
-import { applyBankInterest, getActiveBoat } from "../systems/economy.js?v=20261128_050205";
+import { saveCloudSlots, loadCloudSlots, getJstDateKey } from "../config/firebase.js?v=20261128_050528";
+import { applyBankInterest, getActiveBoat } from "../systems/economy.js?v=20261128_050528";
 
 const STORAGE_KEY = "sakana_san_slots_v1";
 export const MAX_SLOTS = 5;
