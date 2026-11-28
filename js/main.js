@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_050528";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_050528";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_050528";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_050528";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_050528";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_051000";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_051000";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_051000";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_051000";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_051000";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_050528";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_050528";
+} from "./systems/economy.js?v=20261128_051000";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_051000";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_050528";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_050528";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_050528";
+} from "./systems/business.js?v=20261128_051000";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_051000";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_051000";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_050528";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_050528";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_050528";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_050528";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_050528";
+} from "./systems/pearlShop.js?v=20261128_051000";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_051000";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_051000";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_051000";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_051000";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_050528";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_050528";
+} from "./systems/fishingEngine.js?v=20261128_051000";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_051000";
 
 
 // ===== オンライン／オフライン履歴 ＆ 右上人数バッジ同期 ＆ 「合わせる」スタミナ消費 =====
@@ -858,6 +858,7 @@ function startCast() {
 }
 
 function startFight() {
+  if (typeof consumeStrikeStaminaOnAction === 'function') { if (!consumeStrikeStaminaOnAction()) return; }
   clearTimeout(biteTimer);
   const save = currentSave();
   const inSpot = scene3d.getNearestHotspot().inSpot;
@@ -3373,9 +3374,8 @@ document.addEventListener("click", (ev) => {
 function consumeStrikeStaminaOnAction() {
   const save = typeof currentSave === "function" ? currentSave() : null;
   if (!save || typeof save.stamina !== "number") return false;
-  // 同じヒット〜リール一連の流れで二重消費しないよう、現在のヒットID/タイムスタンプでガード
-  const biteToken = String(window.__lastBiteStamp || phase || "bite");
-  if (window.__staminaConsumedForBiteToken === biteToken) {
+  const now = Date.now();
+  if (window.__lastStrikeConsumeAt && (now - window.__lastStrikeConsumeAt) < 350) {
     return true;
   }
   if (save.stamina < 2) {
@@ -3385,7 +3385,7 @@ function consumeStrikeStaminaOnAction() {
     if (typeof audioEngine !== "undefined" && audioEngine?.playFail) audioEngine.playFail();
     return false;
   }
-  window.__staminaConsumedForBiteToken = biteToken;
+  window.__lastStrikeConsumeAt = now;
   save.stamina = Math.max(0, save.stamina - 2);
   if (typeof persistSlots === "function" && typeof slots !== "undefined") {
     persistSlots(slots, false);
