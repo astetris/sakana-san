@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_020610";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_020610";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_020610";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_020610";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_020610";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_021706";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_021706";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_021706";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_021706";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_021706";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_020610";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_020610";
+} from "./systems/economy.js?v=20261128_021706";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_021706";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_020610";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_020610";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_020610";
+} from "./systems/business.js?v=20261128_021706";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_021706";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_021706";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_020610";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_020610";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_020610";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_020610";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_020610";
+} from "./systems/pearlShop.js?v=20261128_021706";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_021706";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_021706";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_021706";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_021706";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_020610";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_020610";
+} from "./systems/fishingEngine.js?v=20261128_021706";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_021706";
 
 const $ = (id) => document.getElementById(id);
 
@@ -1516,8 +1516,11 @@ function openBusinessModal() {
       const iceBtn = !def.isAquarium
         ? `<button class="btn-sub" id="biz-ice">❄️ 砕氷補充 ¥800（鮮度回復＆保冷${m.iceActive ? "・保冷中" : ""}）</button>`
         : "";
-      const coolerRows = save.cooler.length
-        ? save.cooler.slice(0, 10).map((c, idx) => `
+      const bizCoolerIndexed = save.cooler.map((c, idx) => ({ c, idx }));
+      const bizCoolerFiltered = bizCoolerRankFilter === "all" ? bizCoolerIndexed : bizCoolerIndexed.filter((e) => e.c.rank === bizCoolerRankFilter);
+      const bizRankBar = save.cooler.length ? buildRankFilterBarHtml("data-biz-rk", bizCoolerRankFilter, save.cooler) : "";
+      const coolerRows = bizCoolerFiltered.length
+        ? bizCoolerFiltered.slice(0, 20).map(({ c, idx }) => `
             <div class="list-row">
               <div><strong class="rank-${c.rank}">[${c.rank}] ${escapeHtml(c.name)}</strong> <span class="muted">${c.weightKg}kg / ¥${(c.price || 0).toLocaleString()}</span></div>
               <button class="btn-mini" data-biz-pick="${idx}">${def.isAquarium ? "展示" : "仕込む"}</button>
@@ -1541,7 +1544,8 @@ function openBusinessModal() {
             ${iceBtn}
           </div>
           <div style="font-size:12px;font-weight:700;margin-top:6px;">📦 クーラーから選んで仕込む（計${save.cooler.length}点）</div>
-          <div style="max-height:130px;overflow-y:auto;">${coolerRows}</div>
+          ${bizRankBar}
+          <div style="max-height:145px;overflow-y:auto;">${coolerRows}</div>
           <div style="font-size:12px;font-weight:700;margin-top:8px;">🏪 現在の店頭ストック</div>
           <div style="max-height:110px;overflow-y:auto;">${curStockRows}</div>
         </div>`;
@@ -1709,10 +1713,65 @@ function openFarmModal() {
 
 function openSeedPickerModal(slotIdx, farmable) {
   const save = currentSave();
-  const rows = farmable.sort((a, b) => a.farmSeedPrice - b.farmSeedPrice).map((sp) => `<div class="list-row"><div><strong class="rank-${sp.rank}">[${sp.rank}] ${sp.name}</strong> <span class="tag">${sp.speciesType === "shellfish" ? "🦪垂下" : "🐟生け簀"}</span><div class="muted">育成時間: 約${Math.round(getFarmDurationMs(sp, isMonthlyPassActive(save)) / 60000)}分 / 市場目安 ¥${sp.basePricePerKg}/kg</div></div><button class="btn-primary" data-pick-seed="${sp.id}">¥${sp.farmSeedPrice.toLocaleString()}</button></div>`).join("");
-  openModal(`🌱 生け簀 #${slotIdx + 1} の種苗を選ぶ`, `${rows}<button class="btn-mini" id="seed-back" style="padding:8px;">← 養殖場へ戻る</button>`);
+  const sorted = [...farmable].sort((a, b) => a.farmSeedPrice - b.farmSeedPrice);
+  let curRank = "all";
+  let query = "";
+
+  openModal(`🌱 生け簀 #${slotIdx + 1} の種苗を選ぶ`, `
+    <input id="seed-search" class="field-input" placeholder="名前で検索（例: タイ / アサリ / コンブ）" style="margin-bottom:4px;padding:6px 8px;font-size:12px;" />
+    <div id="seed-rank-bar"></div>
+    <div id="seed-list" style="max-height:52vh;overflow-y:auto;"></div>
+    <button class="btn-mini" id="seed-back" style="padding:8px;margin-top:6px;">← 養殖場へ戻る</button>
+  `);
+
+  const renderSeeds = () => {
+    const q = query.trim().toLowerCase();
+    const list = sorted.filter((sp) => {
+      if (curRank !== "all" && sp.rank !== curRank) return false;
+      if (q && !`${sp.name} ${sp.kana || ""}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    const rb = $("seed-rank-bar");
+    if (rb) {
+      rb.innerHTML = buildRankFilterBarHtml("data-seed-rk", curRank, sorted);
+      rb.querySelectorAll("[data-seed-rk]").forEach((b) => {
+        b.onclick = () => { curRank = b.dataset.seedRk; renderSeeds(); };
+      });
+    }
+
+    const listEl = $("seed-list");
+    if (!listEl) return;
+    if (!list.length) {
+      listEl.innerHTML = `<div class="muted" style="text-align:center;padding:18px;">該当する種苗がありません</div>`;
+      return;
+    }
+    listEl.innerHTML = list.slice(0, 120).map((sp) => `
+      <div class="list-row">
+        <div>
+          <strong class="rank-${sp.rank}">[${sp.rank}] ${escapeHtml(sp.name)}</strong>
+          <span class="tag">${sp.speciesType === "shellfish" ? "🦪垂下" : sp.speciesType === "seaweed" ? "🌿海藻" : "🐟生け簀"}</span>
+          <div class="muted">育成時間: 約${Math.round(getFarmDurationMs(sp, isMonthlyPassActive(save)) / 60000)}分 / 市場目安 ¥${sp.basePricePerKg}/kg</div>
+        </div>
+        <button class="btn-primary" data-pick-seed="${sp.id}">¥${sp.farmSeedPrice.toLocaleString()}</button>
+      </div>
+    `).join("") + (list.length > 120 ? `<div class="muted" style="text-align:center;padding:6px;font-size:11px;">他 ${list.length - 120}種（検索またはランクで絞り込めます）</div>` : "");
+
+    listEl.querySelectorAll("[data-pick-seed]").forEach((btn) => {
+      btn.onclick = () => {
+        const sp = getSpeciesById(btn.dataset.pickSeed);
+        if (!sp || save.money < sp.farmSeedPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; }
+        save.money -= sp.farmSeedPrice;
+        const now = Date.now();
+        save.farm.plots[slotIdx] = { speciesId: sp.id, startedAt: now, readyAt: now + getFarmDurationMs(sp, isMonthlyPassActive(save)) };
+        persistSlots(slots, true); updateHud(); audioEngine.playCash(); openFarmModal();
+      };
+    });
+  };
+
   $("seed-back").onclick = openFarmModal;
-  $("modal-body").querySelectorAll("[data-pick-seed]").forEach((btn) => { btn.onclick = () => { const sp = getSpeciesById(btn.dataset.pickSeed); if (!sp || save.money < sp.farmSeedPrice) { audioEngine.playFail(); alert("お金が足りません！"); return; } save.money -= sp.farmSeedPrice; const now = Date.now(); save.farm.plots[slotIdx] = { speciesId: sp.id, startedAt: now, readyAt: now + getFarmDurationMs(sp, isMonthlyPassActive(save)) }; persistSlots(slots, true); updateHud(); audioEngine.playCash(); openFarmModal(); }; });
+  $("seed-search").oninput = (e) => { query = e.target.value || ""; renderSeeds(); };
+  renderSeeds();
 }
 
 function openOrdersModal() {
@@ -2465,25 +2524,76 @@ setInterval(() => {
   try { ensurePlayModeButton(); } catch {}
 }, 1000);
 
+
+// ===== 各魚一覧 共通ランク絞り込み（全て / S / A / B / C / D） =====
+let coolerRankFilter = "all";
+let bizCoolerRankFilter = "all";
+
+function buildRankFilterBarHtml(attrName, activeRank, items = null) {
+  const ranks = ["all", "S", "A", "B", "C", "D"];
+  const rankColor = { all: "#38bdf8", S: "#fbbf24", A: "#c084fc", B: "#38bdf8", C: "#34d399", D: "#94a3b8" };
+  return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;">` + ranks.map((rk) => {
+    const cnt = items ? (rk === "all" ? items.length : items.filter((x) => x.rank === rk).length) : null;
+    const act = activeRank === rk;
+    const label = rk === "all" ? "全て" : rk;
+    const cntTxt = cnt !== null ? `(${cnt})` : "";
+    const col = rankColor[rk];
+    return `<button type="button" class="btn-mini" ${attrName}="${rk}" style="padding:4px 8px;font-size:11px;font-weight:700;border:1px solid ${act ? col : "rgba(255,255,255,0.16)"};background:${act ? col : "rgba(15,23,42,0.72)"};color:${act ? "#0f172a" : col};">${label}${cntTxt}</button>`;
+  }).join("") + `</div>`;
+}
+
 function openCoolerModal() {
   const save = currentSave(), { coolerCap } = getEquippedStats(save);
   if (!save.cooler.length) { openModal(`🧊 クーラーボックス (0/${coolerCap})`, `<p class="muted">まだ魚や貝が入っていません。</p>`); return; }
-  const total = save.cooler.reduce((s, x) => s + x.price, 0);
-  const rows = save.cooler.map((x, idx) => `
-    <div class="list-row">
-      <div>
-        <strong class="rank-${x.rank}">[${x.rank}] ${escapeHtml(x.name)}</strong> (${x.weightKg}kg)
-        <div class="muted">${escapeHtml((x.tags || []).join(" / "))}</div>
+
+  const indexed = save.cooler.map((x, idx) => ({ item: x, idx }));
+  const filtered = coolerRankFilter === "all" ? indexed : indexed.filter((e) => e.item.rank === coolerRankFilter);
+  const totalAll = save.cooler.reduce((s, x) => s + Number(x.price || 0), 0);
+  const totalShown = filtered.reduce((s, e) => s + Number(e.item.price || 0), 0);
+
+  const rankBar = buildRankFilterBarHtml("data-cooler-rk", coolerRankFilter, save.cooler);
+  const rows = filtered.length
+    ? filtered.map(({ item: x, idx }) => `
+      <div class="list-row">
+        <div>
+          <strong class="rank-${x.rank}">[${x.rank}] ${escapeHtml(x.name)}</strong> (${x.weightKg}kg)
+          <div class="muted">${escapeHtml((x.tags || []).join(" / "))}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <strong>¥${Number(x.price || 0).toLocaleString()}</strong>
+          <button class="btn-mini" data-sell-idx="${idx}">売る</button>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <strong>¥${Number(x.price || 0).toLocaleString()}</strong>
-        <button class="btn-mini" data-sell-idx="${idx}">売る</button>
-      </div>
-    </div>
-  `).join("");
-  openModal(`🧊 クーラーボックス (${save.cooler.length}/${coolerCap})`, `<div class="btn-row"><button class="btn-primary" id="btn-sell-all" style="flex:1;">一括売却（¥${total.toLocaleString()}）</button><button class="btn-sub" id="btn-go-biz">🏪 店舗へ仕込む</button></div>${rows}`);
+    `).join("")
+    : `<div class="muted" style="text-align:center;padding:18px;">このランクの魚・貝は入っていません</div>`;
+
+  const sellLabel = coolerRankFilter === "all"
+    ? `一括売却（¥${totalAll.toLocaleString()}）`
+    : `${coolerRankFilter}ランクを一括売却（¥${totalShown.toLocaleString()}）`;
+
+  openModal(
+    `🧊 クーラーボックス (${save.cooler.length}/${coolerCap})`,
+    `<div class="btn-row"><button class="btn-primary" id="btn-sell-all" style="flex:1;" ${filtered.length ? "" : "disabled"}>${sellLabel}</button><button class="btn-sub" id="btn-go-biz">🏪 店舗へ仕込む</button></div>${rankBar}${rows}`
+  );
+
   $("btn-go-biz").onclick = openBusinessModal;
-  $("btn-sell-all").onclick = () => { save.money += total; save.stats.totalEarned += total; save.cooler = []; save.lastPlayedAt = Date.now(); recordDailyProgress(save, { earnedDelta: total }); persistSlots(slots, true); updateHud(); audioEngine.playCash(); closeModal(); };
+  $("modal-body").querySelectorAll("[data-cooler-rk]").forEach((btn) => {
+    btn.onclick = () => { coolerRankFilter = btn.dataset.coolerRk; openCoolerModal(); };
+  });
+  $("btn-sell-all").onclick = () => {
+    if (!filtered.length) return;
+    if (coolerRankFilter === "all") {
+      save.money += totalAll; save.stats.totalEarned += totalAll; save.cooler = [];
+      recordDailyProgress(save, { earnedDelta: totalAll });
+    } else {
+      const keep = save.cooler.filter((x) => x.rank !== coolerRankFilter);
+      save.money += totalShown; save.stats.totalEarned += totalShown; save.cooler = keep;
+      recordDailyProgress(save, { earnedDelta: totalShown });
+    }
+    save.lastPlayedAt = Date.now();
+    persistSlots(slots, true); updateHud(); audioEngine.playCash();
+    if (save.cooler.length) openCoolerModal(); else closeModal();
+  };
   $("modal-body").querySelectorAll("[data-sell-idx]").forEach((btn) => {
     btn.onclick = () => sellCoolerItemAt(Number(btn.dataset.sellIdx));
   });
@@ -2517,6 +2627,7 @@ function openDexModal() {
   const caughtCount = Object.keys(dexMap).length;
 
   let curTab = "all";
+  let curRank = "all";
   let curArea = "all";
   let onlyCaught = false;
   let query = "";
@@ -2566,6 +2677,7 @@ function openDexModal() {
       <button type="button" class="btn-mini" data-dtab="seaweed">🌿海藻</button>
       <button type="button" class="btn-mini" data-dtab="other">🦀甲殻・他</button>
     </div>
+    <div id="dex-rank-bar"></div>
     <div id="dex-meta" class="muted" style="font-size:11px;margin-bottom:6px;"></div>
     <div id="dex-list" style="display:grid;grid-template-columns:1fr;gap:6px;max-height:46vh;overflow-y:auto;padding-right:2px;"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
@@ -2582,6 +2694,7 @@ function openDexModal() {
     for (let i = 0; i < all.length; i++) {
       const s = all[i];
       if (!matchTab(s)) continue;
+      if (curRank !== "all" && s.rank !== curRank) continue;
       if (curArea !== "all" && !(s.areas || []).includes(curArea)) continue;
       const rec = dexMap[s.id];
       if (onlyCaught && !rec) continue;
@@ -2604,6 +2717,13 @@ function openDexModal() {
     if ($("dex-prev")) $("dex-prev").disabled = page <= 0;
     if ($("dex-next")) $("dex-next").disabled = page >= totalPages - 1;
 
+    const drb = $("dex-rank-bar");
+    if (drb) {
+      drb.innerHTML = buildRankFilterBarHtml("data-dex-rk", curRank);
+      drb.querySelectorAll("[data-dex-rk]").forEach((b) => {
+        b.onclick = () => { curRank = b.dataset.dexRk; page = 0; renderDex(); };
+      });
+    }
     document.querySelectorAll("#dex-tabs [data-dtab]").forEach((b) => {
       const act = b.dataset.dtab === curTab;
       b.style.background = act ? "#0284c7" : "";
