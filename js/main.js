@@ -104,6 +104,161 @@ async function reserveUniqueName(rawName, prevName = "", ignoreSlotIdx = -1) {
   return await claimPlayerName(clean, prevName);
 }
 
+
+// ===== 文字を一切使わないビジュアルアバター選択UI（4シルエット×服8色×髪6色） =====
+const AVATAR_COLORS = ["#0284c7", "#0f766e", "#e11d48", "#d97706", "#7c3aed", "#16a34a", "#ea580c", "#334155"];
+const AVATAR_HAIRS  = ["#261c16", "#5a3825", "#8c5a32", "#d6ad60", "#cbd5e1", "#1e3a5f"];
+
+function ensureAvatarState(save) {
+  if (!save) return { model: 0, color: "#0284c7", hair: "#261c16" };
+  if (!save.avatar || typeof save.avatar !== "object") {
+    save.avatar = { model: 0, color: "#0284c7", hair: "#261c16" };
+  }
+  const m = Number(save.avatar.model ?? 0);
+  save.avatar.model = (m >= 0 && m <= 3) ? m : 0;
+  save.avatar.color = save.avatar.color || "#0284c7";
+  save.avatar.hair = save.avatar.hair || "#261c16";
+  return save.avatar;
+}
+
+function renderAvatarPreviewSvg(model, color, hair) {
+  const slim = (model === 1 || model === 3);
+  const hatColor = (model === 2 || model === 3) ? color : "#d9ad6c";
+  const bandColor = (model === 2 || model === 3) ? "#f8fafc" : color;
+  const bootColor = slim ? "#3b2a22" : "#18181b";
+
+  // 髪型SVG
+  let hairBack = "";
+  let hairFront = "";
+  if (model === 1) {
+    hairBack = `<rect x="26" y="25" width="38" height="38" rx="14" fill="${hair}"/>`;
+    hairFront = `<path d="M31 28 Q30 48 33 56" stroke="${hair}" stroke-width="5" stroke-linecap="round" fill="none"/>
+                 <path d="M59 28 Q60 48 57 56" stroke="${hair}" stroke-width="5" stroke-linecap="round" fill="none"/>`;
+  } else if (model === 3) {
+    hairBack = `<ellipse cx="62" cy="36" rx="9" ry="15" transform="rotate(-18 62 36)" fill="${hair}"/>
+                <circle cx="57" cy="27" r="3.5" fill="${color}"/>`;
+    hairFront = `<path d="M32 28 Q32 41 34 45" stroke="${hair}" stroke-width="4" stroke-linecap="round" fill="none"/>
+                 <path d="M58 28 Q58 41 56 45" stroke="${hair}" stroke-width="4" stroke-linecap="round" fill="none"/>`;
+  } else {
+    hairBack = `<rect x="30" y="22" width="30" height="19" rx="10" fill="${hair}"/>`;
+  }
+
+  // 帽子SVG
+  let hatSvg = "";
+  if (model === 2 || model === 3) {
+    hatSvg = `<path d="M31 27 C31 14, 59 14, 59 27 Z" fill="${hatColor}"/>
+              <rect x="29" y="24" width="38" height="5" rx="2.5" fill="${hatColor}"/>
+              <rect x="40" y="18" width="10" height="4" rx="1.5" fill="${bandColor}"/>`;
+  } else if (model === 1) {
+    hatSvg = `<ellipse cx="45" cy="25" rx="26" ry="5" fill="${hatColor}"/>
+              <rect x="32" y="13" width="26" height="12" rx="6" fill="${hatColor}"/>
+              <rect x="32" y="21" width="26" height="3.5" fill="${bandColor}"/>`;
+  } else {
+    hatSvg = `<ellipse cx="45" cy="25" rx="22" ry="4.5" fill="${hatColor}"/>
+              <rect x="32" y="13" width="26" height="12" rx="5" fill="${hatColor}"/>
+              <rect x="32" y="21" width="26" height="3.5" fill="${bandColor}"/>`;
+  }
+
+  // 胴体・脚シルエット
+  const bodySvg = slim
+    ? `<rect x="35" y="48" width="20" height="26" rx="6" fill="${color}"/>
+       <rect x="42" y="48" width="6" height="24" fill="#f8fafc" opacity="0.88"/>
+       <rect x="27" y="50" width="7" height="22" rx="3.5" fill="#f8fafc"/>
+       <rect x="56" y="50" width="7" height="22" rx="3.5" fill="#f8fafc"/>
+       <circle cx="30.5" cy="74" r="3.5" fill="#f7cfa0"/>
+       <circle cx="59.5" cy="74" r="3.5" fill="#f7cfa0"/>
+       ${model === 1
+         ? `<path d="M34 72 L56 72 L62 93 L28 93 Z" fill="#3b485b"/>`
+         : `<path d="M34 72 L56 72 L59 87 L31 87 Z" fill="#3b485b"/>`}
+       <rect x="36" y="${model === 1 ? 92 : 86}" width="6" height="${model === 1 ? 14 : 20}" rx="3" fill="#f7cfa0"/>
+       <rect x="48" y="${model === 1 ? 92 : 86}" width="6" height="${model === 1 ? 14 : 20}" rx="3" fill="#f7cfa0"/>
+       <rect x="35" y="102" width="8" height="14" rx="3" fill="${bootColor}"/>
+       <rect x="47" y="102" width="8" height="14" rx="3" fill="${bootColor}"/>`
+    : `<rect x="30" y="48" width="30" height="30" rx="6" fill="${color}"/>
+       <rect x="42" y="48" width="6" height="28" fill="#f8fafc" opacity="0.88"/>
+       <rect x="33" y="56" width="7" height="7" rx="1.5" fill="#1e293b" opacity="0.7"/>
+       <rect x="50" y="56" width="7" height="7" rx="1.5" fill="#1e293b" opacity="0.7"/>
+       <rect x="22" y="49" width="8" height="25" rx="4" fill="#f8fafc"/>
+       <rect x="60" y="49" width="8" height="25" rx="4" fill="#f8fafc"/>
+       <circle cx="26" cy="76" r="4" fill="#f7cfa0"/>
+       <circle cx="64" cy="76" r="4" fill="#f7cfa0"/>
+       <rect x="33" y="77" width="10" height="26" rx="4" fill="#334155"/>
+       <rect x="47" y="77" width="10" height="26" rx="4" fill="#334155"/>
+       <rect x="32" y="99" width="12" height="17" rx="3.5" fill="${bootColor}"/>
+       <rect x="46" y="99" width="12" height="17" rx="3.5" fill="${bootColor}"/>`;
+
+  return `<svg viewBox="0 0 90 122" style="width:100%;height:96px;display:block;pointer-events:none;">
+    ${hairBack}
+    <rect x="41" y="42" width="8" height="8" rx="3" fill="#f7cfa0"/>
+    <circle cx="45" cy="33" r="${slim ? 12.5 : 13}" fill="#f7cfa0"/>
+    <circle cx="40" cy="34" r="${slim ? 1.8 : 1.6}" fill="#111827"/>
+    <circle cx="50" cy="34" r="${slim ? 1.8 : 1.6}" fill="#111827"/>
+    ${slim ? `<circle cx="36.5" cy="37" r="2.1" fill="#f4a59c" opacity="0.55"/><circle cx="53.5" cy="37" r="2.1" fill="#f4a59c" opacity="0.55"/>` : ""}
+    ${hairFront}
+    ${hatSvg}
+    ${bodySvg}
+  </svg>`;
+}
+
+function buildAvatarPickerHtml(prefix, state) {
+  const modelsHtml = [0, 1, 2, 3].map((m) => {
+    const act = state.model === m;
+    return `<button type="button" data-avm="${m}" style="padding:4px 2px;border-radius:10px;border:2px solid ${act ? "#38bdf8" : "rgba(255,255,255,0.14)"};background:${act ? "rgba(56,189,248,0.2)" : "rgba(15,23,42,0.72)"};cursor:pointer;">
+      ${renderAvatarPreviewSvg(m, state.color, state.hair)}
+    </button>`;
+  }).join("");
+
+  const colorDots = AVATAR_COLORS.map((c) => {
+    const act = state.color === c;
+    return `<button type="button" data-avc="${c}" style="width:26px;height:26px;border-radius:50%;background:${c};border:${act ? "3px solid #ffffff" : "2px solid rgba(255,255,255,0.28)"};box-shadow:${act ? "0 0 0 2px #38bdf8" : "none"};cursor:pointer;padding:0;"></button>`;
+  }).join("");
+
+  const hairDots = AVATAR_HAIRS.map((h) => {
+    const act = state.hair === h;
+    return `<button type="button" data-avh="${h}" style="width:22px;height:22px;border-radius:50%;background:${h};border:${act ? "3px solid #ffffff" : "2px solid rgba(255,255,255,0.28)"};box-shadow:${act ? "0 0 0 2px #38bdf8" : "none"};cursor:pointer;padding:0;"></button>`;
+  }).join("");
+
+  return `
+    <div id="${prefix}-picker" style="margin:6px 0 10px;">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">${modelsHtml}</div>
+      <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:7px;margin-bottom:6px;">${colorDots}</div>
+      <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:7px;">${hairDots}</div>
+    </div>
+  `;
+}
+
+function mountAvatarPicker(containerEl, prefix, state, onChange) {
+  const draw = () => {
+    containerEl.innerHTML = buildAvatarPickerHtml(prefix, state);
+    containerEl.querySelectorAll("[data-avm]").forEach((b) => {
+      b.onclick = () => { state.model = Number(b.dataset.avm); draw(); onChange?.(state); };
+    });
+    containerEl.querySelectorAll("[data-avc]").forEach((b) => {
+      b.onclick = () => { state.color = b.dataset.avc; draw(); onChange?.(state); };
+    });
+    containerEl.querySelectorAll("[data-avh]").forEach((b) => {
+      b.onclick = () => { state.hair = b.dataset.avh; draw(); onChange?.(state); };
+    });
+  };
+  draw();
+}
+
+function openNewAvatarPickerModal(onConfirm) {
+  const draft = { model: 0, color: "#0284c7", hair: "#261c16" };
+  openModal("✨", `
+    <div class="bank-box" style="text-align:center;">
+      <div id="new-av-host"></div>
+      <button type="button" id="btn-new-av-ok" class="btn-primary" style="width:100%;height:46px;font-size:1rem;margin-top:6px;">✔</button>
+    </div>
+  `);
+  mountAvatarPicker($("new-av-host"), "newav", draft);
+  $("btn-new-av-ok").onclick = () => {
+    audioEngine.playOk?.();
+    closeModal();
+    onConfirm({ ...draft });
+  };
+}
+
 function currentSave() { return activeSlotIndex >= 0 ? slots[activeSlotIndex] : null; }
 
 function getSpeciesMap() {
@@ -218,9 +373,13 @@ function renderSlots() {
         if (res.ok) { name = res.name; break; }
         alert("⚠️ " + res.reason);
       }
-      slots[idx] = createNewSave(name.slice(0, 12));
-      persistSlots(slots, true);
-      startSlot(idx);
+      openNewAvatarPickerModal((pickedAvatar) => {
+        const ns = createNewSave(name.slice(0, 12));
+        ns.avatar = pickedAvatar;
+        slots[idx] = ns;
+        persistSlots(slots, true);
+        startSlot(idx);
+      });
     };
   });
   wrap.querySelectorAll("[data-del]").forEach((btn) => {
@@ -293,7 +452,7 @@ function startSlot(idx) {
   scene3d.setPlayerState({
     x: canBoat ? save.worldPos.x : Math.max(-150, Math.min(130, save.worldPos.x || 0)),
     z: canBoat ? Math.min(-12, save.worldPos.z) : Math.max(-2, save.worldPos.z || 4),
-    yaw: save.worldPos.yaw || 0, isBoating: canBoat, boatSpeed: boat.speed || 1.2, boatTier: boat.tier
+    yaw: save.worldPos.yaw || 0, isBoating: canBoat, boatSpeed: boat.speed || 1.2, boatTier: boat.tier, avatar: ensureAvatarState(save), name: save.name
   });
   syncMyPublicProfile();
   updateHud();
@@ -317,8 +476,9 @@ function broadcastPresence() {
     title: save.profile?.title || "見習い漁師",
     x: Number(scene3d.pos.x.toFixed(1)),
     z: Number(scene3d.pos.y.toFixed(1)),
-    yaw: Number(scene3d.yaw.toFixed(2)),
+    yaw: Number((scene3d.getAvatarYaw ? scene3d.getAvatarYaw() : scene3d.yaw).toFixed(2)),
     isBoating: scene3d.isBoating,
+    avatar: ensureAvatarState(save),
     status: activeModalType === "lounge_rest" ? "resting" : phase,
     stamp: myLastStamp,
     stampTs: myLastStampTs
@@ -941,11 +1101,13 @@ function openMyProfileEditModal() {
   const dexGot = Object.keys(save.dex || {}).length;
   const allTitles = [...new Set([...PROFILE_TITLES, ...(save.unlockedTitles || [])])];
   const titleOpts = allTitles.map((t) => `<option value="${t}" ${save.profile?.title === t ? "selected" : ""}>${t}</option>`).join("");
-  const favOpts = getAllSpecies().map((s) => `<option value="${s.name}" ${save.profile?.favSpecies === s.name ? "selected" : ""}>${s.name}</option>`).join("");
+  const favOpts = getAllSpecies().slice(0, 180).map((s) => `<option value="${s.name}" ${save.profile?.favSpecies === s.name ? "selected" : ""}>${s.name}</option>`).join("");
+  const draftAvatar = { ...ensureAvatarState(save) };
 
   openModal("👤 マイプロフィール編集", `
     <div class="bank-box">
       <div class="muted">港の評価 Lv${lv} / 図鑑 ${dexGot}種 / 累計釣果 ${save.stats.totalCaught}匹 ${isMonthlyPassActive(save) ? '<span class="tag purple">🌙パス会員</span>' : ""}</div>
+      <div id="prof-avatar-host"></div>
       <label class="muted">表示名（最大12文字）</label>
       <input id="prof-name" class="field-input" maxlength="12" value="${escapeHtml(save.name)}" />
       <label class="muted">称号</label>
@@ -959,7 +1121,14 @@ function openMyProfileEditModal() {
     <button class="btn-mini" id="prof-back" style="padding:8px;">← 閉じる</button>
   `);
 
-  $("prof-back").onclick = closeModal;
+  mountAvatarPicker($("prof-avatar-host"), "profav", draftAvatar, (st) => {
+    scene3d?.setLocalAvatar?.(st, save.name);
+  });
+
+  $("prof-back").onclick = () => {
+    scene3d?.setLocalAvatar?.(ensureAvatarState(save), save.name);
+    closeModal();
+  };
   $("prof-save").onclick = async () => {
     const newName = ($("prof-name").value || "").trim().slice(0, 12);
     if (newName && newName !== save.name) {
@@ -970,6 +1139,8 @@ function openMyProfileEditModal() {
       }
       save.name = nRes.name;
     }
+    save.avatar = { ...draftAvatar };
+    scene3d?.setLocalAvatar?.(save.avatar, save.name);
     save.profile = {
       title: $("prof-title").value,
       favSpecies: $("prof-fav").value,

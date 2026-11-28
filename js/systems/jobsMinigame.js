@@ -299,7 +299,7 @@ function runNetRepairGame(container, job, onFinish) {
 
 function runPatrolGame(container, job, onFinish) {
   const GOAL_DIST = 1100;
-  let timeLeft = 48.0;
+  let timeLeft = 54.0;
   let dist = 0;
   let speed = 18;
   let truckX = 140;
@@ -310,29 +310,35 @@ function runPatrolGame(container, job, onFinish) {
   let finished = false;
 
   const stops = [
-    { at: 360, name: "🐟 港の魚市場", done: false },
-    { at: 730, name: "🍣 寿司処 凪",  done: false },
+    { at: 360,  name: "🐟 港の魚市場", done: false },
+    { at: 730,  name: "🍣 寿司処 凪",  done: false },
     { at: 1080, name: "🚉 駅前鮮魚店", done: false }
   ];
 
+  // 信号・踏切を距離ベースで事前予告（130m手前からカウントダウン＆黄→赤の段階変化）
+  const events = [
+    { type: "signal", at: 310, warnAt: 180, spawned: false, done: false },
+    { type: "rail",   at: 640, warnAt: 500, spawned: false, done: false },
+    { type: "signal", at: 910, warnAt: 780, spawned: false, done: false }
+  ];
+
   const cars = [];
-  let spawnTimer = 0.8;
-  let signalEvent = null;
-  let railEvent = null;
-  let nextSignalDist = 240;
-  let nextRailDist = 560;
-  let bannerMsg = "🚚 アクセルで出発！赤信号と踏切は一時停止、他車を避けて3拠点へ配送しよう";
+  let spawnTimer = 1.0;
+  let signalEvent = null; // { y, state: 'yellow'|'red'|'green', yellowTimer, redTimer, passed, rewarded }
+  let railEvent = null;   // { y, closed, trainX, timer, passed, rewarded }
+  let bannerMsg = "🚚 アクセルで出発！信号・踏切は130m手前から予告が出ます";
 
   const ctrl = { left: false, right: false, gas: false, brake: false };
 
   container.innerHTML = `
     <div class="job-stage" style="text-align:center;">
       <div class="job-hud" style="font-size:11px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
-        <span>⏱ <strong id="tr-time">48</strong>s</span>
+        <span>⏱ <strong id="tr-time">54</strong>s</span>
         <span>📍 残<strong id="tr-rem">1100</strong>m</span>
         <span>🐟 鮮度<strong id="tr-fresh">100</strong>%</span>
         <span>🚚 <strong id="tr-spd">18</strong>km/h</span>
       </div>
+      <div id="tr-warn-bar" style="display:none;padding:4px 8px;border-radius:7px;font-size:12px;font-weight:800;margin-bottom:4px;background:rgba(245,158,11,0.28);color:#fde047;border:1px solid rgba(250,204,21,0.6);"></div>
       <div id="tr-msg" style="font-size:11px;color:#38bdf8;min-height:16px;margin-bottom:4px;">${bannerMsg}</div>
       <canvas id="truck-drive-cv" width="280" height="230" style="width:100%;max-width:300px;height:230px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:#1e293b;display:block;margin:0 auto;touch-action:none;"></canvas>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:8px;user-select:none;">
@@ -414,9 +420,10 @@ function runPatrolGame(container, job, onFinish) {
 
     timeLeft = Math.max(0, timeLeft - dt);
 
-    if (ctrl.gas) speed = Math.min(92, speed + 52 * dt);
-    else if (ctrl.brake) speed = Math.max(0, speed - 95 * dt);
-    else speed = Math.max(12, speed - 18 * dt);
+    // ブレーキ性能を強化し、予告を見て確実に気持ちよく止まれるようにする
+    if (ctrl.gas) speed = Math.min(88, speed + 52 * dt);
+    else if (ctrl.brake) speed = Math.max(0, speed - 135 * dt);
+    else speed = Math.max(10, speed - 22 * dt);
 
     const steerSpd = 128 + speed * 0.65;
     if (ctrl.left) truckX -= steerSpd * dt;
@@ -425,8 +432,8 @@ function runPatrolGame(container, job, onFinish) {
 
     const moveM = (speed * 0.42) * dt;
     dist += moveM;
-    roadScroll = (roadScroll + moveM * 6.5) % 40;
-    freshness = Math.max(0, freshness - dt * 0.48);
+    roadScroll = (roadScroll + moveM * 6.0) % 40;
+    freshness = Math.max(0, freshness - dt * 0.42);
 
     for (const s of stops) {
       if (!s.done && dist >= s.at) {
@@ -437,21 +444,37 @@ function runPatrolGame(container, job, onFinish) {
       }
     }
 
-    if (!signalEvent && dist >= nextSignalDist && dist < GOAL_DIST - 120) {
-      nextSignalDist += 420;
-      signalEvent = { y: -30, state: "red", timer: 3.4, passed: false, rewarded: false };
-      bannerMsg = "🚦 前方に赤信号！停止線の手前でブレーキして待とう";
+    // 事前予告の判定＆イベント生成（画面上部に出現するのは予告から十分あと）
+    let activeWarn = null;
+    for (const ev of events) {
+      if (ev.done) continue;
+      const remM = Math.max(0, Math.round(ev.at - dist));
+      if (!ev.spawned && dist >= ev.warnAt) {
+        activeWarn = { type: ev.type, remM };
+        if (remM <= 26) {
+          ev.spawned = true;
+          if (ev.type === "signal") {
+            signalEvent = { y: -24, state: "yellow", yellowTimer: 1.3, redTimer: 3.1, passed: false, rewarded: false, refEv: ev };
+          } else {
+            railEvent = { y: -24, closed: true, trainX: -220, timer: 3.6, passed: false, rewarded: false, refEv: ev };
+          }
+        }
+      }
     }
+
     if (signalEvent) {
-      signalEvent.y += moveM * 6.5;
-      if (signalEvent.state === "red") {
-        signalEvent.timer -= dt;
-        if (signalEvent.timer <= 0) {
+      signalEvent.y += moveM * 6.0;
+      if (signalEvent.state === "yellow") {
+        signalEvent.yellowTimer -= dt;
+        if (signalEvent.yellowTimer <= 0) signalEvent.state = "red";
+      } else if (signalEvent.state === "red") {
+        signalEvent.redTimer -= dt;
+        if (signalEvent.redTimer <= 0) {
           signalEvent.state = "green";
           bannerMsg = "🟢 青信号！発進しよう！";
           audioEngine.playOk?.();
         }
-        if (!signalEvent.rewarded && signalEvent.y >= 115 && signalEvent.y <= 165 && speed < 4) {
+        if (!signalEvent.rewarded && signalEvent.y >= 95 && signalEvent.y <= 165 && speed < 5) {
           signalEvent.rewarded = true;
           safetyScore += 1;
           bannerMsg = "👏 安全停止ナイス！青になるのを待とう";
@@ -459,26 +482,24 @@ function runPatrolGame(container, job, onFinish) {
       }
       if (!signalEvent.passed && signalEvent.y > 180) {
         signalEvent.passed = true;
-        if (signalEvent.state === "red" && speed > 10) {
-          freshness = Math.max(0, freshness - 16);
-          bannerMsg = "🚨 赤信号無視！急ハンドルで鮮度ダウン (-16%)";
+        if (signalEvent.state === "red" && speed > 12) {
+          freshness = Math.max(0, freshness - 12);
+          bannerMsg = "🚨 赤信号通過！急ハンドルで鮮度ダウン (-12%)";
           audioEngine.playFail?.();
         }
       }
-      if (signalEvent.y > 260) signalEvent = null;
+      if (signalEvent.y > 260) {
+        if (signalEvent.refEv) signalEvent.refEv.done = true;
+        signalEvent = null;
+      }
     }
 
-    if (!railEvent && !signalEvent && dist >= nextRailDist && dist < GOAL_DIST - 140) {
-      nextRailDist += 680;
-      railEvent = { y: -30, closed: true, trainX: -180, timer: 4.0, passed: false, rewarded: false };
-      bannerMsg = "🚧 踏切が鳴っている！電車が通過するまで一時停止しよう";
-    }
     if (railEvent) {
-      railEvent.y += moveM * 6.5;
+      railEvent.y += moveM * 6.0;
       if (railEvent.closed) {
         railEvent.timer -= dt;
         railEvent.trainX += 165 * dt;
-        if (railEvent.y >= 110 && railEvent.y <= 165 && speed < 4 && !railEvent.rewarded) {
+        if (railEvent.y >= 90 && railEvent.y <= 165 && speed < 5 && !railEvent.rewarded) {
           railEvent.rewarded = true;
           safetyScore += 1;
           bannerMsg = "🚆 踏切で安全一時停止！電車通過待ち…";
@@ -492,38 +513,39 @@ function runPatrolGame(container, job, onFinish) {
       if (!railEvent.passed && railEvent.y > 180) {
         railEvent.passed = true;
         if (railEvent.closed) {
-          integrity = Math.max(0, integrity - 35);
-          freshness = Math.max(0, freshness - 22);
+          integrity = Math.max(0, integrity - 25);
+          freshness = Math.max(0, freshness - 16);
           speed = 10;
-          bannerMsg = "💥 遮断機に接触！鮮度＆車体に大ダメージ！";
+          bannerMsg = "💥 遮断機に接触！鮮度＆車体にダメージ！";
           audioEngine.playFail?.();
         }
       }
-      if (railEvent.y > 260) railEvent = null;
+      if (railEvent.y > 260) {
+        if (railEvent.refEv) railEvent.refEv.done = true;
+        railEvent = null;
+      }
     }
 
+    // 予告中・信号・踏切の前後には他車を出さない（安全に減速に集中できる）
     spawnTimer -= dt;
-    if (spawnTimer <= 0 && !signalEvent && !railEvent) {
-      spawnTimer = 1.05 + Math.random() * 0.9;
+    if (spawnTimer <= 0 && !activeWarn && !signalEvent && !railEvent) {
+      spawnTimer = 1.2 + Math.random() * 0.9;
       const lane = LANE_XS[Math.floor(Math.random() * LANE_XS.length)];
-      const isBus = Math.random() < 0.25;
+      const isBus = Math.random() < 0.24;
       cars.push({
-        x: lane,
-        y: -45,
-        w: isBus ? 30 : 24,
-        h: isBus ? 56 : 38,
+        x: lane, y: -45, w: isBus ? 30 : 24, h: isBus ? 56 : 38,
         spd: isBus ? 18 : (24 + Math.random() * 14),
         col: isBus ? "#0284c7" : (Math.random() < 0.5 ? "#ef4444" : "#cbd5e1")
       });
     }
     for (let i = cars.length - 1; i >= 0; i--) {
       const c = cars[i];
-      c.y += ((speed - c.spd) * 0.42) * 6.5 * dt;
+      c.y += ((speed - c.spd) * 0.42) * 6.0 * dt;
       if (Math.abs(c.x - truckX) < (c.w / 2 + 12) && Math.abs(c.y - 178) < (c.h / 2 + 19)) {
-        integrity = Math.max(0, integrity - 22);
-        freshness = Math.max(0, freshness - 14);
-        speed = Math.max(8, speed * 0.35);
-        bannerMsg = "💥 接触事故！鮮度-14% 気をつけて運転しよう";
+        integrity = Math.max(0, integrity - 20);
+        freshness = Math.max(0, freshness - 12);
+        speed = Math.max(8, speed * 0.4);
+        bannerMsg = "💥 接触事故！鮮度-12% 気をつけて運転しよう";
         audioEngine.playFail?.();
         cars.splice(i, 1);
         continue;
@@ -531,6 +553,7 @@ function runPatrolGame(container, job, onFinish) {
       if (c.y > 290 || c.y < -120) cars.splice(i, 1);
     }
 
+    // ===== 描画 =====
     ctx.fillStyle = "#0369a1"; ctx.fillRect(0, 0, 32, 230);
     ctx.fillStyle = "#475569"; ctx.fillRect(248, 0, 32, 230);
     ctx.fillStyle = "#27303d"; ctx.fillRect(32, 0, 216, 230);
@@ -543,19 +566,34 @@ function runPatrolGame(container, job, onFinish) {
       ctx.fillRect(175, y, 3, 20);
     }
 
+    // 予告中の路面マーキング表示
+    if (activeWarn) {
+      const blink = Math.floor(now / 260) % 2 === 0;
+      ctx.fillStyle = blink ? "rgba(250,204,21,0.92)" : "rgba(245,158,11,0.65)";
+      ctx.fillRect(42, 8, 196, 24);
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        activeWarn.type === "signal"
+          ? `🚦 もうすぐ信号！あと ${activeWarn.remM}m`
+          : `🚧 もうすぐ踏切！あと ${activeWarn.remM}m`,
+        140, 24
+      );
+      ctx.textAlign = "left";
+    }
+
     if (signalEvent) {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(38, signalEvent.y, 204, 5);
       ctx.fillStyle = "#111827";
-      ctx.fillRect(236, signalEvent.y - 26, 20, 34);
-      ctx.beginPath();
-      ctx.arc(246, signalEvent.y - 17, 6, 0, Math.PI * 2);
-      ctx.fillStyle = signalEvent.state === "red" ? "#ef4444" : "#3f1d1d";
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(246, signalEvent.y - 2, 6, 0, Math.PI * 2);
-      ctx.fillStyle = signalEvent.state === "green" ? "#22c55e" : "#143523";
-      ctx.fill();
+      ctx.fillRect(236, signalEvent.y - 36, 20, 46);
+      ctx.beginPath(); ctx.arc(246, signalEvent.y - 27, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = signalEvent.state === "red" ? "#ef4444" : "#3f1d1d"; ctx.fill();
+      ctx.beginPath(); ctx.arc(246, signalEvent.y - 13, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = signalEvent.state === "yellow" ? "#facc15" : "#3b3214"; ctx.fill();
+      ctx.beginPath(); ctx.arc(246, signalEvent.y + 1, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = signalEvent.state === "green" ? "#22c55e" : "#143523"; ctx.fill();
     }
 
     if (railEvent) {
@@ -599,11 +637,22 @@ function runPatrolGame(container, job, onFinish) {
     const fEl = container.querySelector("#tr-fresh");
     const sEl = container.querySelector("#tr-spd");
     const mEl = container.querySelector("#tr-msg");
+    const wEl = container.querySelector("#tr-warn-bar");
     if (tEl) tEl.textContent = Math.ceil(timeLeft);
     if (rEl) rEl.textContent = Math.max(0, Math.round(GOAL_DIST - dist));
     if (fEl) fEl.textContent = Math.round(freshness);
     if (sEl) sEl.textContent = Math.round(speed);
     if (mEl) mEl.textContent = bannerMsg;
+    if (wEl) {
+      if (activeWarn) {
+        wEl.style.display = "block";
+        wEl.textContent = activeWarn.type === "signal"
+          ? `⚠️ 予告：${activeWarn.remM}m先に信号あり！減速の準備をしよう`
+          : `⚠️ 予告：${activeWarn.remM}m先に踏切あり！減速して一時停止しよう`;
+      } else {
+        wEl.style.display = "none";
+      }
+    }
 
     if (dist >= GOAL_DIST) { endGame(true); return; }
     if (timeLeft <= 0 || integrity <= 0 || freshness <= 0) { endGame(false); return; }

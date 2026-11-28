@@ -730,80 +730,164 @@ function buildKeiTruck() {
 }
 
 
-// ===== 高クオリティ釣り人・漁師3Dアバター生成（自分＆マルチ共通） =====
+// ===== 高クオリティ釣り人・漁師3Dアバター生成（4造形シルエット＆カラー対応） =====
 function hashColorFromName(name = "") {
-  const palette = [0x0284c7, 0x0f766e, 0xd97706, 0xe11d48, 0x7c3aed, 0x2563eb, 0x16a34a, 0xea580c];
+  const palette = ["#0284c7", "#0f766e", "#d97706", "#e11d48", "#7c3aed", "#2563eb", "#16a34a", "#ea580c"];
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
   return palette[h % palette.length];
 }
 
-function buildHighQualityAngler(accentHex = 0x0284c7, withRod = true) {
-  const root = new THREE.Group();
-  const skinMat = new THREE.MeshStandardMaterial({ color: 0xf7cfa0, roughness: 0.72 });
-  const hairMat = new THREE.MeshStandardMaterial({ color: 0x261c16, roughness: 0.85 });
-  const shirtMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.75 });
-  const vestMat = new THREE.MeshStandardMaterial({ color: accentHex, roughness: 0.58, metalness: 0.08 });
-  const pocketMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.65 });
-  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.85 });
-  const bootMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.45 });
-  const hatMat = new THREE.MeshStandardMaterial({ color: 0xd6a55c, roughness: 0.72 });
-  const hatBandMat = new THREE.MeshStandardMaterial({ color: accentHex, roughness: 0.5 });
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111827 });
+function normalizeAvatarOpt(opt, fallbackName = "") {
+  if (typeof opt === "number") {
+    return { model: 0, color: opt, hair: 0x261c16 };
+  }
+  const m = Number(opt?.model ?? 0);
+  const model = (m >= 0 && m <= 3) ? m : 0;
+  const color = opt?.color || hashColorFromName(fallbackName);
+  const hair = opt?.hair || "#261c16";
+  return { model, color, hair };
+}
 
-  // 胴体（シャツ＋フィッシングベスト＋胸ポケット＆ライフベルト）
+function buildHighQualityAngler(avatarOpt = null, withRod = true, fallbackName = "") {
+  const cfg = normalizeAvatarOpt(avatarOpt, fallbackName);
+  const slim = (cfg.model === 1 || cfg.model === 3);
+  const root = new THREE.Group();
+
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xf7cfa0, roughness: 0.70 });
+  const hairMat = new THREE.MeshStandardMaterial({ color: cfg.hair, roughness: 0.82 });
+  const shirtMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.72 });
+  const vestMat = new THREE.MeshStandardMaterial({ color: cfg.color, roughness: 0.55, metalness: 0.08 });
+  const pocketMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.65 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: slim ? 0x3b485b : 0x334155, roughness: 0.84 });
+  const bootMat = new THREE.MeshStandardMaterial({ color: slim ? 0x3b2a22 : 0x18181b, roughness: 0.45 });
+  const hatMat = new THREE.MeshStandardMaterial({ color: (cfg.model === 2 || cfg.model === 3) ? cfg.color : 0xd9ad6c, roughness: 0.70 });
+  const hatBandMat = new THREE.MeshStandardMaterial({ color: (cfg.model === 2 || cfg.model === 3) ? 0xf8fafc : cfg.color, roughness: 0.5 });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111827 });
+  const cheekMat = new THREE.MeshBasicMaterial({ color: 0xf4a59c, transparent: true, opacity: slim ? 0.55 : 0.2 });
+
+  // 胴体（モデルごとのシルエット差：しっかり肩幅 vs スリムウエスト＋フレア/キュロット）
   const torso = new THREE.Group();
-  torso.position.y = 1.06;
-  const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.58, 0.28), shirtMat);
-  const vest = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.52, 0.31), vestMat);
+  torso.position.y = 1.05;
+  const torsoW = slim ? 0.39 : 0.49;
+  const torsoD = slim ? 0.24 : 0.29;
+  const shirt = new THREE.Mesh(new THREE.BoxGeometry(torsoW, 0.56, torsoD), shirtMat);
+  const vest = new THREE.Mesh(new THREE.BoxGeometry(torsoW + 0.04, 0.50, torsoD + 0.03), vestMat);
   vest.position.y = -0.01;
-  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.1, 10), shirtMat);
-  collar.position.y = 0.32;
-  [-0.14, 0.14].forEach((px) => {
-    const pock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.05), pocketMat);
-    pock.position.set(px, 0.05, -0.16);
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.1, 10), shirtMat);
+  collar.position.y = 0.31;
+  [-torsoW * 0.28, torsoW * 0.28].forEach((px) => {
+    const pock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.13, 0.05), pocketMat);
+    pock.position.set(px, 0.04, -(torsoD * 0.5 + 0.01));
     torso.add(pock);
   });
-  const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.42, 0.16), pocketMat);
-  backpack.position.set(0, 0.02, 0.21);
+  const backpack = new THREE.Mesh(new THREE.BoxGeometry(slim ? 0.30 : 0.36, 0.39, 0.15), pocketMat);
+  backpack.position.set(0, 0.02, torsoD * 0.5 + 0.08);
   torso.add(shirt, vest, collar, backpack);
+
+  if (cfg.model === 1) {
+    // フレアスカート風シルエット
+    const flare = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.33, 0.34, 14), pantsMat);
+    flare.position.y = -0.36;
+    torso.add(flare);
+  } else if (cfg.model === 3) {
+    // ショートキュロット風シルエット
+    const culotte = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.28, 0.25, 14), pantsMat);
+    culotte.position.y = -0.33;
+    torso.add(culotte);
+  }
   root.add(torso);
 
-  // 首・頭部・顔・後ろ髪・つば付きアウトドア帽
+  // 首・頭部・顔・髪型（4パターン）・帽子（バケット／つば広／キャップ）
   const headGrp = new THREE.Group();
-  headGrp.position.y = 1.56;
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.14, 8), skinMat);
+  headGrp.position.y = slim ? 1.54 : 1.57;
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.085, 0.14, 8), skinMat);
   neck.position.y = -0.14;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 14), skinMat);
-  const hairBack = new THREE.Mesh(new THREE.SphereGeometry(0.228, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat);
-  hairBack.rotation.x = -0.25;
-  hairBack.position.set(0, 0.02, 0.02);
-  // 目（前方 = -Z側）
-  [-0.075, 0.075].forEach((ex) => {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 8), eyeMat);
-    eye.position.set(ex, 0.02, -0.205);
-    headGrp.add(eye);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(slim ? 0.21 : 0.22, 16, 14), skinMat);
+
+  // 後ろ髪ベース
+  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(slim ? 0.22 : 0.23, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat);
+  hairCap.rotation.x = -0.25;
+  hairCap.position.set(0, 0.02, 0.02);
+  headGrp.add(neck, head, hairCap);
+
+  // 髪型の違い
+  if (cfg.model === 1) {
+    // ロングヘア（背面＋両サイドの髪）
+    const longBack = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.44, 0.14), hairMat);
+    longBack.position.set(0, -0.16, 0.14);
+    headGrp.add(longBack);
+    [-0.17, 0.17].forEach((sx) => {
+      const sideLock = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.36, 8), hairMat);
+      sideLock.position.set(sx, -0.11, -0.02);
+      headGrp.add(sideLock);
+    });
+  } else if (cfg.model === 3) {
+    // ポニーテール＆前髪サイド
+    const pony = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.36, 10), hairMat);
+    pony.position.set(0, -0.04, 0.27);
+    pony.rotation.x = 0.52;
+    const tie = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.018, 6, 10), vestMat);
+    tie.position.set(0, 0.08, 0.22);
+    tie.rotation.x = Math.PI / 2;
+    headGrp.add(pony, tie);
+    [-0.16, 0.16].forEach((sx) => {
+      const side = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.22, 8), hairMat);
+      side.position.set(sx, -0.04, -0.04);
+      headGrp.add(side);
+    });
+  } else {
+    // ショートヘアの襟足
+    const shortBack = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.10), hairMat);
+    shortBack.position.set(0, -0.04, 0.15);
+    headGrp.add(shortBack);
+  }
+
+  // 目＆チーク（前方 = -Z側）
+  const eyeR = slim ? 0.028 : 0.025;
+  [-0.072, 0.072].forEach((ex) => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(eyeR, 8, 8), eyeMat);
+    eye.position.set(ex, 0.02, -(slim ? 0.195 : 0.205));
+    const cheek = new THREE.Mesh(new THREE.CircleGeometry(0.032, 8), cheekMat);
+    cheek.position.set(ex * 1.45, -0.035, -(slim ? 0.19 : 0.20));
+    cheek.rotation.y = Math.PI;
+    headGrp.add(eye, cheek);
   });
-  // アウトドア・フィッシングハット
-  const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.37, 0.40, 0.04, 18), hatMat);
-  hatBrim.position.y = 0.15;
-  const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.23, 0.17, 16), hatMat);
-  hatCrown.position.y = 0.24;
-  const hatBand = new THREE.Mesh(new THREE.CylinderGeometry(0.228, 0.232, 0.05, 16), hatBandMat);
-  hatBand.position.y = 0.18;
-  headGrp.add(neck, head, hairBack, hatBrim, hatCrown, hatBand);
+
+  // 帽子（0:バケットハット / 1:つば広リボンハット / 2,3:つば前向きキャップ）
+  if (cfg.model === 2 || cfg.model === 3) {
+    const capDome = new THREE.Mesh(new THREE.SphereGeometry(0.225, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.52), hatMat);
+    capDome.position.y = 0.07;
+    const capVisor = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.035, 0.22), hatMat);
+    capVisor.position.set(0, 0.11, -0.22);
+    capVisor.rotation.x = 0.12;
+    const capLogo = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.07, 0.02), hatBandMat);
+    capLogo.position.set(0, 0.17, -0.21);
+    headGrp.add(capDome, capVisor, capLogo);
+  } else {
+    const brimR = cfg.model === 1 ? 0.44 : 0.37;
+    const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(brimR - 0.02, brimR + 0.02, 0.038, 20), hatMat);
+    hatBrim.position.y = 0.14;
+    const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.22, 0.16, 16), hatMat);
+    hatCrown.position.y = 0.23;
+    const hatBand = new THREE.Mesh(new THREE.CylinderGeometry(0.218, 0.224, 0.048, 16), hatBandMat);
+    hatBand.position.y = 0.17;
+    headGrp.add(hatBrim, hatCrown, hatBand);
+  }
   root.add(headGrp);
 
-  // 両腕（肩ピボット）
+  // 両腕
+  const armX = slim ? 0.265 : 0.32;
+  const armR = slim ? 0.062 : 0.076;
   const makeArm = (side) => {
     const arm = new THREE.Group();
-    arm.position.set(side * 0.32, 1.30, 0);
-    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.068, 0.34, 10), shirtMat);
-    sleeve.position.y = -0.17;
-    const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.055, 0.24, 10), skinMat);
-    fore.position.y = -0.42;
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 10), skinMat);
-    hand.position.y = -0.55;
+    arm.position.set(side * armX, 1.29, 0);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(armR, armR * 0.9, 0.33, 10), shirtMat);
+    sleeve.position.y = -0.165;
+    const fore = new THREE.Mesh(new THREE.CylinderGeometry(armR * 0.82, armR * 0.74, 0.23, 10), skinMat);
+    fore.position.y = -0.41;
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(armR * 0.88, 10, 10), skinMat);
+    hand.position.y = -0.54;
     arm.add(sleeve, fore, hand);
     return arm;
   };
@@ -827,16 +911,19 @@ function buildHighQualityAngler(accentHex = 0x0284c7, withRod = true) {
   }
   root.add(leftArm, rightArm);
 
-  // 両脚（腰ピボット＋長靴）
+  // 両脚
+  const legX = slim ? 0.105 : 0.13;
+  const legR = slim ? 0.078 : 0.095;
   const makeLeg = (side) => {
     const leg = new THREE.Group();
-    leg.position.set(side * 0.13, 0.76, 0);
-    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.082, 0.42, 10), pantsMat);
-    thigh.position.y = -0.21;
-    const boot = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.085, 0.34, 10), bootMat);
-    boot.position.y = -0.56;
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.11, 0.26), bootMat);
-    foot.position.set(0, -0.71, -0.05);
+    leg.position.set(side * legX, 0.75, 0);
+    const thighMat = slim ? skinMat : pantsMat;
+    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(legR, legR * 0.86, 0.41, 10), thighMat);
+    thigh.position.y = -0.205;
+    const boot = new THREE.Mesh(new THREE.CylinderGeometry(legR * 0.92, legR * 0.88, 0.35, 10), bootMat);
+    boot.position.y = -0.55;
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(slim ? 0.14 : 0.16, 0.11, 0.25), bootMat);
+    foot.position.set(0, -0.70, -0.05);
     leg.add(thigh, boot, foot);
     return leg;
   };
@@ -940,16 +1027,18 @@ export class FishingScene {
 
     this.playerRig = new THREE.Group();
     this.scene.add(this.playerRig);
-    this.camera.position.set(0, 3.05, 6.2);
-    this.camera.lookAt(0, 0.9, -12);
+    this.camera.position.set(0, 2.75, 4.45);
+    this.camera.lookAt(0, 1.35, -3.5);
     this.playerRig.add(this.camera);
 
     this.boatGroup = buildRealisticBoatModel(0xc2410c, false);
     this.boatGroup.visible = false;
     this.playerRig.add(this.boatGroup);
-    this.localAvatar = buildHighQualityAngler(0x0284c7, false);
-    this.localAvatar.position.set(0, 0.0, 3.05);
+    this.localAvatarOpt = { model: 0, color: '#0284c7', hair: '#261c16' };
+    this.localAvatar = buildHighQualityAngler(this.localAvatarOpt, false);
+    this.localAvatar.position.set(0, 0.0, 0.0);
     this.localWalkPhase = 0;
+    this.bodyYaw = 0;
     this.playerRig.add(this.localAvatar);
 
     this.wakeParticles = [];
@@ -984,7 +1073,7 @@ export class FishingScene {
 
     // リアル釣り竿
     this.rodGroup = new THREE.Group();
-    this.rodGroup.position.set(0.84, 1.68, 3.6);
+    this.rodGroup.position.set(0.46, 1.36, -0.15);
     const rodShaft = new THREE.Mesh(
       new THREE.CylinderGeometry(0.014, 0.036, 3.7, 10),
       new THREE.MeshStandardMaterial({ color: 0x161e2a, metalness: 0.65, roughness: 0.25 })
@@ -2530,10 +2619,10 @@ export class FishingScene {
   // ===== 他プレイヤー3Dアバター同期 =====
   createRemoteAvatar(data) {
     const group = new THREE.Group();
-    const accent = hashColorFromName(data.name || "漁師");
-    const person = buildHighQualityAngler(accent, true);
+    const avCfg = normalizeAvatarOpt(data.avatar, data.name || "漁師");
+    const person = buildHighQualityAngler(avCfg, true, data.name || "漁師");
 
-    const boat = buildRealisticBoatModel(accent, true);
+    const boat = buildRealisticBoatModel(avCfg.color, true);
     boat.position.set(0, 0, -1.2);
 
     const labelText = this.formatRemoteLabel(data);
@@ -2545,6 +2634,7 @@ export class FishingScene {
 
     return {
       group, person, boat, labelSprite, labelText,
+      avatarKey: JSON.stringify(avCfg),
       targetX: data.x || 0, targetZ: data.z || 4, targetYaw: data.yaw || 0,
       isBoating: !!data.isBoating, name: data.name || "漁師",
       walkPhase: Math.random() * 6
@@ -2571,13 +2661,20 @@ export class FishingScene {
     for (const [uid, data] of Object.entries(playersObj || {})) {
       let av = this.remoteAvatars.get(uid);
       if (!av) { av = this.createRemoteAvatar(data); this.remoteAvatars.set(uid, av); }
+      const nextCfg = normalizeAvatarOpt(data.avatar, data.name || "漁師");
+      const nextKey = JSON.stringify(nextCfg);
+      if (nextKey !== av.avatarKey) {
+        av.group.remove(av.person);
+        av.person = buildHighQualityAngler(nextCfg, true, data.name || "漁師");
+        av.group.add(av.person);
+        av.avatarKey = nextKey;
+      }
       av.targetX = data.x ?? av.targetX;
       av.targetZ = data.z ?? av.targetZ;
       av.targetYaw = data.yaw ?? av.targetYaw;
       av.isBoating = !!data.isBoating;
       av.name = data.name || "漁師";
       av.boat.visible = av.isBoating;
-      // 船に乗っている間も操縦席に座る姿を表示
       av.person.visible = true;
       av.person.position.set(0, av.isBoating ? 0.55 : 0.0, av.isBoating ? -0.45 : 0);
       av.labelSprite.position.y = av.isBoating ? 3.25 : 2.55;
@@ -2622,12 +2719,28 @@ export class FishingScene {
     });
   }
 
-  setPlayerState({ x, z, yaw, isBoating, boatSpeed, boatTier }) {
-    this.pos.set(x ?? 0, z ?? 4); this.yaw = yaw ?? 0;
+  setLocalAvatar(avatarOpt, fallbackName = "") {
+    const cfg = normalizeAvatarOpt(avatarOpt, fallbackName);
+    this.localAvatarOpt = cfg;
+    if (this.localAvatar && this.playerRig) {
+      this.playerRig.remove(this.localAvatar);
+    }
+    this.localAvatar = buildHighQualityAngler(cfg, false, fallbackName);
+    this.localAvatar.position.set(0, this.isBoating ? 0.44 : 0.0, this.isBoating ? 0.22 : 0.0);
+    if (this.playerRig) this.playerRig.add(this.localAvatar);
+  }
+
+  getAvatarYaw() {
+    return this.isBoating ? this.yaw : (typeof this.bodyYaw === "number" ? this.bodyYaw : this.yaw);
+  }
+
+  setPlayerState({ x, z, yaw, isBoating, boatSpeed, boatTier, avatar, name }) {
+    this.pos.set(x ?? 0, z ?? 4); this.yaw = yaw ?? 0; this.bodyYaw = this.yaw;
     this.isBoating = !!isBoating; this.boatSpeed = boatSpeed || 1.2; this.boatTier = boatTier || 0;
     this.boatGroup.visible = this.isBoating;
     this.parkedBoat.visible = !this.isBoating && this.boatTier > 0;
     this.autopilot = false;
+    if (avatar || name) this.setLocalAvatar(avatar, name || "");
   }
   updateBoatSpec(boatSpeed, boatTier) {
     this.boatSpeed = boatSpeed || 1.2;
@@ -3095,10 +3208,39 @@ export class FishingScene {
     }
     this.playerRig.position.set(this.pos.x, rigY, this.pos.y);
     this.playerRig.rotation.y = this.yaw;
+    // カメラ位置を徒歩・乗船で滑らかに切り替え（常に原点のアバターを中心に回転）
+    const camTargetY = this.isBoating ? 3.25 : 2.72;
+    const camTargetZ = this.isBoating ? 6.4 : 4.45;
+    this.camera.position.y += (camTargetY - this.camera.position.y) * Math.min(1, dt * 6);
+    this.camera.position.z += (camTargetZ - this.camera.position.z) * Math.min(1, dt * 6);
+    this.camera.lookAt(0, this.isBoating ? 1.15 : 1.38, this.isBoating ? -8.0 : -2.5);
+
     if (this.localAvatar) {
-      const spd = Math.hypot(this.moveInput.x, this.moveInput.y);
-      if (spd > 0.05 && !this.isBoating) this.localWalkPhase += dt * 9.5;
-      this.localAvatar.position.set(0, this.isBoating ? 0.42 : 0.0, this.isBoating ? 0.45 : 3.05);
+      const stepDx = this.pos.x - (this._prevPosX ?? this.pos.x);
+      const stepDz = this.pos.y - (this._prevPosZ ?? this.pos.y);
+      this._prevPosX = this.pos.x;
+      this._prevPosZ = this.pos.y;
+      const moveDistFrame = Math.hypot(stepDx, stepDz);
+      const spd = Math.min(1.0, moveDistFrame / Math.max(0.001, 14 * dt));
+      if (this.isBoating) {
+        this.bodyYaw = this.yaw;
+      } else if (this.bobber.visible) {
+        // キャスト中は海側（カメラ向き）へ滑らかに向く
+        let diff = this.yaw - (this.bodyYaw ?? this.yaw);
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        this.bodyYaw = (this.bodyYaw ?? this.yaw) + diff * Math.min(1, dt * 10);
+      } else if (moveDistFrame > 0.004) {
+        // 歩いた方向へ滑らかに向き直る（立ち止まって視点を回しただけでは動かない）
+        const moveYaw = Math.atan2(-stepDx, -stepDz);
+        let diff = moveYaw - (this.bodyYaw ?? this.yaw);
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        this.bodyYaw = (this.bodyYaw ?? this.yaw) + diff * Math.min(1, dt * 12);
+      }
+      if (spd > 0.08 && !this.isBoating) this.localWalkPhase += dt * 9.5;
+      this.localAvatar.position.set(0, this.isBoating ? 0.44 : 0.0, this.isBoating ? 0.22 : 0.0);
+      this.localAvatar.rotation.y = (this.bodyYaw ?? this.yaw) - this.yaw;
       animateAnglerRig(this.localAvatar, this.localWalkPhase, this.isBoating ? 0 : spd, this.isBoating);
     }
     for (const av of this.remoteAvatars.values()) {
@@ -3196,6 +3338,7 @@ export class FishingScene {
     }
 
     this.rodGroup.rotation.x = -this.rodBend * 0.48 + Math.sin(t * 2) * 0.015;
+    this.rodGroup.visible = this.rodGroup.visible && (this.bobber.visible || this.isBoating);
     if (this.bobber.visible) {
       const bz = 2.5 - this.bobberDist * 0.6;
       const bwx = this.pos.x + Math.sin(this.yaw) * bz;
