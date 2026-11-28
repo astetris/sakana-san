@@ -116,7 +116,7 @@ function rebuildIndexes() {
 export async function loadSpeciesMaster() {
   const [baseRes, extraRes] = await Promise.all([
     fetch("./data/species.json"),
-    fetch("./data/species_extra.json?v=20261128_150217").catch(() => null)
+    fetch("./data/species_extra.json?v=20261128_152002").catch(() => null)
   ]);
   if (!baseRes.ok) throw new Error("data/species.json の読み込みに失敗しました");
   const baseList = await baseRes.json();
@@ -213,12 +213,29 @@ export function rollNetHaul(areaId, env, netItem, hotspotBonus = false) {
   if (!candidates.length) candidates = areaPool;
   if (!candidates.length) return [];
 
+  const inferTier = () => {
+    if (typeof netItem?.tier === "number" && netItem.tier > 0) return netItem.tier;
+    const price = Number(netItem?.price || 0);
+    const maxC = Number(netItem?.maxCount || 3);
+    if (maxC >= 7 || price >= 200000) return 6;
+    if (maxC >= 6 || price >= 120000) return 5;
+    if (maxC >= 5 || price >= 55000) return 4;
+    if (price >= 28000) return 3;
+    if (maxC >= 4 || price >= 15000) return 2;
+    return 1;
+  };
+  const netTier = inferTier();
+  const netAttract = 1 + Math.max(0, netTier - 1) * 0.22;
+  const effDamage = Math.max(0.02, (netItem.damageChance || 0.12) * Math.max(0.45, 1 - Math.max(0, netTier - 1) * 0.1));
+
   const minC = netItem.minCount || 2;
   const maxC = (netItem.maxCount || 3) + (hotspotBonus ? 1 : 0);
-  const haulCount = minC + Math.floor(Math.random() * (maxC - minC + 1));
+  let haulCount = minC + Math.floor(Math.random() * (maxC - minC + 1));
+  if (netTier >= 3 && Math.random() < (netTier - 2) * 0.14) haulCount += 1;
+
   const results = [];
   for (let i = 0; i < haulCount; i++) {
-    results.push(buildCatchItem(pickWeighted(candidates, env, hotspotBonus), env, { isNet: true, damageChance: netItem.damageChance || 0.15, hotspotBonus }));
+    results.push(buildCatchItem(pickWeighted(candidates, env, hotspotBonus, netAttract), env, { isNet: true, damageChance: effDamage, hotspotBonus }));
   }
   return results;
 }
@@ -227,6 +244,7 @@ export function rollShellfish(areaId, env, toolBonus = 1.0) {
   const candidates = areaGatherIndex.get(areaId);
   if (!candidates || !candidates.length) return null;
 
+  const bonus = Math.max(1.0, Number(toolBonus) || 1.0);
   const isSpringTide = env.tideName === "大潮";
   let total = 0;
   const weights = new Float64Array(candidates.length);
@@ -235,7 +253,7 @@ export function rollShellfish(areaId, env, toolBonus = 1.0) {
     let w = s.rarityWeight || 10;
     if (s.seasons.includes(env.season)) w *= 1.4;
     if ((s.rank === "S" || s.rank === "A") && isSpringTide) w *= 1.5;
-    if ((s.rank === "S" || s.rank === "A") && toolBonus > 1.2) w *= toolBonus;
+    if ((s.rank === "S" || s.rank === "A") && bonus > 1.0) w *= (1 + (bonus - 1) * 1.15);
     w = w < 1 ? 1 : w;
     weights[i] = w;
     total += w;
@@ -249,9 +267,13 @@ export function rollShellfish(areaId, env, toolBonus = 1.0) {
 
   const isSeaweed = picked.speciesType === "seaweed";
   const isEchino = picked.speciesType === "echinoderm";
-  const count = picked.rank === "S" ? 1 : picked.rank === "A" ? (1 + Math.floor(Math.random() * 2)) : (2 + Math.floor(Math.random() * 3));
+  const extraCount = Math.random() < Math.min(0.75, (bonus - 1.0) * 0.75) ? 1 : 0;
+  const baseCount = picked.rank === "S" ? 1 : picked.rank === "A" ? (1 + Math.floor(Math.random() * 2)) : (2 + Math.floor(Math.random() * 3));
+  const count = baseCount + extraCount;
+
+  const sizeExp = Math.max(0.55, (isSpringTide ? 0.9 : 1.2) - (bonus - 1.0) * 0.25);
   const unitSpread = Math.max(0.01, picked.maxKg - picked.minKg);
-  const unitKg = picked.minKg + unitSpread * Math.pow(Math.random(), isSpringTide ? 0.9 : 1.2);
+  const unitKg = picked.minKg + unitSpread * Math.pow(Math.random(), sizeExp);
   const weightKg = Number((unitKg * count).toFixed(2));
 
   const tags = [];
@@ -267,9 +289,9 @@ export function rollShellfish(areaId, env, toolBonus = 1.0) {
   } else {
     if (unitKg >= picked.trophyKg) { tags.push("大粒"); priceMult *= 1.45; }
     if (picked.fatSeasons?.includes(env.season)) { tags.push("身入りパンパン"); priceMult *= 1.35; }
-    if (Math.random() < 0.03 * toolBonus) { tags.push("真珠入り"); priceMult *= 3.2; }
-    else if ((areaId === "kinkai" || areaId === "okiai") && Math.random() < (0.16 / toolBonus)) { tags.push("殻割れ"); priceMult *= 0.78; }
-    else if ((areaId === "sunahama" || areaId === "kakou") && Math.random() < 0.22) { tags.push("砂噛み"); priceMult *= 0.92; }
+    if (Math.random() < 0.03 * bonus) { tags.push("真珠入り"); priceMult *= 3.2; }
+    else if ((areaId === "kinkai" || areaId === "okiai") && Math.random() < (0.16 / bonus)) { tags.push("殻割れ"); priceMult *= 0.78; }
+    else if ((areaId === "sunahama" || areaId === "kakou") && Math.random() < (0.22 / bonus)) { tags.push("砂噛み"); priceMult *= 0.92; }
     if (tags.length === 0) tags.push("活貝");
   }
 

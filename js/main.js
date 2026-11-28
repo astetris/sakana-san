@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_150217";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_150217";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_150217";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_150217";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_150217";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_152002";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_152002";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_152002";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_152002";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_152002";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_150217";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_150217";
+} from "./systems/economy.js?v=20261128_152002";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_152002";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_150217";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_150217";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_150217";
+} from "./systems/business.js?v=20261128_152002";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_152002";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_152002";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_150217";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_150217";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_150217";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_150217";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_150217";
+} from "./systems/pearlShop.js?v=20261128_152002";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_152002";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_152002";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_152002";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_152002";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_150217";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_150217";
+} from "./systems/fishingEngine.js?v=20261128_152002";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_152002";
 
 
 // ===== オンライン／オフライン履歴 ＆ 右上人数バッジ同期 ＆ 「合わせる」スタミナ消費 =====
@@ -765,69 +765,88 @@ function doNetHarvest() {
 }
 
 function doShellHarvest() {
-  const _areaLbl = (typeof currentArea !== 'undefined' && currentArea?.name) ? currentArea.name : '岸壁・岩場';
-  runShellPhase1BeforePhase2(_areaLbl, 1, 2, () => {
-
-  const save = currentSave();
-  if (!save || phase !== "idle") return;
+  const save0 = currentSave();
+  if (!save0 || phase !== "idle") return;
   const shellPosCheck = canHarvestShellAt(scene3d.pos.x, scene3d.pos.y, scene3d.isBoating);
   if (!shellPosCheck.ok) {
     $("status-banner").textContent = shellPosCheck.msg;
     audioEngine.playFail();
     return;
   }
-  const { coolerCap } = getEquippedStats(save);
-  if (save.cooler.length >= coolerCap) { $("status-banner").textContent = "🧊 クーラーボックスがいっぱいです！"; audioEngine.playFail(); return; }
-  if (save.stamina < 3) { $("status-banner").textContent = "⚡ スタミナ不足（貝採取は⚡3必要）！"; audioEngine.playFail(); return; }
+  const eq0 = getEquippedStats(save0);
+  if (save0.cooler.length >= eq0.coolerCap) {
+    $("status-banner").textContent = "🧊 クーラーボックスがいっぱいです！";
+    audioEngine.playFail();
+    return;
+  }
+  if (save0.stamina < 1) {
+    $("status-banner").textContent = "⚡ スタミナ不足（探索に⚡1必要）！";
+    audioEngine.playFail();
+    return;
+  }
 
-  const areaId = currentArea?.id || "teibou";
-  const methodLabel = getShellMethodForArea(areaId);
-  
-  save.lastPlayedAt = Date.now();
-  audioEngine.playDig();
-  updateHud();
+  const _areaLbl = (typeof currentArea !== 'undefined' && currentArea?.name) ? currentArea.name : '岸壁・岩場';
+  runShellPhase1BeforePhase2(_areaLbl, 1, 2, () => {
+    const save = currentSave();
+    if (!save || phase !== "idle") return;
+    const eq = getEquippedStats(save);
+    if (save.cooler.length >= eq.coolerCap) { $("status-banner").textContent = "🧊 クーラーボックスがいっぱいです！"; audioEngine.playFail(); return; }
 
-  runShellDigMiniGame({
-    title: `🐚 ${methodLabel}チャレンジ`,
-    methodLabel,
-    onFinish: (quality) => {
-      if (quality === "miss") {
-        $("status-banner").textContent = "🐚 貝が深く潜ってしまい採取できなかった…";
-        audioEngine.playFail();
-        persistSlots(slots, false);
+    const areaId = currentArea?.id || "teibou";
+    const methodLabel = getShellMethodForArea(areaId);
+
+    save.lastPlayedAt = Date.now();
+    audioEngine.playDig();
+    updateHud();
+
+    runShellDigMiniGame({
+      title: `🐚 ${methodLabel}チャレンジ`,
+      methodLabel,
+      shellBonus: eq.shellBonus || 1,
+      shellTool: eq.shellTool,
+      onFinish: (quality) => {
+        if (quality === "miss") {
+          $("status-banner").textContent = "🐚 貝が深く潜ってしまい採取できなかった…";
+          audioEngine.playFail();
+          persistSlots(slots, false);
+          updateHud();
+          return;
+        }
+        const buff = getActiveBuff(save);
+        const spotMult = window.__shellSpotBonus?.grade === "rich" ? 1.35 : window.__shellSpotBonus?.grade === "normal" ? 1.12 : 1.0;
+        const qBonus = (quality === "great" ? 1.35 : 1.0) * spotMult;
+        let res = rollShellfish(areaId, env, (eq.shellBonus || 1) * (buff?.rareBonus ? 1.25 : 1) * qBonus);
+        if (!res && window.__shellSpotBonus?.grade === "rich") {
+          res = rollShellfish(areaId, env, (eq.shellBonus || 1) * (buff?.rareBonus ? 1.25 : 1) * qBonus);
+        }
+        if (!res) { $("status-banner").textContent = "ここでは貝が見つからなかった…"; updateHud(); return; }
+
+        const sp = res.species;
+        const together = playMode === "multi" && scene3d.getNearbyPlayers(35).length > 0;
+        const price = Math.round(res.estimatedPrice * (together ? 1.1 : 1) * (buff?.priceMult || 1) * (isMonthlyPassActive(save) ? 1.1 : 1) * (quality === "great" ? 1.15 : 1));
+        const tags = [...res.tags];
+        if (together) tags.push("一緒に釣り+10%");
+        if (quality === "great") tags.push("ジャスト採取+15%");
+        if (window.__shellSpotBonus?.grade === "rich") tags.push("大密集スポット");
+
+        save.cooler.push({ id: sp.id, name: `${sp.name}×${res.count}`, rank: sp.rank, weightKg: res.weightKg, tags, price });
+        if (!save.dex[sp.id]) save.dex[sp.id] = { count: 0, maxKg: 0 };
+        save.dex[sp.id].count += res.count; save.dex[sp.id].maxKg = Math.max(save.dex[sp.id].maxKg, res.weightKg);
+        save.stats.totalCaught += res.count;
+
+        recordDailyProgress(save, { caughtDelta: res.count });
+        syncMyPublicProfile();
+        submitDailyBoard("biggest_shell", { playerName: save.name, score: res.weightKg, detail: `${sp.name}×${res.count}` });
+        submitDailyBoard("highest_price", { playerName: save.name, score: price, detail: `${sp.name}×${res.count}` });
+        if (playMode === "multi" && (sp.rank === "S" || tags.includes("真珠入り"))) {
+          pushWorldFeed({ text: `🐚 ${save.name}さんが ${sp.name}（${tags.includes("真珠入り") ? "✨真珠入り!" : `${res.weightKg}kg`}）を採取！` });
+        }
+        audioEngine.playCatch(sp.rank === "S" ? "S" : "B");
+        $("status-banner").textContent = `🐚 ${sp.name}×${res.count} を採取！（¥${price.toLocaleString()}）`;
+        persistSlots(slots, true);
         updateHud();
-        return;
       }
-      const buff = getActiveBuff(save);
-      const qBonus = quality === "great" ? 1.35 : 1.0;
-      let res = rollShellfish(areaId, env, (getEquippedStats(save).shellBonus || 1) * (buff?.rareBonus ? 1.25 : 1) * qBonus); if (!res && window.__shellSpotBonus?.grade === "rich") { res = rollShellfish(areaId, env, (getEquippedStats(save).shellBonus || 1) * (buff?.rareBonus ? 1.25 : 1) * qBonus); }
-      if (!res) { $("status-banner").textContent = "ここでは貝が見つからなかった…"; updateHud(); return; }
-
-      const sp = res.species;
-      const together = playMode === "multi" && scene3d.getNearbyPlayers(35).length > 0;
-      const price = Math.round(res.estimatedPrice * (together ? 1.1 : 1) * (buff?.priceMult || 1) * (isMonthlyPassActive(save) ? 1.1 : 1) * (quality === "great" ? 1.15 : 1));
-      const tags = [...res.tags];
-      if (together) tags.push("一緒に釣り+10%");
-      if (quality === "great") tags.push("ジャスト採取+15%");
-
-      save.cooler.push({ id: sp.id, name: `${sp.name}×${res.count}`, rank: sp.rank, weightKg: res.weightKg, tags, price });
-      if (!save.dex[sp.id]) save.dex[sp.id] = { count: 0, maxKg: 0 };
-      save.dex[sp.id].count += res.count; save.dex[sp.id].maxKg = Math.max(save.dex[sp.id].maxKg, res.weightKg);
-      save.stats.totalCaught += res.count;
-
-      recordDailyProgress(save, { caughtDelta: res.count });
-      syncMyPublicProfile();
-      submitDailyBoard("biggest_shell", { playerName: save.name, score: res.weightKg, detail: `${sp.name}×${res.count}` });
-      submitDailyBoard("highest_price", { playerName: save.name, score: price, detail: `${sp.name}×${res.count}` });
-      if (playMode === "multi" && (sp.rank === "S" || tags.includes("真珠入り"))) {
-        pushWorldFeed({ text: `🐚 ${save.name}さんが ${sp.name}（${tags.includes("真珠入り") ? "✨真珠入り!" : `${res.weightKg}kg`}）を採取！` });
-      }
-      audioEngine.playCatch(sp.rank === "S" ? "S" : "B");
-      $("status-banner").textContent = `🐚 ${sp.name}×${res.count} を採取！（¥${price.toLocaleString()}）`;
-      persistSlots(slots, true);
-      updateHud();
-    }
-  });
+    });
   });
 }
 function startCast() {
@@ -840,7 +859,7 @@ function startCast() {
     return;
   }
   if (save.stamina < 2) { $("status-banner").textContent = "スタミナ不足です（🍜憩いの食堂や休憩所で回復！）"; audioEngine.playFail(); return; }
-  const { bait, baitAttract } = getEquippedStats(save);
+  const { bait, baitAttract, fishingQuality = 1 } = getEquippedStats(save);
   if (bait.pack > 0 && save.baitStock[bait.id] > 0) save.baitStock[bait.id] -= 1;
 
   save.lastPlayedAt = Date.now(); persistSlots(slots, false); updateHud(); audioEngine.playCast();
@@ -851,13 +870,15 @@ function startCast() {
   const inSpot = scene3d.getNearestHotspot().inSpot;
   $("status-banner").textContent = inSpot ? "🐟 魚群ポイント！アタリが早そうだ..." : "アタリを待っています...";
 
-  const waitMs = (1700 + Math.random() * 2700) * ((inSpot ? 0.65 : 1.0) / Math.sqrt(baitAttract));
+  const attractEff = Math.max(1, (baitAttract || 1) * (1 + Math.max(0, fishingQuality - 1) * 0.22));
+  const waitMs = (1700 + Math.random() * 2700) * ((inSpot ? 0.65 : 1.0) / Math.sqrt(attractEff));
+  const biteWindowMs = Math.round(1850 + Math.max(0, fishingQuality - 1) * 550);
   waitTimer = setTimeout(() => {
     if (phase !== "waiting") return;
     phase = "bite"; scene3d.setBobber(true, dist, 0.35); audioEngine.playBite();
     $("btn-main-action").className = "btn-action bite"; $("btn-main-action").textContent = "合わせる";
     $("status-banner").textContent = "ヒット！！今すぐタップしてアワセろ！";
-    biteTimer = setTimeout(() => { if (phase === "bite") { audioEngine.playFail(); $("status-banner").textContent = "逃げられてしまった…"; setTimeout(resetActionState, 900); } }, 1800);
+    biteTimer = setTimeout(() => { if (phase === "bite") { audioEngine.playFail(); $("status-banner").textContent = "逃げられてしまった…"; setTimeout(resetActionState, 900); } }, biteWindowMs);
   }, waitMs);
 }
 
@@ -868,13 +889,16 @@ function startFight() {
   const inSpot = scene3d.getNearestHotspot().inSpot;
   const together = scene3d.getNearbyPlayers(35).length > 0;
   const buff = getActiveBuff(save);
-  const caught = rollCatch(currentArea?.id || "teibou", env, inSpot || together || buff?.rareBonus, getEquippedStats(save).baitAttract);
+  const eq = getEquippedStats(save);
+  const gearAttract = (eq.baitAttract || 1) * (1 + Math.max(0, (eq.fishingQuality || 1) - 1) * 0.22);
+  const caught = rollCatch(currentArea?.id || "teibou", env, inSpot || together || buff?.rareBonus, gearAttract);
   const mult = (together ? 1.1 : 1) * (buff?.priceMult || 1) * (isMonthlyPassActive(save) ? 1.1 : 1);
   if (mult > 1) caught.estimatedPrice = Math.round(caught.estimatedPrice * mult);
   if (together) caught.tags.push("一緒に釣り+10%");
 
   phase = "fighting";
-  fightState = { caught, distance: 19 + Math.random() * 10, fishStamina: 100, tension: 24 };
+  const startDist = Math.max(12, 19 - Math.max(0, (eq.fishingQuality || 1) - 1) * 2.2) + Math.random() * 8;
+  fightState = { caught, distance: startDist, fishStamina: 100, tension: 20 };
   $("fight-panel").classList.remove("hidden");
   $("btn-main-action").className = "btn-action reeling"; $("btn-main-action").textContent = "🔄 長押しで巻く";
   $("status-banner").textContent = "ファイト中！ゲージが赤くなる前にドラグ調整！";
@@ -882,19 +906,20 @@ function startFight() {
 
 function tickFight() {
   if (phase !== "fighting" || !fightState) return;
-  const save = currentSave(), { rodPower, reelSpeed, lineStrength } = getEquippedStats(save);
+  const save = currentSave(), { rodPower, reelSpeed, lineStrength, fishingQuality = 1 } = getEquippedStats(save);
   const f = fightState, sp = f.caught.species, drag = Number($("drag-slider").value) / 100;
   $("drag-val").textContent = `${Math.round(drag * 100)}%`;
 
+  const easeMult = 1 / (1 + Math.max(0, fishingQuality - 1) * 0.24);
   const effectivePull = ((sp.pullPower || 2) * (0.45 + Math.random() * 0.55) * (f.fishStamina > 20 ? 1 : 0.45)) / lineStrength;
   if (isReeling) {
     audioEngine.playReelTick(f.tension);
-    f.tension += (drag * 5.7 + effectivePull * 0.7) - (3.4 + rodPower * 0.42);
-    f.distance = Math.max(0, f.distance - Math.max(0.12, (drag * 1.1 * rodPower * reelSpeed) - (effectivePull * 0.08)) * 0.44);
-    f.fishStamina = Math.max(0, f.fishStamina - (0.75 + drag * 0.75 * rodPower));
+    f.tension += ((drag * 5.4 + effectivePull * 0.68) * easeMult) - (3.4 + rodPower * 0.48);
+    f.distance = Math.max(0, f.distance - Math.max(0.14, (drag * 1.15 * rodPower * reelSpeed) - (effectivePull * 0.06)) * 0.46);
+    f.fishStamina = Math.max(0, f.fishStamina - (0.85 + drag * 0.8 * rodPower));
   } else {
-    f.tension = Math.max(8, f.tension - 5.0);
-    if (f.fishStamina > 15) f.distance += ((sp.speed || 2) / rodPower) * 0.03;
+    f.tension = Math.max(8, f.tension - (5.2 + Math.max(0, reelSpeed - 1) * 2.2));
+    if (f.fishStamina > 15) f.distance += ((sp.speed || 2) / (rodPower * Math.sqrt(Math.max(1, lineStrength)))) * 0.028;
   }
 
   f.tension = Math.max(0, Math.min(105, f.tension));
@@ -1977,7 +2002,8 @@ function openPlayModeSelectModal() {
   $("btn-mode-multi").onclick = () => { setPlayMode("multi"); audioEngine.playOk(); closeModal(); };
 }
 
-function runShellDigMiniGame({ title, methodLabel, onFinish }) {
+function runShellDigMiniGame({ title, methodLabel, onFinish , shellBonus = 1 }) {
+  const __shellEase = Math.max(1.0, Number(shellBonus) || 1.0);
   if (phase !== "idle") return;
   phase = "harvesting";
 
@@ -2171,7 +2197,7 @@ function runShellDigMiniGame({ title, methodLabel, onFinish }) {
   };
 }
 
-function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", fishCount = 2, onFinish , onPhase2 }) {
+function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", fishCount = 2, onFinish, onPhase2 }) {
   let __netPhase2Paid = false;
   const __payNetPhase2 = () => {
     if (__netPhase2Paid) return true;
@@ -2187,14 +2213,40 @@ function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", f
   phase = "harvesting";
 
   const tierMap = [
-    { name: "一般魚群",   badge: "#38bdf8", icon: "🐟🐟",   spd: 1.18, rad: 16.5, aimSec: 7.4, pullSec: 11.5, gain: 26, rageRise: 48, slipBack: 4,  warnDur: 0.68, turnMin: 0.95 },
-    { name: "良型魚群",   badge: "#34d399", icon: "🐠🐟🐠", spd: 1.48, rad: 14.2, aimSec: 6.8, pullSec: 11.2, gain: 23, rageRise: 60, slipBack: 7,  warnDur: 0.56, turnMin: 0.72 },
-    { name: "希少魚群",   badge: "#c084fc", icon: "✨🐟✨", spd: 1.85, rad: 12.2, aimSec: 6.2, pullSec: 11.0, gain: 20, rageRise: 74, slipBack: 10, warnDur: 0.45, turnMin: 0.52 },
-    { name: "超大物魚群", badge: "#fbbf24", icon: "👑🦈✨", spd: 2.25, rad: 10.6, aimSec: 5.8, pullSec: 10.8, gain: 18, rageRise: 88, slipBack: 13, warnDur: 0.36, turnMin: 0.38 },
-    { name: "伝説魚群",   badge: "#f43f5e", icon: "🔥🐉👑", spd: 2.55, rad: 9.6,  aimSec: 5.4, pullSec: 10.6, gain: 16, rageRise: 98, slipBack: 16, warnDur: 0.30, turnMin: 0.30 }
+    { name: "一般魚群",   badge: "#38bdf8", icon: "🐟🐟",   spd: 1.00, rad: 18.0, aimSec: 8.5, pullSec: 13.0, gain: 28, rageRise: 42, slipBack: 3.0, warnDur: 0.78, turnMin: 1.10 },
+    { name: "良型魚群",   badge: "#34d399", icon: "🐠🐟🐠", spd: 1.18, rad: 16.5, aimSec: 8.0, pullSec: 13.0, gain: 26, rageRise: 48, slipBack: 4.5, warnDur: 0.70, turnMin: 0.92 },
+    { name: "希少魚群",   badge: "#c084fc", icon: "✨🐟✨", spd: 1.38, rad: 15.0, aimSec: 7.6, pullSec: 13.5, gain: 24, rageRise: 56, slipBack: 6.0, warnDur: 0.62, turnMin: 0.76 },
+    { name: "超大物魚群", badge: "#fbbf24", icon: "👑🦈✨", spd: 1.56, rad: 13.8, aimSec: 7.4, pullSec: 14.0, gain: 22, rageRise: 64, slipBack: 7.5, warnDur: 0.56, turnMin: 0.64 },
+    { name: "伝説魚群",   badge: "#f43f5e", icon: "🔥🐉👑", spd: 1.72, rad: 12.8, aimSec: 7.2, pullSec: 14.5, gain: 21, rageRise: 70, slipBack: 8.5, warnDur: 0.52, turnMin: 0.55 }
   ];
   const cfg = tierMap[Math.max(0, Math.min(tierMap.length - 1, rarityLevel))];
-  const netTier = Math.max(1, Number(net?.tier || 1));
+
+  // 網の品質ランクを反映（高い網ほど範囲拡大・速度緩和・引き上げ強化・負荷軽減）
+  const inferNetTier = (n) => {
+    if (!n) return 1;
+    if (typeof n.tier === "number" && n.tier > 0) return n.tier;
+    const price = Number(n.price || 0);
+    const maxC = Number(n.maxCount || 3);
+    if (maxC >= 7 || price >= 200000) return 6;
+    if (maxC >= 6 || price >= 120000) return 5;
+    if (maxC >= 5 || price >= 55000) return 4;
+    if (price >= 28000) return 3;
+    if (maxC >= 4 || price >= 15000) return 2;
+    return 1;
+  };
+  const netTier = inferNetTier(net);
+  const netLvl = Math.max(0, netTier - 1);
+
+  const effSpd = cfg.spd * Math.max(0.56, 1 - netLvl * 0.085);
+  const effTurnMin = cfg.turnMin + netLvl * 0.14;
+  const throwRadius = Math.max(11.0, Math.min(28.0, cfg.rad + netLvl * 2.4));
+  const flightDur = Math.max(0.11, 0.20 - netLvl * 0.02);
+  const effGain = cfg.gain * (1 + netLvl * 0.16);
+  const effRageRise = cfg.rageRise * Math.max(0.46, 1 - netLvl * 0.11);
+  const effSlipBack = cfg.slipBack * Math.max(0.35, 1 - netLvl * 0.14);
+  const effWarnDur = cfg.warnDur + netLvl * 0.09;
+  const tensionRecoverBase = 1 + netLvl * 0.12;
+  const dispStars = Math.max(1, Math.min(5, (rarityLevel + 2) - Math.floor(netLvl / 2)));
 
   let finished = false;
   let stage = "aim";
@@ -2202,37 +2254,37 @@ function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", f
 
   let fishX = 20 + Math.random() * 60;
   let fishY = 22 + Math.random() * 56;
-  let vx = (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 14) * cfg.spd;
-  let vy = (Math.random() < 0.5 ? -1 : 1) * (22 + Math.random() * 12) * cfg.spd;
-  let turnTimer = cfg.turnMin + Math.random() * 0.55;
-  let aimTime = cfg.aimSec;
+  let vx = (Math.random() < 0.5 ? -1 : 1) * (24 + Math.random() * 12) * effSpd;
+  let vy = (Math.random() < 0.5 ? -1 : 1) * (19 + Math.random() * 10) * effSpd;
+  let turnTimer = effTurnMin + Math.random() * 0.55;
+  let aimTime = cfg.aimSec + netLvl * 0.8;
   let throwing = false;
   let throwFlight = 0;
   let throwX = 50, throwY = 50;
-  const throwRadius = Math.max(8.5, Math.min(20.5, cfg.rad + (netTier - 1) * 1.1));
 
   let pullProgress = 0;
-  let netTension = 16;
-  let pullTime = cfg.pullSec;
+  let netTension = 14;
+  let pullTime = cfg.pullSec + netLvl * 1.2;
   let holding = false;
   let rageState = "calm";
-  let stateTimer = 0.95 + Math.random() * 0.45;
+  let stateTimer = 1.0 + netLvl * 0.08 + Math.random() * 0.45;
   let lastTick = performance.now();
   let loopId = null;
 
   openModal(title || "🕸️ 投網＆引き上げ勝負", `
     <div class="bank-box" style="text-align:center;">
-      <div style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;margin-bottom:6px;background:rgba(15,23,42,0.85);border:1px solid ${cfg.badge};color:${cfg.badge};">
-        [${rarityLabel}級] ${cfg.name}（難易度 ★${Math.min(5, rarityLevel + 2)}）
+      <div style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;margin-bottom:4px;background:rgba(15,23,42,0.85);border:1px solid ${cfg.badge};color:${cfg.badge};">
+        [${rarityLabel}級] ${cfg.name}（体感難易度 ★${dispStars}）
       </div>
-      <div id="net-stage-desc" class="muted" style="font-size:12px;">【第1段階】網が飛ぶラグを読んで、魚群の<strong>少し先</strong>をタップ！</div>
+      ${netLvl > 0 ? `<div style="font-size:11px;color:#38e59a;font-weight:700;margin-bottom:4px;">✨ 網品質 Lv.${netTier} 補正：範囲拡大・引き上げ+${Math.round(netLvl * 16)}%・負荷軽減</div>` : ""}
+      <div id="net-stage-desc" class="muted" style="font-size:12px;">【第1段階】魚群の<strong>少し先</strong>をタップして網を投げよう！（ここは消費なし）</div>
       <div id="net-aim-wrap">
         <div id="net-water" style="position:relative;height:178px;margin:10px 0;border-radius:12px;background:radial-gradient(circle at 50% 45%, #0c4a6e, #062135);border:1px solid ${cfg.badge};overflow:hidden;touch-action:manipulation;user-select:none;cursor:crosshair;">
           <div id="net-school" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:1.3rem;letter-spacing:-2px;filter:drop-shadow(0 0 8px ${cfg.badge});pointer-events:none;">${cfg.icon}</div>
-          <div id="net-splash" style="position:absolute;left:50%;top:50%;width:${throwRadius * 2}%;aspect-ratio:1/1;border-radius:50%;border:2.5px dashed #facc15;background:rgba(250,204,21,0.16);transform:translate(-50%,-50%) scale(0.3);opacity:0;pointer-events:none;transition:transform 0.22s ease-out, opacity 0.15s;"></div>
+          <div id="net-splash" style="position:absolute;left:50%;top:50%;width:${throwRadius * 2}%;aspect-ratio:1/1;border-radius:50%;border:2.5px dashed #facc15;background:rgba(250,204,21,0.16);transform:translate(-50%,-50%) scale(0.3);opacity:0;pointer-events:none;transition:transform ${flightDur.toFixed(2)}s ease-out, opacity 0.15s;"></div>
         </div>
         <div id="net-aim-timer" style="font-size:13px;font-weight:700;color:#f3c687;margin-bottom:6px;">魚群通過まで ${aimTime.toFixed(1)}s</div>
-        <div class="muted" style="font-size:11px;">※レア魚ほど速く急反転します！進路の先を狙おう</div>
+        <div class="muted" style="font-size:11px;">※高品質な網ほど大きく広がり、魚群も捉えやすくなります</div>
       </div>
 
       <div id="net-pull-wrap" style="display:none;margin-top:8px;">
@@ -2244,13 +2296,13 @@ function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", f
           <div id="net-prog-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#38bdf8,#38e59a);"></div>
         </div>
         <div style="text-align:left;font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between;">
-          <span>⚠️ 網の負荷（100%で破損）</span><strong id="net-tens-txt">16%</strong>
+          <span>⚠️ 網の負荷（100%で破損）</span><strong id="net-tens-txt">14%</strong>
         </div>
         <div style="height:14px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden;margin-bottom:10px;">
-          <div id="net-tens-bar" style="height:100%;width:16%;background:linear-gradient(90deg,#38e59a,#f59e0b,#ef4444);"></div>
+          <div id="net-tens-bar" style="height:100%;width:14%;background:linear-gradient(90deg,#38e59a,#f59e0b,#ef4444);"></div>
         </div>
         <div id="net-pull-timer" style="font-size:12px;font-weight:700;color:#f3c687;margin-bottom:8px;">残り ${pullTime.toFixed(1)}s</div>
-        <button type="button" class="btn-primary" id="btn-net-pull" oncontextmenu="return false;" style="width:100%;height:56px;font-size:1.05rem;touch-action:none;user-select:none;-webkit-user-select:none;">💪 長押しで引き上げ（赤で即離す！）</button>
+        <button type="button" class="btn-primary" id="btn-net-pull" oncontextmenu="return false;" style="width:100%;height:56px;font-size:1.05rem;touch-action:none;user-select:none;-webkit-user-select:none;">💪 長押しで引き上げ（赤で離す！）</button>
       </div>
     </div>
   `);
@@ -2278,16 +2330,16 @@ function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", f
   const enterPullStage = (hitGrade) => {
     stage = "pull"; if (!__payNetPhase2()) return;
     aimResult = hitGrade;
-    pullProgress = hitGrade === "great" ? 18 : 8;
-    netTension = 16;
+    pullProgress = (hitGrade === "great" ? 20 : 10) + netLvl * 2;
+    netTension = 14;
     rageState = "calm";
-    stateTimer = Math.max(0.55, 1.05 - rarityLevel * 0.12) + Math.random() * 0.4;
+    stateTimer = Math.max(0.75, 1.15 - rarityLevel * 0.08 + netLvl * 0.08) + Math.random() * 0.4;
     const desc = document.getElementById("net-stage-desc");
     const aimWrap = document.getElementById("net-aim-wrap");
     const pullWrap = document.getElementById("net-pull-wrap");
     if (desc) desc.innerHTML = hitGrade === "great"
-      ? "🎯 <strong>ド真ん中捕捉！</strong>【第2段階】赤で即離しつつ押し戻される前に引き上げろ！"
-      : "🕸️ <strong>なんとか包囲！</strong>【第2段階】赤で即離しつつ引き上げろ！";
+      ? "🎯 <strong>ド真ん中捕捉！</strong>【第2段階】赤で離しつつ一気に引き上げろ！"
+      : "🕸️ <strong>魚群を包囲！</strong>【第2段階】赤で離しつつ引き上げろ！";
     if (aimWrap) aimWrap.style.display = "none";
     if (pullWrap) pullWrap.style.display = "block";
     audioEngine.playOk?.();
@@ -2302,7 +2354,7 @@ function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", f
       throwX = Math.max(5, Math.min(95, ((ev.clientX - rect.left) / rect.width) * 100));
       throwY = Math.max(5, Math.min(95, ((ev.clientY - rect.top) / rect.height) * 100));
       throwing = true;
-      throwFlight = 0.22;
+      throwFlight = flightDur;
       audioEngine.playNetThrow?.();
       const sp = document.getElementById("net-splash");
       if (sp) {
@@ -2342,9 +2394,9 @@ function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", f
       aimTime = Math.max(0, aimTime - dt);
       turnTimer -= dt;
       if (turnTimer <= 0) {
-        turnTimer = cfg.turnMin + Math.random() * (0.65 - Math.min(0.35, rarityLevel * 0.08));
+        turnTimer = effTurnMin + Math.random() * (0.65 - Math.min(0.25, rarityLevel * 0.05));
         const angle = Math.random() * Math.PI * 2;
-        const mag = (30 + Math.random() * 18) * cfg.spd;
+        const mag = (25 + Math.random() * 14) * effSpd;
         vx = Math.cos(angle) * mag;
         vy = Math.sin(angle) * mag;
       }
@@ -2367,9 +2419,9 @@ function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", f
         throwFlight -= dt;
         if (throwFlight <= 0) {
           const dist = Math.hypot(fishX - throwX, (fishY - throwY) * 0.65);
-          if (dist <= throwRadius * 0.56) {
+          if (dist <= throwRadius * 0.62) {
             enterPullStage("great");
-          } else if (dist <= throwRadius * 1.02) {
+          } else if (dist <= throwRadius * 1.12) {
             enterPullStage("good");
           } else {
             finishGame("miss");
@@ -2386,31 +2438,31 @@ function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", f
       if (stateTimer <= 0) {
         if (rageState === "calm") {
           rageState = "warn";
-          stateTimer = cfg.warnDur;
+          stateTimer = effWarnDur;
         } else if (rageState === "warn") {
           rageState = "rage";
-          stateTimer = 0.72 + Math.random() * (0.45 + rarityLevel * 0.12);
+          stateTimer = Math.max(0.45, 0.68 - netLvl * 0.05) + Math.random() * Math.max(0.22, 0.36 + rarityLevel * 0.07 - netLvl * 0.05);
         } else {
           rageState = "calm";
-          stateTimer = Math.max(0.55, 1.15 - rarityLevel * 0.12) + Math.random() * 0.55;
+          stateTimer = Math.max(0.75, 1.2 - rarityLevel * 0.08 + netLvl * 0.09) + Math.random() * 0.5;
         }
       }
 
       if (holding) {
         if (rageState === "rage") {
-          netTension += cfg.rageRise * dt;
-          pullProgress += cfg.gain * 0.18 * dt;
+          netTension += effRageRise * dt;
+          pullProgress += effGain * 0.25 * dt;
         } else if (rageState === "warn") {
-          netTension += 22 * dt;
-          pullProgress += cfg.gain * 0.85 * dt;
+          netTension += Math.max(8, 17 - netLvl * 1.8) * dt;
+          pullProgress += effGain * 0.90 * dt;
         } else {
-          netTension += 7 * dt;
-          pullProgress += cfg.gain * dt;
+          netTension += Math.max(2.5, 6 - netLvl * 0.7) * dt;
+          pullProgress += effGain * dt;
         }
         audioEngine.playReelTick?.(netTension);
       } else {
-        netTension = Math.max(0, netTension - (rageState === "rage" ? 30 : 24) * dt);
-        pullProgress = Math.max(0, pullProgress - cfg.slipBack * (rageState === "rage" ? 1.25 : 0.7) * dt);
+        netTension = Math.max(0, netTension - (rageState === "rage" ? 36 : 30) * tensionRecoverBase * dt);
+        pullProgress = Math.max(0, pullProgress - effSlipBack * (rageState === "rage" ? 1.1 : 0.6) * dt);
       }
 
       const badge = document.getElementById("net-rage-badge");
@@ -2446,7 +2498,7 @@ function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", f
       if (netTension >= 100 || pullTime <= 0) {
         finishGame("miss");
       } else if (pullProgress >= 100) {
-        finishGame(aimResult === "great" && netTension < 72 ? "great" : "good");
+        finishGame(aimResult === "great" && netTension < 76 ? "great" : "good");
       }
     }
   }, 33);
@@ -3443,6 +3495,11 @@ function runShellPhase1BeforePhase2(areaLabel, scanCost = 1, harvestCost = 2, on
   const existing = document.getElementById("shell-phase1-overlay");
   if (existing) existing.remove();
 
+  const saveCur = typeof currentSave === "function" ? currentSave() : null;
+  const eqShell = saveCur && typeof getEquippedStats === "function" ? getEquippedStats(saveCur) : null;
+  const shellBonus = Math.max(1.0, Number(eqShell?.shellBonus || 1.0));
+  const toolTier = shellBonus >= 1.75 ? 3 : shellBonus >= 1.3 ? 2 : 1;
+
   const terrains = [
     { icon: "🪨", name: "岩陰" },
     { icon: "🌊", name: "潮だまり" },
@@ -3455,19 +3512,27 @@ function runShellPhase1BeforePhase2(areaLabel, scanCost = 1, harvestCost = 2, on
     { icon: "🏖️", name: "砂利場" }
   ];
 
-  // 大密集×2、気配あり×3、少なめ×4 をランダム配置
-  const grades = ["rich", "rich", "normal", "normal", "normal", "poor", "poor", "poor", "poor"];
+  // 採取道具の品質に応じて大密集スポット数と探索回数を優遇
+  const grades = toolTier >= 3
+    ? ["rich", "rich", "rich", "rich", "normal", "normal", "normal", "poor", "poor"]
+    : toolTier === 2
+      ? ["rich", "rich", "rich", "normal", "normal", "normal", "poor", "poor", "poor"]
+      : ["rich", "rich", "normal", "normal", "normal", "poor", "poor", "poor", "poor"];
+
   for (let i = grades.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [grades[i], grades[j]] = [grades[j], grades[i]];
   }
 
+  const richHintP = toolTier >= 3 ? 0.96 : toolTier === 2 ? 0.88 : 0.78;
+  const poorHintP = toolTier >= 3 ? 0.03 : toolTier === 2 ? 0.07 : 0.12;
+
   const cells = terrains.map((t, idx) => {
     const g = grades[idx];
     const hintBubble =
-      (g === "rich" && Math.random() < 0.78) ||
+      (g === "rich" && Math.random() < richHintP) ||
       (g === "normal" && Math.random() < 0.35) ||
-      (g === "poor" && Math.random() < 0.12);
+      (g === "poor" && Math.random() < poorHintP);
     return {
       idx,
       icon: t.icon,
@@ -3478,7 +3543,7 @@ function runShellPhase1BeforePhase2(areaLabel, scanCost = 1, harvestCost = 2, on
     };
   });
 
-  const maxScans = 3;
+  const maxScans = toolTier >= 3 ? 5 : toolTier === 2 ? 4 : 3;
   let scansLeft = maxScans;
   let scanPaid = false;
 
@@ -3493,12 +3558,13 @@ function runShellPhase1BeforePhase2(areaLabel, scanCost = 1, harvestCost = 2, on
   ov.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(8,18,32,0.72);display:flex;align-items:center;justify-content:center;padding:14px;";
   ov.innerHTML = `
     <div style="width:100%;max-width:356px;background:#0f172a;border:1px solid rgba(148,163,184,0.35);border-radius:16px;padding:14px 16px 16px;color:#f8fafc;box-shadow:0 16px 40px rgba(0,0,0,0.5);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
         <div style="font-size:15px;font-weight:800;">🐚 ${areaLabel || "岸壁・岩場"}のスポット探し</div>
         <button id="btn-shell-p1-close" aria-label="閉じる" style="width:30px;height:30px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#cbd5e1;font-size:15px;font-weight:700;cursor:pointer;">×</button>
       </div>
+      ${toolTier > 1 ? `<div style="font-size:11px;color:#38e59a;font-weight:700;margin-bottom:4px;">✨ ${eqShell?.shellTool?.name || "上位道具"}補正：大密集UP・探索${maxScans}回</div>` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:10px;">
-        <span style="color:#cbd5e1;">探索：⚡${scanCost}（3回） ／ 採取：⚡${harvestCost}</span>
+        <span style="color:#cbd5e1;">探索：⚡${scanCost}（${maxScans}回） ／ 採取：⚡${harvestCost}</span>
         <span id="shell-scan-left" style="color:#fbbf24;font-weight:700;white-space:nowrap;margin-left:6px;">残り${scansLeft}回</span>
       </div>
       <div id="shell-spot-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>

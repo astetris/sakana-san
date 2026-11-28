@@ -1,4 +1,4 @@
-import { getGachaGearList } from "./gacha.js?v=20261128_150217";
+import { getGachaGearList } from "./gacha.js?v=20261128_152002";
 
 export const BOATS = [
   { id: "boat_none", tier: 0, name: "徒歩（船なし）", buyPrice: 0, rentPrice: 0, maxFuel: 0, speed: 0, desc: "港・堤防・砂浜・河口・磯を自由に歩いて探索" },
@@ -37,11 +37,11 @@ export const SHOP_ITEMS = [
   { id: "shell_2", tab: "gear_net", slot: "shellTool", name: "ステンレス磯金＆ジョレン", price: 14000, bonus: 1.38, desc: "大粒・レア貝UP＆殻割れ軽減" },
   { id: "shell_3", tab: "gear_net", slot: "shellTool", name: "電動桁引き＆深海かご", price: 64000, bonus: 1.8, desc: "ホタテ・アカガイ・ツブ大量採取" },
 
-  { id: "net_toami", tab: "gear_net", slot: "net", method: "toami", name: "入門 投網（とあみ）", price: 0, minCount: 2, maxCount: 3, fuelCost: 0, damageChance: 0.08, desc: "岸・浅場で小魚をまとめ獲り" },
-  { id: "net_sashiami", tab: "gear_net", slot: "net", method: "sashiami", name: "沿岸 刺し網", price: 22000, minCount: 2, maxCount: 4, fuelCost: 3, damageChance: 0.14, desc: "磯・近海の中型魚やイセエビ狙い" },
-  { id: "net_sokobiki", tab: "gear_net", slot: "net", method: "sokobiki", name: "底引き・桁引き網", price: 64000, minCount: 3, maxCount: 5, fuelCost: 6, damageChance: 0.25, desc: "海底のヒラメ・ノドグロ・ホタテ漁" },
-  { id: "net_makiami", tab: "gear_net", slot: "net", method: "makiami", name: "大型 巻き網", price: 145000, minCount: 3, maxCount: 6, fuelCost: 10, damageChance: 0.28, desc: "青物・カツオ・マグロの群れを一網打尽" },
-  { id: "net_kago", tab: "gear_net", slot: "net", method: "kago", name: "漁業用 貝・底かご", price: 30000, minCount: 2, maxCount: 4, fuelCost: 4, damageChance: 0.04, desc: "傷をつけずタコ・ウナギ・イセエビ捕獲" },
+  { id: "net_toami", tab: "gear_net", slot: "net", method: "toami", name: "入門 投網（とあみ）", price: 0, minCount: 2, maxCount: 3, fuelCost: 0, damageChance: 0.08, tier: 1, desc: "岸・浅場で小魚をまとめ獲り" },
+  { id: "net_sashiami", tab: "gear_net", slot: "net", method: "sashiami", name: "沿岸 刺し網", price: 22000, minCount: 2, maxCount: 4, fuelCost: 3, damageChance: 0.14, tier: 2, desc: "磯・近海の中型魚やイセエビ狙い" },
+  { id: "net_sokobiki", tab: "gear_net", slot: "net", method: "sokobiki", name: "底引き・桁引き網", price: 64000, minCount: 3, maxCount: 5, fuelCost: 6, damageChance: 0.25, tier: 4, desc: "海底のヒラメ・ノドグロ・ホタテ漁" },
+  { id: "net_makiami", tab: "gear_net", slot: "net", method: "makiami", name: "大型 巻き網", price: 145000, minCount: 3, maxCount: 6, fuelCost: 10, damageChance: 0.28, tier: 5, desc: "青物・カツオ・マグロの群れを一網打尽" },
+  { id: "net_kago", tab: "gear_net", slot: "net", method: "kago", name: "漁業用 貝・底かご", price: 30000, minCount: 2, maxCount: 4, fuelCost: 4, damageChance: 0.04, tier: 3, desc: "傷をつけずタコ・ウナギ・イセエビ捕獲" },
 
   { id: "bait_free", tab: "bait", slot: "bait", name: "サビキ・標準仕掛け", price: 0, pack: 0, attract: 1.0, desc: "無料・無限に使える基本仕掛け" },
   { id: "bait_isoma", tab: "bait", slot: "bait", name: "アオイソメ (20回分)", price: 600, pack: 20, attract: 1.18, desc: "誘引力x1.18 ・堤防・砂浜で定番" },
@@ -100,10 +100,32 @@ export function getEquippedStats(save) {
   let bait = all.find((x) => x.id === (g.bait || "bait_free")) || SHOP_ITEMS.find((x) => x.id === "bait_free");
   if (bait.pack > 0 && ((save.baitStock?.[bait.id]) || 0) <= 0) bait = SHOP_ITEMS.find((x) => x.id === "bait_free");
 
+  const inferNetTier = (n) => {
+    if (!n) return 1;
+    if (typeof n.tier === "number" && n.tier > 0) return n.tier;
+    const price = Number(n.price || 0);
+    const maxC = Number(n.maxCount || 3);
+    if (maxC >= 7 || price >= 200000) return 6;
+    if (maxC >= 6 || price >= 120000) return 5;
+    if (maxC >= 5 || price >= 55000) return 4;
+    if (price >= 28000) return 3;
+    if (maxC >= 4 || price >= 15000) return 2;
+    return 1;
+  };
+
+  const rodPower = rod.power || 1;
+  const reelSpeed = reel.speed || 1;
+  const lineStrength = line.strength || 1;
+  const shellBonus = shellTool.bonus || 1;
+  const baitAttract = bait.attract || 1;
+  const netTier = inferNetTier(net);
+  const fishingQuality = (rodPower + reelSpeed + lineStrength) / 3;
+
   return {
     rod, reel, line, cooler, shellTool, net, bait,
-    rodPower: rod.power || 1, reelSpeed: reel.speed || 1, lineStrength: line.strength || 1,
-    coolerCap: cooler.cap || 10, shellBonus: shellTool.bonus || 1, baitAttract: bait.attract || 1
+    rodPower, reelSpeed, lineStrength,
+    coolerCap: cooler.cap || 10, shellBonus, baitAttract,
+    netTier, fishingQuality
   };
 }
 
