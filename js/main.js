@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_025924";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_025924";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_025924";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_025924";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_025924";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_025945";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_025945";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_025945";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_025945";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_025945";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_025924";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_025924";
+} from "./systems/economy.js?v=20261128_025945";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_025945";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_025924";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_025924";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_025924";
+} from "./systems/business.js?v=20261128_025945";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_025945";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_025945";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_025924";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_025924";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_025924";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_025924";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_025924";
+} from "./systems/pearlShop.js?v=20261128_025945";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_025945";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_025945";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_025945";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_025945";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_025924";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_025924";
+} from "./systems/fishingEngine.js?v=20261128_025945";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_025945";
 
 const $ = (id) => document.getElementById(id);
 
