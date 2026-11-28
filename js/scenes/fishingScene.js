@@ -935,7 +935,7 @@ function buildHighQualityAngler(avatarOpt = null, withRod = true, fallbackName =
   return root;
 }
 
-function animateAnglerRig(angler, walkPhase, speedFactor, isBoating) {
+function animateAnglerRig(angler, walkPhase, speedFactor, isBoating, timeSec = 0) {
   const rig = angler?.userData?.rig;
   if (!rig) return;
   if (isBoating) {
@@ -943,14 +943,31 @@ function animateAnglerRig(angler, walkPhase, speedFactor, isBoating) {
     rig.rightLeg.rotation.x = -1.1;
     rig.leftArm.rotation.x = -0.55;
     rig.rightArm.rotation.x = -0.55;
+    rig.torso.rotation.x = 0;
+    rig.torso.position.y = 1.05;
     return;
   }
-  const amp = Math.min(0.65, speedFactor * 0.65);
-  const s = Math.sin(walkPhase) * amp;
-  rig.leftLeg.rotation.x = s;
-  rig.rightLeg.rotation.x = -s;
-  rig.leftArm.rotation.x = -s * 0.8;
-  rig.rightArm.rotation.x = s * 0.45 - 0.18;
+  const spd = Math.max(0, Math.min(1, speedFactor || 0));
+  if (spd > 0.04) {
+    const amp = 0.78 * spd;
+    const s = Math.sin(walkPhase) * amp;
+    const bounce = Math.abs(Math.sin(walkPhase)) * 0.065 * spd;
+    rig.leftLeg.rotation.x = s;
+    rig.rightLeg.rotation.x = -s;
+    rig.leftArm.rotation.x = -s * 0.85;
+    rig.rightArm.rotation.x = s * 0.85;
+    rig.torso.rotation.x = -0.14 * spd;
+    rig.torso.position.y = 1.05 + bounce;
+  } else {
+    // 待機中は手足を滑らかにニュートラルへ戻し、自然な呼吸モーション
+    const k = 0.18;
+    rig.leftLeg.rotation.x *= (1 - k);
+    rig.rightLeg.rotation.x *= (1 - k);
+    rig.leftArm.rotation.x *= (1 - k);
+    rig.rightArm.rotation.x *= (1 - k);
+    rig.torso.rotation.x *= (1 - k);
+    rig.torso.position.y = 1.05 + Math.sin(timeSec * 2.2) * 0.014;
+  }
 }
 
 export class FishingScene {
@@ -1170,14 +1187,62 @@ export class FishingScene {
     this.moveInput = { x: 0, y: 0 }; this.autopilot = false;
     this.onFuelConsume = null; this.onBlocked = null; this.lastBlockAt = 0;
 
-    let dragX = null;
-    canvas.addEventListener("pointerdown", (e) => { dragX = e.clientX; });
-    window.addEventListener("pointermove", (e) => {
-      if (dragX === null) return;
-      const dx = e.clientX - dragX; dragX = e.clientX;
-      this.yaw -= dx * 0.006;
+    // 原神風：上下左右360°オービット視点＋2本指ピンチ＆ホイールズーム＋マルチタッチ分離
+    this.targetYaw = this.yaw;
+    this.camPitch = 0.27;
+    this.targetPitch = 0.27;
+    this.camDist = 4.7;
+    this.targetCamDist = 4.7;
+    canvas.style.touchAction = "none";
+
+    const camPointers = new Map();
+    let pinchStartDist = 0;
+    let pinchStartCamDist = this.targetCamDist;
+
+    const getDistRange = () => (this.isBoating ? [4.2, 11.5] : [2.3, 7.6]);
+
+    canvas.addEventListener("pointerdown", (e) => {
+      camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (camPointers.size === 2) {
+        const pts = [...camPointers.values()];
+        pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        pinchStartCamDist = this.targetCamDist;
+      }
     });
-    window.addEventListener("pointerup", () => { dragX = null; });
+
+    window.addEventListener("pointermove", (e) => {
+      if (!camPointers.has(e.pointerId)) return;
+      const prev = camPointers.get(e.pointerId);
+      const dx = e.clientX - prev.x;
+      const dy = e.clientY - prev.y;
+      camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (camPointers.size === 1) {
+        this.targetYaw -= dx * 0.0062;
+        this.targetPitch = Math.max(-0.32, Math.min(1.12, this.targetPitch + dy * 0.0052));
+      } else if (camPointers.size === 2) {
+        const pts = [...camPointers.values()];
+        const curDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (pinchStartDist > 12) {
+          const [minD, maxD] = getDistRange();
+          const scale = pinchStartDist / Math.max(12, curDist);
+          this.targetCamDist = Math.max(minD, Math.min(maxD, pinchStartCamDist * scale));
+        }
+      }
+    });
+
+    const releaseCamPointer = (e) => {
+      camPointers.delete(e.pointerId);
+      if (camPointers.size < 2) pinchStartDist = 0;
+    };
+    window.addEventListener("pointerup", releaseCamPointer);
+    window.addEventListener("pointercancel", releaseCamPointer);
+
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const [minD, maxD] = getDistRange();
+      this.targetCamDist = Math.max(minD, Math.min(maxD, this.targetCamDist + e.deltaY * 0.004));
+    }, { passive: false });
     const _syncSize = () => { this.resize(); setTimeout(() => this.resize(), 180); setTimeout(() => this.resize(), 420); };
     window.addEventListener("resize", _syncSize);
     window.addEventListener("orientationchange", _syncSize);
@@ -2735,7 +2800,8 @@ export class FishingScene {
   }
 
   setPlayerState({ x, z, yaw, isBoating, boatSpeed, boatTier, avatar, name }) {
-    this.pos.set(x ?? 0, z ?? 4); this.yaw = yaw ?? 0; this.bodyYaw = this.yaw;
+    this.pos.set(x ?? 0, z ?? 4); this.yaw = yaw ?? 0; this.targetYaw = this.yaw; this.bodyYaw = this.yaw;
+    this.targetCamDist = isBoating ? 6.8 : 4.7; this.camDist = this.targetCamDist;
     this.isBoating = !!isBoating; this.boatSpeed = boatSpeed || 1.2; this.boatTier = boatTier || 0;
     this.boatGroup.visible = this.isBoating;
     this.parkedBoat.visible = !this.isBoating && this.boatTier > 0;
@@ -3135,24 +3201,43 @@ export class FishingScene {
     const dt = Math.min(0.05, this.clock.getDelta()), t = this.clock.elapsedTime;
     let nx = this.pos.x, nz = this.pos.y, movedDist = 0;
 
+    // カメラ目標角・距離への滑らかな補間（原神風のヌルッとした視点追従）
+    if (typeof this.targetYaw !== "number") this.targetYaw = this.yaw;
+    if (typeof this.targetPitch !== "number") this.targetPitch = 0.27;
+    if (typeof this.camPitch !== "number") this.camPitch = this.targetPitch;
+    if (typeof this.targetCamDist !== "number") this.targetCamDist = this.isBoating ? 6.8 : 4.7;
+    if (typeof this.camDist !== "number") this.camDist = this.targetCamDist;
+
+    const camSmooth = Math.min(1, dt * 16);
+    this.yaw += (this.targetYaw - this.yaw) * camSmooth;
+    this.camPitch += (this.targetPitch - this.camPitch) * camSmooth;
+    const minD = this.isBoating ? 4.2 : 2.3, maxD = this.isBoating ? 11.5 : 7.6;
+    this.targetCamDist = Math.max(minD, Math.min(maxD, this.targetCamDist));
+    this.camDist += (this.targetCamDist - this.camDist) * Math.min(1, dt * 10);
+
     if (this.isBoating && this.autopilot) {
       const nearest = this.getNearestHotspot();
       if (nearest.spot && nearest.dist > 6) {
-        const targetYaw = Math.atan2(-(nearest.spot.x - nx), -(nearest.spot.z - nz));
-        let diff = targetYaw - this.yaw;
+        const autoYaw = Math.atan2(-(nearest.spot.x - nx), -(nearest.spot.z - nz));
+        let diff = autoYaw - this.yaw;
         while (diff > Math.PI) diff -= Math.PI * 2;
         while (diff < -Math.PI) diff += Math.PI * 2;
-        this.yaw += Math.sign(diff) * Math.min(Math.abs(diff), dt * 2.1);
+        const turn = Math.sign(diff) * Math.min(Math.abs(diff), dt * 2.1);
+        this.yaw += turn; this.targetYaw = this.yaw;
         const step = dt * 15 * this.boatSpeed;
         nx -= Math.sin(this.yaw) * step; nz -= Math.cos(this.yaw) * step; movedDist = step;
       } else this.autopilot = false;
     } else if (Math.abs(this.moveInput.x) > 0.06 || Math.abs(this.moveInput.y) > 0.06) {
       if (this.isBoating) {
-        this.yaw -= this.moveInput.x * dt * 1.9;
+        const turn = -this.moveInput.x * dt * 1.9;
+        this.yaw += turn; this.targetYaw += turn;
         const step = -this.moveInput.y * dt * 16 * this.boatSpeed;
         nx -= Math.sin(this.yaw) * step; nz -= Math.cos(this.yaw) * step; movedDist = Math.abs(step);
       } else {
-        const walkSpeed = 14 * dt, fwd = -this.moveInput.y * walkSpeed, strafe = this.moveInput.x * walkSpeed;
+        let ix = this.moveInput.x, iy = this.moveInput.y;
+        const mag = Math.hypot(ix, iy);
+        if (mag > 1.0) { ix /= mag; iy /= mag; }
+        const walkSpeed = 14 * dt, fwd = -iy * walkSpeed, strafe = ix * walkSpeed;
         nx += (-Math.sin(this.yaw) * fwd) + (Math.cos(this.yaw) * strafe);
         nz += (-Math.cos(this.yaw) * fwd) - (Math.sin(this.yaw) * strafe);
       }
@@ -3208,15 +3293,19 @@ export class FishingScene {
     }
     this.playerRig.position.set(this.pos.x, rigY, this.pos.y);
     this.playerRig.rotation.y = this.yaw;
-    // カメラ位置を徒歩・乗船で滑らかに切り替え（常に原点のアバターを中心に回転）
-    const camTargetY = this.isBoating ? 3.25 : 2.72;
-    const camTargetZ = this.isBoating ? 6.4 : 4.45;
-    this.camera.position.y += (camTargetY - this.camera.position.y) * Math.min(1, dt * 6);
-    this.camera.position.z += (camTargetZ - this.camera.position.z) * Math.min(1, dt * 6);
-    const lookTargetY = this.isBoating ? 1.15 : 1.38;
-    const lookTargetZ = this.isBoating ? -8.0 : -2.5;
-    const camPitch = Math.atan2(lookTargetY - this.camera.position.y, this.camera.position.z - lookTargetZ);
-    this.camera.rotation.set(camPitch, 0, 0);
+    // 原神風オービットカメラ：注視点を中心に上下左右360°回転＆地面めり込み自動防止
+    const focusY = this.isBoating ? 1.45 : 1.48;
+    const minLocalCamY = this.isBoating ? 0.65 : 0.42;
+    let effDist = this.camDist;
+    const sinP = Math.sin(this.camPitch);
+    const cosP = Math.cos(this.camPitch);
+    if (sinP < 0 && (focusY + sinP * effDist) < minLocalCamY) {
+      effDist = Math.max(1.35, (minLocalCamY - focusY) / sinP);
+    }
+    const camY = Math.max(minLocalCamY, focusY + sinP * effDist);
+    const camZ = cosP * effDist;
+    this.camera.position.set(0, camY, camZ);
+    this.camera.rotation.set(-this.camPitch, 0, 0);
 
     if (this.localAvatar) {
       const stepDx = this.pos.x - (this._prevPosX ?? this.pos.x);
@@ -3244,12 +3333,12 @@ export class FishingScene {
       if (spd > 0.08 && !this.isBoating) this.localWalkPhase += dt * 9.5;
       this.localAvatar.position.set(0, this.isBoating ? 0.44 : 0.0, this.isBoating ? 0.22 : 0.0);
       this.localAvatar.rotation.y = (this.bodyYaw ?? this.yaw) - this.yaw;
-      animateAnglerRig(this.localAvatar, this.localWalkPhase, this.isBoating ? 0 : spd, this.isBoating);
+      animateAnglerRig(this.localAvatar, this.localWalkPhase, this.isBoating ? 0 : spd, this.isBoating, t);
     }
     for (const av of this.remoteAvatars.values()) {
       const dMove = Math.hypot((av.targetX ?? 0) - av.group.position.x, (av.targetZ ?? 0) - av.group.position.z);
       if (dMove > 0.06 && !av.isBoating) av.walkPhase = (av.walkPhase || 0) + dt * 9.5;
-      animateAnglerRig(av.person, av.walkPhase || 0, Math.min(1, dMove * 2.5), av.isBoating);
+      animateAnglerRig(av.person, av.walkPhase || 0, Math.min(1, dMove * 2.5), av.isBoating, t);
     }
     this.playerRig.rotation.z = this.isBoating ? boatRoll * 0.28 : 0;
     if (this.boatGroup && this.isBoating) {
