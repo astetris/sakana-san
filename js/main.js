@@ -24,32 +24,32 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_024609";
-import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_024609";
-import { getRealWorldEnv } from "./systems/environment.js?v=20261128_024609";
-import { audioEngine } from "./systems/audioEngine.js?v=20261128_024609";
-import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_024609";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_025346";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_025346";
+import { getRealWorldEnv } from "./systems/environment.js?v=20261128_025346";
+import { audioEngine } from "./systems/audioEngine.js?v=20261128_025346";
+import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_025346";
 import {
   BOATS, FUEL_PRICE_PER_L, SHOP_ITEMS, PART_TIME_JOBS,
   getJobRankInfo, getActiveBoat, getBestBoatTier, getEquippedStats, applyBankInterest
-} from "./systems/economy.js?v=20261128_024609";
-import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_024609";
+} from "./systems/economy.js?v=20261128_025346";
+import { runJobMinigame, stopActiveJobGame } from "./systems/jobsMinigame.js?v=20261128_025346";
 import {
   BUSINESS_DEFS, FARM_EXPAND_PRICES, getPortLevel, isBusinessOpen, autoOmakaseStock, syncBusinessProgress, getFarmDurationMs, harvestFarmPlot, ensureDailyOrders, PRICE_STRATEGIES, BIZ_UPGRADES, ensureBizState, getItemFreshness, getFreshnessEffect, getBizMetrics, getUpgradeCost, upgradeBizFacility, refreshBizIce, stockSingleToBiz, serveGuestOrder
-} from "./systems/business.js?v=20261128_024609";
-import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_024609";
-import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_024609";
+} from "./systems/business.js?v=20261128_025346";
+import { startShopView, stopShopView } from "./systems/shopView.js?v=20261128_025346";
+import { CANTEEN_MENU, PROFILE_TITLES, getActiveBuff } from "./systems/social.js?v=20261128_025346";
 import {
   getTotalPearls, isMonthlyPassActive, isWeeklyPassActive, canClaimAnyPass, checkFreePearlMilestones, grantMonthlyPass, grantWeeklyPass, PEARL_PACKS, MONTHLY_PASS_DEF, WEEKLY_PASS_DEF
-} from "./systems/pearlShop.js?v=20261128_024609";
-import { loadGachaBanners } from "./systems/gacha.js?v=20261128_024609";
-import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_024609";
-import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_024609";
-import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_024609";
+} from "./systems/pearlShop.js?v=20261128_025346";
+import { loadGachaBanners } from "./systems/gacha.js?v=20261128_025346";
+import { openPearlShopUI, openGachaUI } from "./systems/phase7UI.js?v=20261128_025346";
+import { verifyAdminAccess, openAdminPanel } from "./systems/adminPanel.js?v=20261128_025346";
+import { syncLoadSlots, persistSlots, createNewSave, ensureSaveDefaults } from "./state/saveManager.js?v=20261128_025346";
 import {
   loadSpeciesMaster, getAllSpecies, getSpeciesById, rollCatch, rollShellfish, rollNetHaul, getShellMethodForArea
-} from "./systems/fishingEngine.js?v=20261128_024609";
-import { FishingScene } from "./scenes/fishingScene.js?v=20261128_024609";
+} from "./systems/fishingEngine.js?v=20261128_025346";
+import { FishingScene } from "./scenes/fishingScene.js?v=20261128_025346";
 
 const $ = (id) => document.getElementById(id);
 
@@ -3067,3 +3067,105 @@ boot();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
+
+
+function openOnlineRosterModal() {
+  const save = currentSave();
+  const myUid = typeof getCurrentUid === "function" ? (getCurrentUid() || "local_me") : "local_me";
+  const now = Date.now();
+  const ONLINE_WINDOW_MS = 120000; // 2分以内の更新をオンライン扱い
+
+  const peopleMap = new Map();
+
+  // 1. ワールド上の他プレイヤー（scene3d.remoteAvatars がある場合は参照）
+  if (typeof scene3d !== "undefined" && scene3d?.remoteAvatars) {
+    for (const [uid, av] of scene3d.remoteAvatars.entries()) {
+      const lastAt = Number(av?.lastSeen || av?.updatedAt || now);
+      const isOnline = (now - lastAt) <= ONLINE_WINDOW_MS;
+      peopleMap.set(uid, {
+        uid,
+        name: av?.name || av?.playerName || `漁師(${String(uid).slice(0, 5)})`,
+        area: av?.areaName || av?.area || "港周辺",
+        status: av?.isBoating ? "乗船中" : (av?.isFishing ? "釣り中" : "探索中"),
+        online: isOnline,
+        lastAt
+      });
+    }
+  }
+
+  // 2. フレンドやランキングの記録からオフライン候補も補完
+  if (Array.isArray(save?.friends)) {
+    for (const fr of save.friends) {
+      const fid = fr.uid || fr.id || fr.name;
+      if (!fid) continue;
+      const lastAt = Number(fr.lastOnlineAt || fr.updatedAt || 0);
+      const isOnline = lastAt > 0 && (now - lastAt) <= ONLINE_WINDOW_MS;
+      if (!peopleMap.has(fid)) {
+        peopleMap.set(fid, {
+          uid: fid,
+          name: fr.name || "フレンド",
+          area: fr.area || "港町",
+          status: isOnline ? "オンライン" : "オフライン",
+          online: isOnline,
+          lastAt
+        });
+      }
+    }
+  }
+
+  // 3. 自分自身を確実に含める
+  peopleMap.set(myUid, {
+    uid: myUid,
+    name: save?.name || "アステ",
+    area: (typeof currentArea !== "undefined" && currentArea?.name) ? currentArea.name : "港・堤防",
+    status: (typeof phase !== "undefined" && phase !== "idle") ? "釣り中" : "プレイ中",
+    online: true,
+    lastAt: now
+  });
+
+  const list = [...peopleMap.values()].sort((a, b) => Number(b.online) - Number(a.online) || (b.lastAt - a.lastAt));
+  const onlineCnt = list.filter((p) => p.online).length;
+  const offlineCnt = list.length - onlineCnt;
+
+  const fmtAgo = (ts) => {
+    if (!ts) return "オフライン";
+    const diffSec = Math.max(0, Math.floor((now - ts) / 1000));
+    if (diffSec < 120) return "たった今アクティブ";
+    const min = Math.floor(diffSec / 60);
+    if (min < 60) return `${min}分前に接続`;
+    const hr = Math.floor(min / 60);
+    return `${hr}時間前に接続`;
+  };
+
+  const rowsHtml = list.map((p) => {
+    const dot = p.online
+      ? `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#22c55e;margin-right:6px;"></span><strong style="color:#4ade80;">オンライン</strong>`
+      : `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#64748b;margin-right:6px;"></span><strong style="color:#94a3b8;">オフライン</strong>`;
+    return `
+      <div class="list-row" style="opacity:${p.online ? "1" : "0.78"};">
+        <div>
+          <div>${dot} <strong>${escapeHtml(p.name)}</strong></div>
+          <div class="muted" style="font-size:11px;">📍 ${escapeHtml(p.area)} / ${escapeHtml(p.status)}</div>
+        </div>
+        <div class="muted" style="font-size:11px;text-align:right;">${fmtAgo(p.lastAt)}</div>
+      </div>
+    `;
+  }).join("");
+
+  openModal(
+    `👥 プレイヤー一覧（🟢 ${onlineCnt}人 / ⚫ ${offlineCnt}人）`,
+    `<div class="muted" style="font-size:11px;margin-bottom:8px;">オンライン中のプレイヤーとオフラインのプレイヤーを表示しています。</div>${rowsHtml}`
+  );
+}
+
+// 在席人数バッジ（例: "● 3人"）をタップしたら一覧モーダルを開く
+document.addEventListener("click", (ev) => {
+  const target = ev.target?.closest("button, [role='button'], .online-badge, .hud-online, [data-online-badge]");
+  if (!target) return;
+  const txt = (target.textContent || "").replace(/\s+/g, " ").trim();
+  if (target.matches("[data-online-badge], .online-badge, .hud-online") || /^[●🟢⚫]?\s*\d+\s*人$/.test(txt)) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    openOnlineRosterModal();
+  }
+}, true);
