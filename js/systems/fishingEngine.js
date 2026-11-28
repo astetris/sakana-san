@@ -116,7 +116,7 @@ function rebuildIndexes() {
 export async function loadSpeciesMaster() {
   const [baseRes, extraRes] = await Promise.all([
     fetch("./data/species.json"),
-    fetch("./data/species_extra.json?v=20261128_034601").catch(() => null)
+    fetch("./data/species_extra.json?v=20261128_035015").catch(() => null)
   ]);
   if (!baseRes.ok) throw new Error("data/species.json の読み込みに失敗しました");
   const baseList = await baseRes.json();
