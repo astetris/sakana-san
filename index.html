@@ -96,6 +96,7 @@
         <button class="btn-mini" id="btn-open-lounge">🍜 憩い</button>
         <button class="btn-mini" id="btn-open-jobs">💼 バイト</button>
         <button class="btn-mini" id="btn-open-office">🏢 事務所<span id="office-dot" class="notif-dot hidden"></span></button>
+          <button class="btn-mini" id="btn-open-stocks">📈 魚株</button>
       </nav>
 
       <!-- リアルタイム釣果速報＆チャット通知 -->
@@ -118,7 +119,7 @@
 
       <div class="mode-switch">
         <button id="tab-mode-fish" class="mode-btn active">🎣 釣り</button>
-        <button id="tab-mode-shell" class="mode-btn">🐚 貝採取</button>
+        <button id="tab-mode-shell" class="mode-btn">🐚 貝・海藻</button>
         <button id="tab-mode-net" class="mode-btn">🕸️ 網漁</button>
       </div>
     </div>
@@ -212,7 +213,7 @@
 <script>
     (function() {
       /* sakana-auto-cache-bust */
-      const ver = "20261128_080533";
+      const ver = "20261128_100404";
       const css = document.getElementById("main-css");
       if (css) css.href = "./css/style.css?v=" + ver;
       const s = document.createElement("script");

@@ -72,11 +72,47 @@ export function getRealWorldEnv(now = new Date()) {
   let marketRate = Number((0.85 + seededRandom(dayKey + "-mkt") * 0.5).toFixed(2));
   if (envOverride && typeof envOverride.marketRate === "number") marketRate = envOverride.marketRate;
 
+  // 日替わり＋3時間うねり＋潮＋風＋天候で毎日違う自然な波高＆波向きを生成
+  const rDayWave = seededRandom(dayKey + "-wave-day");
+  const rBlockSwell = seededRandom(blockKey + "-wave-swell");
+  let dayBaseWave = 0.78;
+  let dayChop = 0.45;
+  if (rDayWave < 0.22) {
+    dayBaseWave = 0.42 + (rDayWave / 0.22) * 0.22; // ベタ凪の日
+    dayChop = 0.24;
+  } else if (rDayWave < 0.58) {
+    dayBaseWave = 0.68 + ((rDayWave - 0.22) / 0.36) * 0.34; // 穏やか〜さざ波
+    dayChop = 0.46;
+  } else if (rDayWave < 0.84) {
+    dayBaseWave = 1.04 + ((rDayWave - 0.58) / 0.26) * 0.34; // うねりのある日
+    dayChop = 0.68;
+  } else {
+    dayBaseWave = 1.38 + ((rDayWave - 0.84) / 0.16) * 0.30; // 白波立つ高波の日
+    dayChop = 0.86;
+  }
+
+  const tideWaveMod = tideName === "大潮" ? 0.16 : (tideName === "小潮" || tideName === "長潮") ? -0.10 : 0.0;
+  const windWaveMod = wind === "onshore" ? 0.18 : wind === "offshore" ? -0.10 : -0.06;
+  const swellDrift = (rBlockSwell - 0.5) * 0.28;
+  const weatherMult = weather === "rough" ? 1.58 : weather === "rain" ? 1.24 : weather === "cloudy" ? 1.05 : weather === "fog" ? 0.72 : 1.0;
+
+  let waveAmp = (dayBaseWave + tideWaveMod + windWaveMod + swellDrift) * weatherMult;
+  if (weather === "rough") waveAmp = Math.max(waveAmp, 2.05);
+  waveAmp = Number(Math.max(0.35, Math.min(2.45, waveAmp)).toFixed(2));
+  const waveChoppiness = Number(Math.max(0.2, Math.min(1.0, dayChop + (weather === "rough" ? 0.28 : weather === "rain" ? 0.12 : 0.0))).toFixed(2));
+
+  // 日ごとの主な波の進行方向（岸側へゆるく変化）
+  const baseAngle = (seededRandom(dayKey + "-wdir") - 0.5) * 1.15 + (rBlockSwell - 0.5) * 0.35;
+  const waveDir = { x: Number(Math.sin(baseAngle).toFixed(3)), z: Number(Math.cos(baseAngle).toFixed(3)) };
+  const waveSeed = Number((seededRandom(dayKey + "-wseed") * 100.0).toFixed(2));
+  const seaStateJa = waveAmp < 0.62 ? "ベタ凪" : waveAmp < 0.96 ? "穏やか" : waveAmp < 1.35 ? "さざ波" : waveAmp < 1.78 ? "うねり" : "高波";
+
   const overrideTag = envOverride ? " [🔧上書中]" : "";
   return {
     now, month, hour, min, dayKey,
     season, seasonJa, weather, weatherJa, wind, windJa,
     waterTemp, tideName, timePhase, marketRate,
+    waveAmp, waveChoppiness, waveDir, waveSeed, seaStateJa,
     clockText: `${now.getFullYear()}/${String(month).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")} (${seasonJa})${overrideTag}`
   };
 }

@@ -1,30 +1,44 @@
 export const PIER_DOCK_POS = { x: 0, z: -10 };
 
-// ===== ワールド全体で共有する精密レイアウト定数（3D描画と当たり判定を完全一致させる） =====
+// ===== ワールド全体で共有する単一レイアウト定数（3D描画と当たり判定を100%一致） =====
 export const WORLD_LAYOUT = Object.freeze({
   walkMinX: -157.0,
   walkMaxX: 137.0,
-  walkMaxZ: 59.2,
-  pierHalfW: 3.5,
+  walkMaxZ: 59.0,
+  pierHalfW: 3.55,
   pierTipZ: -14.2,
   coastPortZ: 0.75,
   coastOtherZ: -0.35,
+
+  // 海沿い道路（1本のみ）と横断歩道
+  roadCenterZ: 38.0,
   roadMinZ: 34.4,
-  roadMaxZ: 41.5,
-  crosswalkMinX: 3.0,
-  crosswalkMaxX: 11.0,
+  roadMaxZ: 41.6,
+  crosswalkMinX: 3.2,
+  crosswalkMaxX: 10.8,
   crosswalkCenterX: 7.0,
+
+  // 線路・踏切・さかな港駅（石垣段丘は z >= 61.5 へ完全後退）
   trackZ: 51.4,
   trackMinZ: 48.2,
-  trackMaxZ: 54.6,
-  stationMinX: 12.0,
+  trackMaxZ: 54.5,
+  stationMinX: 12.5,
   stationMaxX: 35.5,
-  stationMinZ: 54.6,
-  stationMaxZ: 59.2,
-  vendingX: 28.5,
-  vendingZ: 46.2,
-  northBenchX: 25.5,
-  northBenchZ: 46.2
+  stationMinZ: 54.5,
+  stationMaxZ: 59.0,
+
+  // 小物・設備の配置座標（導線から完全に外す）
+  portVendX: -10.4,
+  portVendZ: 25.6,
+  northVendX: 28.5,
+  northVendZ: 46.2,
+  northBenchX: 24.5,
+  northBenchZ: 46.2,
+  busStopX: 15.0,
+  busStopZ: 33.4,
+  poleZ: 47.0,
+  poleXs: [-112, -84, -56, -28, -4, 18, 46, 74, 102],
+  lampPositions: [[-26, 2.5], [-10, 2.5], [12, 2.5], [22, 2.5], [-26, 13.5], [14, 13.5]]
 });
 
 export const AREA_META = {
@@ -41,44 +55,63 @@ export const AREA_META = {
 
 const L = WORLD_LAYOUT;
 
-// 建物・柵・自然障害物の精密リスト（横断歩道と踏切の通路は完全に空ける）
+// すべての建物・設備・柵・自然障害物（貫通不可）
 const LAND_OBSTACLES = (() => {
   const list = [
-    // 港の主要建物（z: 15.8〜30.2 の間に配置し、z = 34.4 の道路・横断歩道とは十分に離す）
-    { type: "box", minX: -28.2, maxX: -11.8, minZ: 15.8, maxZ: 26.2, label: "魚市場" },
-    { type: "box", minX: -7.3,  maxX: 4.3,   minZ: 21.8, maxZ: 30.2, label: "寿司処 凪" },
-    { type: "circle", x: 17.5, z: 24.0, r: 8.2, label: "岬の水族館" },
-    { type: "circle", x: 28.0, z: 4.0,  r: 2.8, label: "灯台" },
+    // 港の主要店舗（寿司処と水族館の間 x: 3.55〜11.3 が横断歩道へ抜ける広い大通り）
+    { type: "box", minX: -29.2, maxX: -12.8, minZ: 14.3, maxZ: 25.8, label: "魚市場" },
+    { type: "box", minX: -8.1,  maxX: 3.55,  minZ: 20.2, maxZ: 28.8, label: "寿司処 凪" },
+    { type: "circle", x: 19.5, z: 23.0, r: 8.25, label: "岬の水族館" },
+    { type: "circle", x: 28.0, z: 4.0,  r: 2.85, label: "灯台" },
 
-    // 清流の河口：川本体（木橋 z: 14.2〜17.8 のみ通行可）
+    // 港内の設備（クレーン・駐車軽トラ・港自販機・漁具の山・バス停）
+    { type: "circle", x: -31.0, z: 3.2, r: 1.15, label: "荷揚げクレーン" },
+    { type: "box", minX: -32.2, maxX: -29.8, minZ: 17.6, maxZ: 22.0, label: "漁協軽トラック" },
+    { type: "box", minX: L.portVendX - 1.7, maxX: L.portVendX + 1.7, minZ: L.portVendZ - 0.6, maxZ: L.portVendZ + 0.6, label: "港の自販機" },
+    { type: "circle", x: -16.5, z: 2.3, r: 1.25, label: "漁具" },
+    { type: "circle", x: 15.5,  z: 2.3, r: 1.25, label: "漁具" },
+    { type: "box", minX: L.busStopX - 0.4, maxX: L.busStopX + 3.4, minZ: L.busStopZ - 0.45, maxZ: L.busStopZ + 0.45, label: "港前バス停" },
+
+    // 信号機の支柱＆踏切の支柱
+    { type: "circle", x: L.crosswalkMaxX + 0.65, z: L.roadMinZ - 0.55, r: 0.32, label: "信号柱" },
+    { type: "circle", x: L.crosswalkMinX - 0.65, z: L.roadMaxZ + 0.55, r: 0.32, label: "信号柱" },
+    { type: "circle", x: L.crosswalkMinX - 0.35, z: L.trackZ - 2.6,    r: 0.32, label: "踏切警報機" },
+    { type: "circle", x: L.crosswalkMaxX + 0.35, z: L.trackZ + 2.6,    r: 0.32, label: "踏切警報機" },
+
+    // 清流の河口：川本体（木製の橋 z: 14.2〜17.8 のみ通行可）
     { type: "box", minX: -142.0, maxX: -126.0, minZ: -4.0, maxZ: 14.2, label: "川（橋を渡ろう）" },
     { type: "box", minX: -142.0, maxX: -126.0, minZ: 17.8, maxZ: 48.0, label: "川（橋を渡ろう）" },
 
-    // 海沿い道路のガードレール（横断歩道 x: 3.4〜10.6 は完全開放）
-    { type: "box", minX: -162.0, maxX: L.crosswalkMinX - 0.15, minZ: L.roadMinZ - 0.25, maxZ: L.roadMaxZ + 0.25, label: "ガードレール（横断歩道から渡ろう）" },
-    { type: "box", minX: L.crosswalkMaxX + 0.15, maxX: 142.0, minZ: L.roadMinZ - 0.25, maxZ: L.roadMaxZ + 0.25, label: "ガードレール（横断歩道から渡ろう）" },
+    // 海沿い道路のガードレール（横断歩道 x: 3.2〜10.8 は完全に空ける）
+    { type: "box", minX: -162.0, maxX: L.crosswalkMinX - 0.1, minZ: L.roadMinZ - 0.25, maxZ: L.roadMaxZ + 0.25, label: "ガードレール（横断歩道から渡ろう）" },
+    { type: "box", minX: L.crosswalkMaxX + 0.1, maxX: 142.0,  minZ: L.roadMinZ - 0.25, maxZ: L.roadMaxZ + 0.25, label: "ガードレール（横断歩道から渡ろう）" },
 
-    // 向こう側歩道（z: 41.5〜47.2）の左右端・自販機・ベンチ（横断歩道正面は避けて配置）
-    { type: "box", minX: -162.0, maxX: -36.5, minZ: 41.5, maxZ: 48.0, label: "歩道の端" },
-    { type: "box", minX: 36.5,   maxX: 142.0, minZ: 41.5, maxZ: 48.0, label: "歩道の端" },
-    { type: "box", minX: L.vendingX - 0.85, maxX: L.vendingX + 0.85, minZ: L.vendingZ - 0.55, maxZ: L.vendingZ + 0.65, label: "自動販売機" },
-    { type: "box", minX: L.northBenchX - 1.2, maxX: L.northBenchX + 1.2, minZ: L.northBenchZ - 0.4, maxZ: L.northBenchZ + 0.4, label: "ベンチ" },
+    // 向こう側歩道の左右終端・自販機・ベンチ
+    { type: "box", minX: -162.0, maxX: -36.5, minZ: 41.5, maxZ: 48.2, label: "歩道の端" },
+    { type: "box", minX: 36.5,   maxX: 142.0, minZ: 41.5, maxZ: 48.2, label: "歩道の端" },
+    { type: "box", minX: L.northVendX - 0.85,  maxX: L.northVendX + 0.85,  minZ: L.northVendZ - 0.55,  maxZ: L.northVendZ + 0.65,  label: "自動販売機" },
+    { type: "box", minX: L.northBenchX - 1.2,  maxX: L.northBenchX + 1.2,  minZ: L.northBenchZ - 0.45, maxZ: L.northBenchZ + 0.45, label: "ベンチ" },
 
-    // 線路の柵（踏切 x: 3.4〜10.6 は完全開放、駅ホーム x: 12〜35.5, z: 54.6〜59.2 は通行可）
-    { type: "box", minX: -162.0, maxX: L.crosswalkMinX - 0.15, minZ: L.trackMinZ - 0.2, maxZ: L.trackMaxZ + 0.2, label: "線路の柵（踏切から渡ろう）" },
-    { type: "box", minX: L.crosswalkMaxX + 0.15, maxX: 11.6, minZ: L.trackMinZ - 0.2, maxZ: L.trackMaxZ + 0.2, label: "線路の柵（踏切から渡ろう）" },
-    { type: "box", minX: 35.8,   maxX: 142.0, minZ: L.trackMinZ - 0.2, maxZ: L.trackMaxZ + 0.2, label: "線路の柵" },
+    // 線路の柵（踏切 x: 3.2〜10.8 だけ渡れる）
+    { type: "box", minX: -162.0, maxX: L.crosswalkMinX - 0.1, minZ: L.trackMinZ - 0.2, maxZ: L.trackMaxZ + 0.2, label: "線路の柵（踏切から渡ろう）" },
+    { type: "box", minX: L.crosswalkMaxX + 0.1, maxX: 142.0,  minZ: L.trackMinZ - 0.2, maxZ: L.trackMaxZ + 0.2, label: "線路の柵（踏切から渡ろう）" },
 
-    // 駅前・駅ホームの左右境界（ホーム上は z: 54.6〜59.2, x: 12.0〜35.5 で自由歩行可）
-    { type: "box", minX: -162.0, maxX: 2.8,   minZ: 54.6, maxZ: 62.0, label: "駅前の端" },
-    { type: "box", minX: 36.0,   maxX: 142.0, minZ: 54.6, maxZ: 62.0, label: "駅ホームの端" }
+    // 駅前広場＆さかな港駅の左右端＆ホームベンチ・柱
+    { type: "box", minX: -162.0, maxX: 2.4,   minZ: 54.5, maxZ: 62.0, label: "駅前の端" },
+    { type: "box", minX: 36.0,   maxX: 142.0, minZ: 54.5, maxZ: 62.0, label: "駅ホームの端" },
+    { type: "box", minX: 22.1,   maxX: 25.4,  minZ: 57.4, maxZ: 58.3, label: "駅ベンチ" }
   ];
 
-  // 港の街灯（道路・横断歩道・踏切の導線から外した位置のみ）
-  const lamps = [[-26, 2.5], [-10, 2.5], [14, 2.5], [22, 2.5], [-26, 14.5], [12, 14.5]];
-  lamps.forEach(([lx, lz]) => list.push({ type: "circle", x: lx, z: lz, r: 0.42, label: "街灯" }));
+  // 港の街灯
+  L.lampPositions.forEach(([lx, lz]) => list.push({ type: "circle", x: lx, z: lz, r: 0.36, label: "街灯" }));
 
-  // 係留ボラード
+  // 歩道奥の電柱
+  L.poleXs.forEach((px) => list.push({ type: "circle", x: px, z: L.poleZ, r: 0.32, label: "電柱" }));
+
+  // 駅屋根の柱
+  [17.25, 23.75, 30.25].forEach((px) => list.push({ type: "circle", x: px, z: 57.1, r: 0.25, label: "駅の柱" }));
+
+  // 港の係留ボラード
   for (let x = -33; x <= 33; x += 6) {
     if (Math.abs(x) < 6) continue;
     list.push({ type: "circle", x: x + 2.2, z: 0.75, r: 0.42, label: "係留ボラード" });
@@ -223,28 +256,43 @@ export function canHarvestShellAt(x, z, isBoating) {
   return { ok: true, msg: "" };
 }
 
-export function clampWorldPosition(nx, nz, isBoating, boatTier) {
+export function clampWorldPosition(nx, nz, isBoating, boatTier, prevX = nx, prevZ = nz) {
   let blockedMsg = null;
 
   if (!isBoating) {
-    const PLAYER_R = 0.78;
-    nx = Math.max(L.walkMinX, Math.min(L.walkMaxX, nx));
-    nz = Math.min(L.walkMaxZ, nz);
+    const PLAYER_R = 0.72;
+    const wasOnPier = prevZ < L.coastPortZ - 0.05 && Math.abs(prevX) <= L.pierHalfW + 0.6;
 
-    const onPierEntry = Math.abs(nx) <= L.pierHalfW;
-    const coastMinZ = Math.abs(nx) <= 36.5 ? L.coastPortZ : L.coastOtherZ;
-    if (nz < coastMinZ) {
-      if (onPierEntry) {
-        nx = Math.max(-L.pierHalfW, Math.min(L.pierHalfW, nx));
-        if (nz < L.pierTipZ) {
-          nz = L.pierTipZ;
-          blockedMsg = "桟橋の先端です！船に乗るかここから釣りを楽しもう";
+    const applyShoreAndPierClamp = () => {
+      nx = Math.max(L.walkMinX, Math.min(L.walkMaxX, nx));
+      nz = Math.min(L.walkMaxZ, nz);
+
+      if (wasOnPier) {
+        // 桟橋上にいる間は左右の海に落ちないようXだけ止める（港へテレポートさせない！）
+        if (nz < L.coastPortZ) {
+          if (nx < -L.pierHalfW) { nx = -L.pierHalfW; blockedMsg = blockedMsg || "桟橋の端です！海には落ちられません"; }
+          if (nx > L.pierHalfW)  { nx = L.pierHalfW;  blockedMsg = blockedMsg || "桟橋の端です！海には落ちられません"; }
+          if (nz < L.pierTipZ)   { nz = L.pierTipZ;   blockedMsg = blockedMsg || "桟橋の先端です！船に乗るかここから釣ろう"; }
         }
       } else {
-        nz = coastMinZ;
-        blockedMsg = "海が深い！中央の桟橋から船に乗ろう";
+        const coastMinZ = Math.abs(nx) <= 36.5 ? L.coastPortZ : L.coastOtherZ;
+        if (nz < coastMinZ) {
+          // 桟橋入口（x: -3.55〜3.55）からだけ桟橋へ入れる
+          if (Math.abs(nx) <= L.pierHalfW && Math.abs(prevX) <= L.pierHalfW + 0.25) {
+            nx = Math.max(-L.pierHalfW, Math.min(L.pierHalfW, nx));
+            if (nz < L.pierTipZ) {
+              nz = L.pierTipZ;
+              blockedMsg = "桟橋の先端です！船に乗るかここから釣ろう";
+            }
+          } else {
+            nz = coastMinZ;
+            blockedMsg = "海が深い！中央の桟橋から船に乗ろう";
+          }
+        }
       }
-    }
+    };
+
+    applyShoreAndPierClamp();
 
     let hitLabel = null;
     for (let iter = 0; iter < 4; iter++) {
@@ -258,16 +306,7 @@ export function clampWorldPosition(nx, nz, isBoating, boatTier) {
           hitLabel = ob.label;
         }
       }
-      nx = Math.max(L.walkMinX, Math.min(L.walkMaxX, nx));
-      nz = Math.min(L.walkMaxZ, nz);
-      if (nz < coastMinZ) {
-        if (Math.abs(nx) <= L.pierHalfW) {
-          nx = Math.max(-L.pierHalfW, Math.min(L.pierHalfW, nx));
-          nz = Math.max(L.pierTipZ, nz);
-        } else {
-          nz = coastMinZ;
-        }
-      }
+      applyShoreAndPierClamp();
     }
 
     if (hitLabel && !blockedMsg && hitLabel.includes("川")) {

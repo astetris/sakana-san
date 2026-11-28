@@ -24,16 +24,8 @@ window.addEventListener("unhandledrejection", (ev) => {
   if (b && ev?.reason) b.textContent = "⚠️ 通信/処理エラー: " + (ev.reason?.message || ev.reason);
 });
 
-import {
-  initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail,
-  fetchDailyRanking, submitDailyBoard,
-  updateWorldPresence, clearWorldPresence, subscribeWorldPlayers,
-  pushWorldFeed, subscribeWorldFeed,
-  publishMyProfile, fetchPublicProfile,
-  sendChatMessage, subscribeChatRoom,
-  sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend,
-  subscribeFriends, subscribeFriendRequests, consumeRedeemCode
-} from "./config/firebase.js?v=20261128_042032";
+import { ensureStockMarketRunning, openFishStockExchange } from "./systems/fishStock.js?v=20261128_042032";
+import { initFirebase, getCurrentUid, getJstDateKey, RANKING_BOARDS, subscribePendingPurchases, clearPendingPurchase, getAuthAccountSummary, linkOrSignInGoogle, linkOrSignInEmail, fetchDailyRanking, submitDailyBoard, updateWorldPresence, clearWorldPresence, subscribeWorldPlayers, pushWorldFeed, subscribeWorldFeed, publishMyProfile, fetchPublicProfile, sendChatMessage, subscribeChatRoom, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, subscribeFriends, subscribeFriendRequests, consumeRedeemCode, claimPlayerName } from "./config/firebase.js?v=20261128_042032";
 import { getRealWorldEnv } from "./systems/environment.js?v=20261128_042032";
 import { audioEngine } from "./systems/audioEngine.js?v=20261128_042032";
 import { getAreaAt, isNearPier, drawMinimap, PIER_DOCK_POS, canCastFrom, canHarvestShellAt } from "./systems/worldMap.js?v=20261128_042032";
@@ -97,6 +89,20 @@ let myLastStamp = "";
 let myLastStampTs = 0;
 let tickerTimer = null;
 const bootTime = Date.now();
+
+
+async function reserveUniqueName(rawName, prevName = "", ignoreSlotIdx = -1) {
+  const clean = String(rawName || "").trim().replace(/\s+/g, " ");
+  if (!clean || clean.length > 12) {
+    return { ok: false, reason: "プレイヤー名は1〜12文字で入力してください。" };
+  }
+  const low = clean.toLowerCase();
+  const localDup = Array.isArray(slots) && slots.some((s, i) => s && i !== ignoreSlotIdx && String(s.name || "").trim().toLowerCase() === low);
+  if (localDup) {
+    return { ok: false, reason: `「${clean}」は別スロットで既に使用されています。` };
+  }
+  return await claimPlayerName(clean, prevName);
+}
 
 function currentSave() { return activeSlotIndex >= 0 ? slots[activeSlotIndex] : null; }
 
@@ -199,12 +205,19 @@ function renderSlots() {
     wrap.appendChild(item);
   });
 
-  wrap.querySelectorAll("[data-play]").forEach((btn) => { btn.onclick = () => { audioEngine.unlock(); startSlot(Number(btn.dataset.play)); }; });
+  wrap.querySelectorAll("[data-play]").forEach((btn) => { btn.onclick = async () => { audioEngine.unlock(); startSlot(Number(btn.dataset.play)); }; });
   wrap.querySelectorAll("[data-new]").forEach((btn) => {
-    btn.onclick = () => {
+    btn.onclick = async () => {
       audioEngine.unlock();
       const idx = Number(btn.dataset.new);
-      const name = prompt("漁師の名前を入力してください", `漁師${idx + 1}`) || `漁師${idx + 1}`;
+      let name = "";
+      while (true) {
+        const input = prompt("漁師の名前を入力してください（他の人と同じ名前は使えません）", `漁師${idx + 1}`);
+        if (input === null) return;
+        const res = await reserveUniqueName(input, "", idx);
+        if (res.ok) { name = res.name; break; }
+        alert("⚠️ " + res.reason);
+      }
       slots[idx] = createNewSave(name.slice(0, 12));
       persistSlots(slots, true);
       startSlot(idx);
@@ -472,26 +485,53 @@ function doNetHarvest() {
   audioEngine.playNetThrow();
   updateHud();
 
+  const areaId = currentArea?.id || "teibou";
+  const inHotspot = scene3d.getNearestHotspot().inSpot;
+  const together = playMode === "multi" && scene3d.getNearbyPlayers(35).length > 0;
+  const buff = getActiveBuff(save);
+
+  const previewHaul = rollNetHaul(areaId, env, net, inHotspot || together || buff?.rareBonus);
+  const rankScore = (r) => {
+    const s = String(r || "C").toUpperCase();
+    if (s.includes("SS") || s.includes("UR") || s.includes("LR")) return 4;
+    if (s.startsWith("S")) return 3;
+    if (s.startsWith("A")) return 2;
+    if (s.startsWith("B")) return 1;
+    return 0;
+  };
+  let topLevel = 0;
+  let topRankLabel = "C";
+  previewHaul.forEach((it) => {
+    const sc = rankScore(it?.species?.rank);
+    if (sc >= topLevel) {
+      topLevel = sc;
+      topRankLabel = String(it?.species?.rank || "C");
+    }
+  });
+
   runNetThrowMiniGame({
     title: `🕸️ 投網＆引き上げ勝負（${net.name}）`,
     net,
+    rarityLevel: topLevel,
+    rarityLabel: topRankLabel,
+    fishCount: previewHaul.length,
     onFinish: (quality) => {
       if (quality === "miss") {
-        $("status-banner").textContent = "💨 タイミングが合わず網から逃げられてしまった…";
+        $("status-banner").textContent = "💨 網のタイミングか引き上げに失敗し、魚群に逃げられてしまった…";
         audioEngine.playFail();
         persistSlots(slots, false);
         updateHud();
         return;
       }
-      const areaId = currentArea?.id || "teibou";
-      const inHotspot = scene3d.getNearestHotspot().inSpot;
-      const together = playMode === "multi" && scene3d.getNearbyPlayers(35).length > 0;
-      const buff = getActiveBuff(save);
-      const haul = rollNetHaul(areaId, env, net, inHotspot || together || buff?.rareBonus || quality === "great");
+      let haul = previewHaul;
+      if (quality === "great") {
+        const extra = rollNetHaul(areaId, env, net, true);
+        if (extra.length > haul.length) haul = extra;
+      }
       if (!haul.length) { $("status-banner").textContent = "ここでは網に入らなかった…"; updateHud(); return; }
 
       const kept = haul.slice(0, Math.max(0, coolerCap - save.cooler.length));
-      const qMult = quality === "great" ? 1.2 : 1.0;
+      const qMult = quality === "great" ? 1.25 : 1.0;
       let totalPrice = 0;
       kept.forEach((item) => {
         const sp = item.species;
@@ -499,7 +539,7 @@ function doNetHarvest() {
         const price = Math.round(item.estimatedPrice * mult);
         const tags = [...item.tags];
         if (together) tags.push("一緒に釣り+10%");
-        if (quality === "great") tags.push("完璧引き上げ+20%");
+        if (quality === "great") tags.push("完璧引き上げ+25%");
         item.estimatedPrice = price; item.tags = tags;
 
         save.cooler.push({ id: sp.id, name: sp.name, rank: sp.rank, weightKg: item.weightKg, tags, price });
@@ -509,15 +549,12 @@ function doNetHarvest() {
         submitDailyBoard("biggest_weight", { playerName: save.name, score: item.weightKg, detail: sp.name });
         submitDailyBoard("highest_price", { playerName: save.name, score: price, detail: sp.name });
       });
-
-      recordDailyProgress(save, { caughtDelta: kept.length });
-      syncMyPublicProfile();
-      if (playMode === "multi" && (kept.length >= 4 || kept.some((x) => x.species.rank === "S"))) {
-        pushWorldFeed({ text: `🕸️ ${save.name}さんが ${net.name}で ${kept.length}匹 を大漁水揚げ！` });
+      if (playMode === "multi" && kept.length >= 2) {
+        pushWorldFeed({ text: `🕸️ ${save.name}さんが ${net.name}で [${topRankLabel}]含む${kept.length}匹を大漁水揚げ！` });
       }
-      audioEngine.playCatch(kept.some((x) => x.species.rank === "S") ? "S" : "A");
-      $("status-banner").textContent = `🕸️ ${kept.length}匹 水揚げ！（合計 ¥${totalPrice.toLocaleString()}）`;
-      persistSlots(slots, true);
+      audioEngine.playCatch(topLevel >= 2 ? "A" : "C");
+      $("status-banner").textContent = `🕸️ [${topRankLabel}級魚群] ${kept.length}匹 水揚げ！（合計 ¥${totalPrice.toLocaleString()}）`;
+      persistSlots(slots, false);
       updateHud();
     }
   });
@@ -923,9 +960,16 @@ function openMyProfileEditModal() {
   `);
 
   $("prof-back").onclick = closeModal;
-  $("prof-save").onclick = () => {
+  $("prof-save").onclick = async () => {
     const newName = ($("prof-name").value || "").trim().slice(0, 12);
-    if (newName) save.name = newName;
+    if (newName && newName !== save.name) {
+      const nRes = await reserveUniqueName(newName, save.name, activeSlotIndex);
+      if (!nRes.ok) {
+        alert("⚠️ " + nRes.reason);
+        return;
+      }
+      save.name = nRes.name;
+    }
     save.profile = {
       title: $("prof-title").value,
       favSpecies: $("prof-fav").value,
@@ -1849,54 +1893,61 @@ function runShellDigMiniGame({ title, methodLabel, onFinish }) {
   };
 }
 
-function runNetThrowMiniGame({ title, net, onFinish }) {
+function runNetThrowMiniGame({ title, net, rarityLevel = 0, rarityLabel = "C", fishCount = 2, onFinish }) {
   if (phase !== "idle") return;
   phase = "harvesting";
 
-  let finished = false;
-  let stage = "aim"; // "aim" -> "pull"
-  let aimResult = "good";
+  const tierMap = [
+    { name: "一般魚群",   badge: "#38bdf8", icon: "🐟🐟",   spd: 1.18, rad: 16.5, aimSec: 7.4, pullSec: 11.5, gain: 26, rageRise: 48, slipBack: 4,  warnDur: 0.68, turnMin: 0.95 },
+    { name: "良型魚群",   badge: "#34d399", icon: "🐠🐟🐠", spd: 1.48, rad: 14.2, aimSec: 6.8, pullSec: 11.2, gain: 23, rageRise: 60, slipBack: 7,  warnDur: 0.56, turnMin: 0.72 },
+    { name: "希少魚群",   badge: "#c084fc", icon: "✨🐟✨", spd: 1.85, rad: 12.2, aimSec: 6.2, pullSec: 11.0, gain: 20, rageRise: 74, slipBack: 10, warnDur: 0.45, turnMin: 0.52 },
+    { name: "超大物魚群", badge: "#fbbf24", icon: "👑🦈✨", spd: 2.25, rad: 10.6, aimSec: 5.8, pullSec: 10.8, gain: 18, rageRise: 88, slipBack: 13, warnDur: 0.36, turnMin: 0.38 },
+    { name: "伝説魚群",   badge: "#f43f5e", icon: "🔥🐉👑", spd: 2.55, rad: 9.6,  aimSec: 5.4, pullSec: 10.6, gain: 16, rageRise: 98, slipBack: 16, warnDur: 0.30, turnMin: 0.30 }
+  ];
+  const cfg = tierMap[Math.max(0, Math.min(tierMap.length - 1, rarityLevel))];
   const netTier = Math.max(1, Number(net?.tier || 1));
 
-  // Phase 1: 魚群を狙って投網（速度控えめ＆広めサークル）
-  let fishX = 22 + Math.random() * 56;
-  let fishY = 26 + Math.random() * 48;
-  let vx = (Math.random() < 0.5 ? -1 : 1) * (24 + Math.random() * 14);
-  let vy = (Math.random() < 0.5 ? -1 : 1) * (18 + Math.random() * 12);
-  let turnTimer = 1.2;
-  let aimTime = 8.5;
+  let finished = false;
+  let stage = "aim";
+  let aimResult = "good";
+
+  let fishX = 20 + Math.random() * 60;
+  let fishY = 22 + Math.random() * 56;
+  let vx = (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 14) * cfg.spd;
+  let vy = (Math.random() < 0.5 ? -1 : 1) * (22 + Math.random() * 12) * cfg.spd;
+  let turnTimer = cfg.turnMin + Math.random() * 0.55;
+  let aimTime = cfg.aimSec;
   let throwing = false;
-  let throwX = 50;
-  let throwY = 50;
-  let throwRadius = Math.min(28, 21 + netTier * 1.6);
+  let throwFlight = 0;
+  let throwX = 50, throwY = 50;
+  const throwRadius = Math.max(8.5, Math.min(20.5, cfg.rad + (netTier - 1) * 1.1));
 
-  // Phase 2: 引き上げ戦（穏やか -> 黄色の予兆 -> 赤の暴れ）
   let pullProgress = 0;
-  let netTension = 12;
-  let pullTime = 12.5;
+  let netTension = 16;
+  let pullTime = cfg.pullSec;
   let holding = false;
-  let rageState = "calm"; // "calm" | "warn" | "rage"
-  let stateTimer = 1.3 + Math.random() * 0.6;
-  let peakTension = 0;
-
+  let rageState = "calm";
+  let stateTimer = 0.95 + Math.random() * 0.45;
   let lastTick = performance.now();
   let loopId = null;
 
   openModal(title || "🕸️ 投網＆引き上げ勝負", `
     <div class="bank-box" style="text-align:center;">
-      <div id="net-stage-desc" class="muted" style="font-size:12px;">【第1段階】🐟魚群を狙って水面タップ（または下のボタン）で投網！</div>
+      <div style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;margin-bottom:6px;background:rgba(15,23,42,0.85);border:1px solid ${cfg.badge};color:${cfg.badge};">
+        [${rarityLabel}級] ${cfg.name}（難易度 ★${Math.min(5, rarityLevel + 2)}）
+      </div>
+      <div id="net-stage-desc" class="muted" style="font-size:12px;">【第1段階】網が飛ぶラグを読んで、魚群の<strong>少し先</strong>をタップ！</div>
       <div id="net-aim-wrap">
-        <div id="net-water" style="position:relative;height:168px;margin:10px 0;border-radius:12px;background:radial-gradient(circle at 50% 45%, #0c4a6e, #082f49);border:1px solid rgba(56,189,248,0.35);overflow:hidden;touch-action:manipulation;user-select:none;">
-          <div id="net-zone" style="position:absolute;left:50%;top:50%;width:${throwRadius * 2}%;aspect-ratio:1/1;border-radius:50%;border:2px dashed #38bdf8;background:rgba(56,189,248,0.16);transform:translate(-50%,-50%);pointer-events:none;"></div>
-          <div id="net-school" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:1.35rem;letter-spacing:-2px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));pointer-events:none;">🐟🐟🐟</div>
-          <div id="net-splash" style="position:absolute;left:50%;top:50%;width:0;height:0;border-radius:50%;border:3px solid #f3c687;transform:translate(-50%,-50%);opacity:0;pointer-events:none;"></div>
+        <div id="net-water" style="position:relative;height:178px;margin:10px 0;border-radius:12px;background:radial-gradient(circle at 50% 45%, #0c4a6e, #062135);border:1px solid ${cfg.badge};overflow:hidden;touch-action:manipulation;user-select:none;cursor:crosshair;">
+          <div id="net-school" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:1.3rem;letter-spacing:-2px;filter:drop-shadow(0 0 8px ${cfg.badge});pointer-events:none;">${cfg.icon}</div>
+          <div id="net-splash" style="position:absolute;left:50%;top:50%;width:${throwRadius * 2}%;aspect-ratio:1/1;border-radius:50%;border:2.5px dashed #facc15;background:rgba(250,204,21,0.16);transform:translate(-50%,-50%) scale(0.3);opacity:0;pointer-events:none;transition:transform 0.22s ease-out, opacity 0.15s;"></div>
         </div>
-        <div id="net-aim-timer" style="font-size:13px;font-weight:700;color:#f3c687;margin-bottom:8px;">魚群通過まで 8.5s</div>
-        <button type="button" class="btn-primary" id="btn-net-cast" style="width:100%;height:50px;font-size:1.05rem;touch-action:manipulation;user-select:none;">🕸️ 今だ！投網を放つ！</button>
+        <div id="net-aim-timer" style="font-size:13px;font-weight:700;color:#f3c687;margin-bottom:6px;">魚群通過まで ${aimTime.toFixed(1)}s</div>
+        <div class="muted" style="font-size:11px;">※レア魚ほど速く急反転します！進路の先を狙おう</div>
       </div>
 
       <div id="net-pull-wrap" style="display:none;margin-top:8px;">
-        <div id="net-rage-badge" style="padding:6px 10px;border-radius:8px;font-weight:800;font-size:13px;margin-bottom:10px;background:rgba(16,185,129,0.2);color:#38e59a;">🌊 落ち着いている！長押しで引き上げよう！</div>
+        <div id="net-rage-badge" style="padding:6px 10px;border-radius:8px;font-weight:800;font-size:13px;margin-bottom:10px;background:rgba(16,185,129,0.2);color:#38e59a;">🌊 今だ！長押しで引き上げろ！</div>
         <div style="text-align:left;font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between;">
           <span>🕸️ 引き上げ進捗</span><strong id="net-prog-txt">0%</strong>
         </div>
@@ -1904,22 +1955,25 @@ function runNetThrowMiniGame({ title, net, onFinish }) {
           <div id="net-prog-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#38bdf8,#38e59a);"></div>
         </div>
         <div style="text-align:left;font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between;">
-          <span>⚠️ 網の負荷（100%で破損）</span><strong id="net-tens-txt">12%</strong>
+          <span>⚠️ 網の負荷（100%で破損）</span><strong id="net-tens-txt">16%</strong>
         </div>
         <div style="height:14px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden;margin-bottom:10px;">
-          <div id="net-tens-bar" style="height:100%;width:12%;background:linear-gradient(90deg,#38e59a,#f59e0b,#ef4444);"></div>
+          <div id="net-tens-bar" style="height:100%;width:16%;background:linear-gradient(90deg,#38e59a,#f59e0b,#ef4444);"></div>
         </div>
-        <div id="net-pull-timer" style="font-size:12px;font-weight:700;color:#f3c687;margin-bottom:8px;">残り 12.5s</div>
-        <button type="button" class="btn-primary" id="btn-net-pull" oncontextmenu="return false;" style="width:100%;height:54px;font-size:1.05rem;touch-action:none;user-select:none;-webkit-user-select:none;">💪 長押しで引き上げ（赤で離す！）</button>
+        <div id="net-pull-timer" style="font-size:12px;font-weight:700;color:#f3c687;margin-bottom:8px;">残り ${pullTime.toFixed(1)}s</div>
+        <button type="button" class="btn-primary" id="btn-net-pull" oncontextmenu="return false;" style="width:100%;height:56px;font-size:1.05rem;touch-action:none;user-select:none;-webkit-user-select:none;">💪 長押しで引き上げ（赤で即離す！）</button>
       </div>
     </div>
   `);
 
   const origClose = $("btn-close-modal").onclick;
+  const endHold = () => { holding = false; };
   const cleanup = () => {
     if (loopId) clearInterval(loopId);
     loopId = null;
     holding = false;
+    window.removeEventListener("pointerup", endHold);
+    window.removeEventListener("pointercancel", endHold);
     phase = "idle";
     if ($("btn-close-modal")) $("btn-close-modal").onclick = origClose;
   };
@@ -1935,183 +1989,51 @@ function runNetThrowMiniGame({ title, net, onFinish }) {
   const enterPullStage = (hitGrade) => {
     stage = "pull";
     aimResult = hitGrade;
-    pullProgress = hitGrade === "great" ? 22 : 12;
-    netTension = 12;
+    pullProgress = hitGrade === "great" ? 18 : 8;
+    netTension = 16;
     rageState = "calm";
-    stateTimer = 1.2 + Math.random() * 0.6;
+    stateTimer = Math.max(0.55, 1.05 - rarityLevel * 0.12) + Math.random() * 0.4;
     const desc = document.getElementById("net-stage-desc");
     const aimWrap = document.getElementById("net-aim-wrap");
     const pullWrap = document.getElementById("net-pull-wrap");
     if (desc) desc.innerHTML = hitGrade === "great"
-      ? "🎯 <strong>ド真ん中捕捉！</strong>【第2段階】黄色で身構えて、赤くなったら指を離そう！"
-      : "🕸️ <strong>魚群を包囲！</strong>【第2段階】黄色で身構えて、赤くなったら指を離そう！";
+      ? "🎯 <strong>ド真ん中捕捉！</strong>【第2段階】赤で即離しつつ押し戻される前に引き上げろ！"
+      : "🕸️ <strong>なんとか包囲！</strong>【第2段階】赤で即離しつつ引き上げろ！";
     if (aimWrap) aimWrap.style.display = "none";
     if (pullWrap) pullWrap.style.display = "block";
     audioEngine.playOk?.();
   };
 
-  const triggerCast = (ev) => {
-    if (ev) ev.preventDefault();
-    if (finished || stage !== "aim" || throwing) return;
-    throwing = true;
-    audioEngine.playNetThrow?.();
-    const castBtn = document.getElementById("btn-net-cast");
-    if (castBtn) { castBtn.disabled = true; castBtn.textContent = "🕸️ 網が広がっている…"; }
-
-    const splash = document.getElementById("net-splash");
-    if (splash) {
-      splash.style.opacity = "1";
-      splash.style.width = `${throwRadius * 2}%`;
-      splash.style.aspectRatio = "1/1";
-      splash.style.transition = "all 0.1s ease-out";
-    }
-
-    setTimeout(() => {
-      if (finished || stage !== "aim") return;
-      const dx = fishX - throwX;
-      const dy = (fishY - throwY) * 0.72;
-      const dist = Math.hypot(dx, dy);
-      if (dist <= throwRadius * 0.72) {
-        enterPullStage("great");
-      } else if (dist <= throwRadius * 1.32) {
-        enterPullStage("good");
-      } else {
-        audioEngine.playFail?.();
-        finishGame("miss");
-      }
-    }, 100);
-  };
-
-  const castBtn = document.getElementById("btn-net-cast");
-  if (castBtn) castBtn.onpointerdown = triggerCast;
-
   const waterEl = document.getElementById("net-water");
   if (waterEl) {
     waterEl.onpointerdown = (ev) => {
       if (finished || stage !== "aim" || throwing) return;
+      ev.preventDefault();
       const rect = waterEl.getBoundingClientRect();
-      throwX = Math.max(12, Math.min(88, ((ev.clientX - rect.left) / rect.width) * 100));
-      throwY = Math.max(15, Math.min(85, ((ev.clientY - rect.top) / rect.height) * 100));
-      const zone = document.getElementById("net-zone");
-      const splash = document.getElementById("net-splash");
-      if (zone) { zone.style.left = `${throwX}%`; zone.style.top = `${throwY}%`; }
-      if (splash) { splash.style.left = `${throwX}%`; splash.style.top = `${throwY}%`; }
-      triggerCast(ev);
+      throwX = Math.max(5, Math.min(95, ((ev.clientX - rect.left) / rect.width) * 100));
+      throwY = Math.max(5, Math.min(95, ((ev.clientY - rect.top) / rect.height) * 100));
+      throwing = true;
+      throwFlight = 0.22;
+      audioEngine.playNetThrow?.();
+      const sp = document.getElementById("net-splash");
+      if (sp) {
+        sp.style.left = `${throwX}%`;
+        sp.style.top = `${throwY}%`;
+        sp.style.opacity = "1";
+        sp.style.transform = "translate(-50%,-50%) scale(1.0)";
+      }
     };
   }
 
   const pullBtn = document.getElementById("btn-net-pull");
   if (pullBtn) {
-    const startHold = (ev) => { if (ev) ev.preventDefault(); holding = true; };
-    const endHold = () => { holding = false; };
-    pullBtn.onpointerdown = startHold;
-    pullBtn.onpointerup = endHold;
-    pullBtn.onpointercancel = endHold;
-    pullBtn.onpointerleave = endHold;
+    pullBtn.addEventListener("pointerdown", (ev) => {
+      if (ev) ev.preventDefault();
+      if (stage === "pull") holding = true;
+    });
+    window.addEventListener("pointerup", endHold);
+    window.addEventListener("pointercancel", endHold);
   }
-
-  loopId = setInterval(() => {
-    if (finished) return;
-    const now = performance.now();
-    const dt = Math.min(0.1, (now - lastTick) / 1000);
-    lastTick = now;
-
-    if (stage === "aim") {
-      aimTime = Math.max(0, aimTime - dt);
-      turnTimer -= dt;
-      if (turnTimer <= 0) {
-        turnTimer = 1.0 + Math.random() * 0.7;
-        const angle = Math.random() * Math.PI * 2;
-        const spd = 26 + Math.random() * 16;
-        vx = Math.cos(angle) * spd;
-        vy = Math.sin(angle) * spd;
-      }
-      fishX += vx * dt;
-      fishY += vy * dt;
-      if (fishX < 12 || fishX > 88) { fishX = Math.max(12, Math.min(88, fishX)); vx *= -1; }
-      if (fishY < 16 || fishY > 84) { fishY = Math.max(16, Math.min(84, fishY)); vy *= -1; }
-
-      const schoolEl = document.getElementById("net-school");
-      if (schoolEl) {
-        schoolEl.style.left = `${fishX}%`;
-        schoolEl.style.top = `${fishY}%`;
-        schoolEl.style.transform = `translate(-50%,-50%) scaleX(${vx >= 0 ? -1 : 1})`;
-      }
-      const tEl = document.getElementById("net-aim-timer");
-      if (tEl) tEl.textContent = `魚群通過まで ${aimTime.toFixed(1)}s（水面を直接タップでも投網OK）`;
-      if (aimTime <= 0 && !throwing) {
-        finishGame("miss");
-      }
-    } else if (stage === "pull") {
-      pullTime = Math.max(0, pullTime - dt);
-      stateTimer -= dt;
-      if (stateTimer <= 0) {
-        if (rageState === "calm") {
-          rageState = "warn";
-          stateTimer = 0.55;
-        } else if (rageState === "warn") {
-          rageState = "rage";
-          stateTimer = 0.85 + Math.random() * 0.55;
-        } else {
-          rageState = "calm";
-          stateTimer = 1.2 + Math.random() * 0.75;
-        }
-      }
-
-      const tierEase = Math.max(0.7, 1 - (netTier - 1) * 0.06);
-      if (holding) {
-        if (rageState === "rage") {
-          netTension += 34 * tierEase * dt;
-          pullProgress += 6 * dt;
-        } else if (rageState === "warn") {
-          netTension += 14 * tierEase * dt;
-          pullProgress += 22 * dt;
-        } else {
-          pullProgress += 33 * dt;
-          netTension += 10 * tierEase * dt;
-        }
-      } else {
-        netTension = Math.max(0, netTension - 42 * dt);
-        pullProgress = Math.max(0, pullProgress - (rageState === "rage" ? 4.0 : 2.0) * dt);
-      }
-      peakTension = Math.max(peakTension, netTension);
-
-      const badge = document.getElementById("net-rage-badge");
-      if (badge) {
-        if (rageState === "rage") {
-          badge.style.background = "rgba(239,68,68,0.28)";
-          badge.style.color = "#ff7b7b";
-          badge.textContent = "🚨 暴れている！いったんボタンを離そう！";
-        } else if (rageState === "warn") {
-          badge.style.background = "rgba(245,158,11,0.26)";
-          badge.style.color = "#ffd166";
-          badge.textContent = "⚡ 魚が暴れそうだ！離す準備！";
-        } else {
-          badge.style.background = "rgba(16,185,129,0.22)";
-          badge.style.color = "#38e59a";
-          badge.textContent = "🌊 静まった！長押しで引き上げよう！";
-        }
-      }
-      const pTxt = document.getElementById("net-prog-txt");
-      const pBar = document.getElementById("net-prog-bar");
-      const tTxt = document.getElementById("net-tens-txt");
-      const tBar = document.getElementById("net-tens-bar");
-      const tmEl = document.getElementById("net-pull-timer");
-      if (pTxt) pTxt.textContent = `${Math.min(100, Math.round(pullProgress))}%`;
-      if (pBar) pBar.style.width = `${Math.min(100, pullProgress)}%`;
-      if (tTxt) tTxt.textContent = `${Math.min(100, Math.round(netTension))}%`;
-      if (tBar) tBar.style.width = `${Math.min(100, netTension)}%`;
-      if (tmEl) tmEl.textContent = `残り ${pullTime.toFixed(1)}s`;
-
-      if (netTension >= 100 || pullTime <= 0) {
-        audioEngine.playFail?.();
-        finishGame("miss");
-      } else if (pullProgress >= 100) {
-        const quality = (aimResult === "great" && peakTension < 85) ? "great" : "good";
-        finishGame(quality);
-      }
-    }
-  }, 40);
 
   $("btn-close-modal").onclick = () => {
     if (finished) return;
@@ -2120,6 +2042,125 @@ function runNetThrowMiniGame({ title, net, onFinish }) {
     if (origClose) origClose();
     else closeModal();
   };
+
+  loopId = setInterval(() => {
+    if (finished) return;
+    const now = performance.now();
+    const dt = Math.min(0.08, (now - lastTick) / 1000);
+    lastTick = now;
+
+    if (stage === "aim") {
+      aimTime = Math.max(0, aimTime - dt);
+      turnTimer -= dt;
+      if (turnTimer <= 0) {
+        turnTimer = cfg.turnMin + Math.random() * (0.65 - Math.min(0.35, rarityLevel * 0.08));
+        const angle = Math.random() * Math.PI * 2;
+        const mag = (30 + Math.random() * 18) * cfg.spd;
+        vx = Math.cos(angle) * mag;
+        vy = Math.sin(angle) * mag;
+      }
+
+      fishX += vx * dt;
+      fishY += vy * dt;
+      if (fishX < 8 || fishX > 92) { vx *= -1; fishX = Math.max(8, Math.min(92, fishX)); }
+      if (fishY < 10 || fishY > 90) { vy *= -1; fishY = Math.max(10, Math.min(90, fishY)); }
+
+      const fEl = document.getElementById("net-school");
+      if (fEl) {
+        fEl.style.left = `${fishX}%`;
+        fEl.style.top = `${fishY}%`;
+        fEl.style.transform = `translate(-50%,-50%) scaleX(${vx < 0 ? 1 : -1})`;
+      }
+      const tEl = document.getElementById("net-aim-timer");
+      if (tEl) tEl.textContent = `魚群通過まで ${aimTime.toFixed(1)}s`;
+
+      if (throwing) {
+        throwFlight -= dt;
+        if (throwFlight <= 0) {
+          const dist = Math.hypot(fishX - throwX, (fishY - throwY) * 0.65);
+          if (dist <= throwRadius * 0.56) {
+            enterPullStage("great");
+          } else if (dist <= throwRadius * 1.02) {
+            enterPullStage("good");
+          } else {
+            finishGame("miss");
+          }
+          return;
+        }
+      } else if (aimTime <= 0) {
+        finishGame("miss");
+      }
+    } else if (stage === "pull") {
+      pullTime = Math.max(0, pullTime - dt);
+      stateTimer -= dt;
+
+      if (stateTimer <= 0) {
+        if (rageState === "calm") {
+          rageState = "warn";
+          stateTimer = cfg.warnDur;
+        } else if (rageState === "warn") {
+          rageState = "rage";
+          stateTimer = 0.72 + Math.random() * (0.45 + rarityLevel * 0.12);
+        } else {
+          rageState = "calm";
+          stateTimer = Math.max(0.55, 1.15 - rarityLevel * 0.12) + Math.random() * 0.55;
+        }
+      }
+
+      if (holding) {
+        if (rageState === "rage") {
+          netTension += cfg.rageRise * dt;
+          pullProgress += cfg.gain * 0.18 * dt;
+        } else if (rageState === "warn") {
+          netTension += 22 * dt;
+          pullProgress += cfg.gain * 0.85 * dt;
+        } else {
+          netTension += 7 * dt;
+          pullProgress += cfg.gain * dt;
+        }
+        audioEngine.playReelTick?.(netTension);
+      } else {
+        netTension = Math.max(0, netTension - (rageState === "rage" ? 30 : 24) * dt);
+        pullProgress = Math.max(0, pullProgress - cfg.slipBack * (rageState === "rage" ? 1.25 : 0.7) * dt);
+      }
+
+      const badge = document.getElementById("net-rage-badge");
+      if (badge) {
+        if (rageState === "rage") {
+          badge.style.background = "rgba(239,68,68,0.30)";
+          badge.style.color = "#ff7b7b";
+          badge.textContent = "🚨 魚群が大暴れ！！今すぐ指を離せ！";
+        } else if (rageState === "warn") {
+          badge.style.background = "rgba(245,158,11,0.28)";
+          badge.style.color = "#fbbf24";
+          badge.textContent = "⚡ 暴れる予兆！離す準備！";
+        } else {
+          badge.style.background = "rgba(16,185,129,0.22)";
+          badge.style.color = "#38e59a";
+          badge.textContent = "🌊 チャンス！長押しで一気に引き上げろ！";
+        }
+      }
+
+      const pPct = Math.min(100, Math.round(pullProgress));
+      const tPct = Math.min(100, Math.round(netTension));
+      const pTxt = document.getElementById("net-prog-txt");
+      const pBar = document.getElementById("net-prog-bar");
+      const tTxt = document.getElementById("net-tens-txt");
+      const tBar = document.getElementById("net-tens-bar");
+      const tmEl = document.getElementById("net-pull-timer");
+      if (pTxt) pTxt.textContent = `${pPct}%`;
+      if (pBar) pBar.style.width = `${pPct}%`;
+      if (tTxt) tTxt.textContent = `${tPct}%`;
+      if (tBar) tBar.style.width = `${tPct}%`;
+      if (tmEl) tmEl.textContent = `残り ${pullTime.toFixed(1)}s`;
+
+      if (netTension >= 100 || pullTime <= 0) {
+        finishGame("miss");
+      } else if (pullProgress >= 100) {
+        finishGame(aimResult === "great" && netTension < 72 ? "great" : "good");
+      }
+    }
+  }, 33);
 }
 
 function runTimingMiniGame({ title, desc, speedMs = 30, hitWidth = 34, onFinish }) {
@@ -2298,13 +2339,146 @@ function openBankModal() {
 }
 
 function openDexModal() {
-  const save = currentSave(), all = getAllSpecies(), caughtCount = Object.keys(save.dex || {}).length;
-  const rows = all.map((sp) => {
-    const rec = save.dex[sp.id], badge = sp.speciesType === "shellfish" ? "🐚" : "🐟";
-    return `<div class="list-row"><div><strong class="rank-${sp.rank}">${badge} [${sp.rank}] ${rec ? sp.name : "？？？"}</strong><div class="muted">${rec ? `${rec.count}匹 / 最大${rec.maxKg}kg` : `生息: ${sp.areas.join(", ")}`}</div></div><span class="muted">¥${sp.basePricePerKg}/kg</span></div>`;
-  }).join("");
-  openModal(`📖 生き物図鑑 (${caughtCount}/${all.length}種)`, `<button class="btn-mini" id="dex-back-office" style="padding:8px;">← 事務所へ戻る</button>${rows}`);
+  const save = currentSave();
+  if (!save) return;
+  const all = getAllSpecies();
+  const dexMap = save.dex || {};
+  const caughtCount = Object.keys(dexMap).length;
+
+  let curTab = "all";
+  let curArea = "all";
+  let onlyCaught = false;
+  let query = "";
+  let page = 0;
+  const PER_PAGE = 36;
+
+  const AREA_LABELS = {
+    all: "全エリア", teibou: "港・堤防", sunahama: "白砂の砂浜", kakou: "清流の河口",
+    iso: "荒波の磯場", kinkai: "近海", okiai: "沖合", shinkai: "深海海溝",
+    nangoku: "南国サンゴ礁", enyou: "遠洋外海"
+  };
+  const TYPE_ICON = {
+    fish: "🐟", shellfish: "🐚", seaweed: "🌿", crustacean: "🦀", cephalopod: "🦑", echinoderm: "🦔"
+  };
+  const RANK_COL = { S: "#fbbf24", A: "#c084fc", B: "#38bdf8", C: "#34d399", D: "#94a3b8" };
+
+  const matchTab = (s) => {
+    if (curTab === "all") return true;
+    if (curTab === "deep") return (s.areas || []).includes("shinkai");
+    if (curTab === "offshore") return (s.areas || []).includes("okiai") || (s.areas || []).includes("enyou");
+    if (curTab === "fish") return s.speciesType === "fish";
+    if (curTab === "shellfish") return s.speciesType === "shellfish";
+    if (curTab === "seaweed") return s.speciesType === "seaweed";
+    if (curTab === "other") return s.speciesType === "crustacean" || s.speciesType === "cephalopod" || s.speciesType === "echinoderm";
+    return true;
+  };
+
+  openModal(`📖 生き物図鑑 (${caughtCount.toLocaleString()}/${all.length.toLocaleString()}種)`, `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px;">
+      <button class="btn-mini" id="dex-back-office" style="padding:7px 10px;">← 事務所へ戻る</button>
+      <label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer;">
+        <input type="checkbox" id="dex-only-caught" /> 発見済みのみ
+      </label>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:6px;">
+      <input id="dex-search" class="field-input" placeholder="名前・よみで検索（例: マグロ / コンブ / 深海）" style="flex:1;padding:6px 8px;font-size:12px;" />
+      <select id="dex-area-sel" class="field-input" style="width:112px;padding:6px 4px;font-size:11px;">
+        ${Object.entries(AREA_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}
+      </select>
+    </div>
+    <div id="dex-tabs" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+      <button type="button" class="btn-mini" data-dtab="all">全${all.length}</button>
+      <button type="button" class="btn-mini" data-dtab="fish">🐟魚類</button>
+      <button type="button" class="btn-mini" data-dtab="offshore">🌊沖・遠洋</button>
+      <button type="button" class="btn-mini" data-dtab="deep">🌑深海</button>
+      <button type="button" class="btn-mini" data-dtab="shellfish">🐚貝類</button>
+      <button type="button" class="btn-mini" data-dtab="seaweed">🌿海藻</button>
+      <button type="button" class="btn-mini" data-dtab="other">🦀甲殻・他</button>
+    </div>
+    <div id="dex-meta" class="muted" style="font-size:11px;margin-bottom:6px;"></div>
+    <div id="dex-list" style="display:grid;grid-template-columns:1fr;gap:6px;max-height:46vh;overflow-y:auto;padding-right:2px;"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+      <button type="button" class="btn-mini" id="dex-prev" style="padding:7px 14px;">◀ 前へ</button>
+      <span id="dex-page-info" style="font-size:12px;font-weight:700;">1 / 1</span>
+      <button type="button" class="btn-mini" id="dex-next" style="padding:7px 14px;">次へ ▶</button>
+    </div>
+  `);
+
+  const renderDex = () => {
+    const q = query.trim().toLowerCase();
+    const filtered = [];
+    let foundInFilter = 0;
+    for (let i = 0; i < all.length; i++) {
+      const s = all[i];
+      if (!matchTab(s)) continue;
+      if (curArea !== "all" && !(s.areas || []).includes(curArea)) continue;
+      const rec = dexMap[s.id];
+      if (onlyCaught && !rec) continue;
+      if (q) {
+        const hay = `${s.name} ${s.kana || ""} ${s.desc || ""}`.toLowerCase();
+        if (!hay.includes(q)) continue;
+      }
+      if (rec) foundInFilter++;
+      filtered.push(s);
+    }
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+    page = Math.max(0, Math.min(totalPages - 1, page));
+    const slice = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+
+    const metaEl = $("dex-meta");
+    if (metaEl) metaEl.textContent = `表示対象: ${filtered.length.toLocaleString()}種（うち発見済み ${foundInFilter.toLocaleString()}種）`;
+    const pEl = $("dex-page-info");
+    if (pEl) pEl.textContent = `${page + 1} / ${totalPages}`;
+    if ($("dex-prev")) $("dex-prev").disabled = page <= 0;
+    if ($("dex-next")) $("dex-next").disabled = page >= totalPages - 1;
+
+    document.querySelectorAll("#dex-tabs [data-dtab]").forEach((b) => {
+      const act = b.dataset.dtab === curTab;
+      b.style.background = act ? "#0284c7" : "";
+      b.style.color = act ? "#fff" : "";
+    });
+
+    const listEl = $("dex-list");
+    if (!listEl) return;
+    if (!slice.length) {
+      listEl.innerHTML = `<div class="muted" style="text-align:center;padding:24px;">該当する生き物がいません</div>`;
+      return;
+    }
+    listEl.innerHTML = slice.map((s) => {
+      const rec = dexMap[s.id];
+      const icon = TYPE_ICON[s.speciesType] || "🐟";
+      const rCol = RANK_COL[s.rank] || "#94a3b8";
+      const areaTxt = (s.areas || []).map((a) => AREA_LABELS[a] || a).join("・");
+      if (!rec) {
+        return `<div style="padding:7px 9px;border-radius:8px;background:rgba(15,23,42,0.52);border:1px solid rgba(255,255,255,0.08);opacity:0.78;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;">
+            <span>${icon} <span style="color:${rCol};font-weight:800;">[${s.rank}]</span> ？？？？</span>
+            <span class="muted" style="font-size:10px;">${areaTxt}</span>
+          </div>
+        </div>`;
+      }
+      return `<div style="padding:8px 10px;border-radius:8px;background:rgba(15,23,42,0.82);border:1px solid rgba(56,189,248,0.28);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;">
+          <div style="font-size:13px;font-weight:800;">${icon} <span style="color:${rCol};">[${s.rank}]</span> ${escapeHtml(s.name)}</div>
+          <div style="font-size:11px;color:#38e59a;font-weight:700;">最大 ${rec.maxKg}kg / ${rec.count}回</div>
+        </div>
+        <div class="muted" style="font-size:11px;margin-top:2px;">生息: ${areaTxt} ／ 基準 ¥${(s.basePricePerKg || 0).toLocaleString()}/kg</div>
+        <div style="font-size:11px;color:#cbd5e1;margin-top:3px;">${escapeHtml(s.desc || "")}</div>
+      </div>`;
+    }).join("");
+  };
+
   $("dex-back-office").onclick = openOfficeModal;
+  $("dex-only-caught").onchange = (e) => { onlyCaught = e.target.checked; page = 0; renderDex(); };
+  $("dex-search").oninput = (e) => { query = e.target.value || ""; page = 0; renderDex(); };
+  $("dex-area-sel").onchange = (e) => { curArea = e.target.value; page = 0; renderDex(); };
+  document.querySelectorAll("#dex-tabs [data-dtab]").forEach((b) => {
+    b.onclick = () => { curTab = b.dataset.dtab; page = 0; renderDex(); };
+  });
+  $("dex-prev").onclick = () => { if (page > 0) { page--; renderDex(); $("dex-list").scrollTop = 0; } };
+  $("dex-next").onclick = () => { page++; renderDex(); $("dex-list").scrollTop = 0; };
+  renderDex();
 }
 
 function triggerAdminSecret() {
@@ -2540,3 +2714,65 @@ async function boot() {
 }
 
 boot();
+
+// ===== 説明バー（#status-banner）を文字数に応じた読める時間だけ表示して自動で消す =====
+(function setupStatusBannerAutoHide() {
+  const init = () => {
+    const el = document.getElementById("status-banner");
+    if (!el || el.dataset.autoHideInit) return;
+    el.dataset.autoHideInit = "1";
+    el.style.transition = "opacity 0.45s ease, transform 0.35s ease";
+    let hideTimer = null;
+
+    const scheduleHide = () => {
+      const txt = (el.textContent || "").trim();
+      if (hideTimer) clearTimeout(hideTimer);
+      if (!txt) {
+        el.style.opacity = "0";
+        el.style.pointerEvents = "none";
+        return;
+      }
+      el.style.opacity = "1";
+      el.style.transform = "translateY(0)";
+      el.style.pointerEvents = "auto";
+      // 読める時間：最低3.2秒〜最大7.2秒（1文字あたり約115ms）
+      const ms = Math.min(7200, Math.max(3200, txt.length * 115));
+      hideTimer = setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transform = "translateY(-6px)";
+        el.style.pointerEvents = "none";
+      }, ms);
+    };
+
+    const obs = new MutationObserver(scheduleHide);
+    obs.observe(el, { childList: true, characterData: true, subtree: true });
+    scheduleHide();
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+
+// ===== 水産株取引所ボタン接続＆リアルタイム市場起動 =====
+(function setupFishStockButton() {
+  const init = () => {
+    ensureStockMarketRunning(() => env);
+    const btn = document.getElementById("btn-open-stocks");
+    if (!btn || btn.dataset.stockBound) return;
+    btn.dataset.stockBound = "1";
+    btn.onclick = () => {
+      const save = currentSave();
+      if (!save) return;
+      audioEngine.playOk?.();
+      openFishStockExchange({
+        save,
+        openModal,
+        closeModal,
+        onCommit: () => { persistSlots(slots, false); updateHud(); },
+        playCash: () => audioEngine.playCash?.(),
+        playFail: () => audioEngine.playFail?.()
+      });
+    };
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();

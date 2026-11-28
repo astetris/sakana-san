@@ -51,7 +51,8 @@ class AudioEngine {
     const now = this.ctx.currentTime;
     const isRain = env.weather === "rain" || env.weather === "rough";
     this.rainGain.gain.setTargetAtTime(isRain ? 0.065 : 0.0, now, 0.8);
-    this.waveGain.gain.setTargetAtTime(env.weather === "rough" ? 0.16 : 0.09, now, 0.8);
+    const wAmp = typeof env.waveAmp === "number" ? env.waveAmp : (env.weather === "rough" ? 2.1 : 1.0);
+    this.waveGain.gain.setTargetAtTime(Math.max(0.045, Math.min(0.20, 0.042 + wAmp * 0.064)), now, 0.8);
   }
 
   createNoiseBuffer(seconds = 3) {

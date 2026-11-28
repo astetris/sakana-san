@@ -6,9 +6,7 @@ import {
   signInWithPopup, signInWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import {
-  getDatabase, ref, set, get, remove, push, onValue, onDisconnect, query, limitToLast, runTransaction
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+import { getDatabase, ref, set, get, remove, push, onValue, onDisconnect, query, limitToLast, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCuAOvVHpUrbUGnHVtyr03jscRbJkqlvFc",
@@ -471,5 +469,51 @@ export async function linkOrSignInEmail({ email, password, mode = "link" }) {
       return { ok: true, uid: auth.currentUser.uid, msg: "すでにメール＆パスワードと連携済みです。" };
     }
     return { ok: false, msg: formatAuthError(e) };
+  }
+}
+
+// ===== プレイヤー名の一意ロック（既に使われている名前は使用不可） =====
+export function normalizePlayerNameKey(rawName) {
+  const clean = String(rawName || "").trim().replace(/\s+/g, " ");
+  if (!clean) return "";
+  return clean
+    .toLowerCase()
+    .replace(/[.#$\[\]\/\\]/g, (ch) => "_" + ch.charCodeAt(0).toString(16) + "_");
+}
+
+export async function claimPlayerName(newName, prevName = "") {
+  const clean = String(newName || "").trim().replace(/\s+/g, " ");
+  if (!clean || clean.length < 1 || clean.length > 12) {
+    return { ok: false, reason: "名前は1〜12文字で入力してください。" };
+  }
+  const key = normalizePlayerNameKey(clean);
+  if (!key) return { ok: false, reason: "使用できない文字のみの名前です。" };
+  if (!ready || !rtdb || !currentUid) {
+    return { ok: true, name: clean, offline: true };
+  }
+  try {
+    const nameRef = ref(rtdb, `playerNames/${key}`);
+    const tx = await runTransaction(nameRef, (cur) => {
+      if (cur === null || (cur && cur.uid === currentUid)) {
+        return { uid: currentUid, name: clean, updatedAt: Date.now() };
+      }
+      return; // 他プレイヤーが使用中なので中断
+    });
+    const val = tx.snapshot?.val();
+    if (!tx.committed || !val || val.uid !== currentUid) {
+      return { ok: false, reason: `「${clean}」はすでに他のプレイヤーが使用しています。別の名前にしてください。` };
+    }
+    const prevKey = normalizePlayerNameKey(prevName);
+    if (prevKey && prevKey !== key) {
+      const prevRef = ref(rtdb, `playerNames/${prevKey}`);
+      const prevSnap = await get(prevRef);
+      if (prevSnap.exists() && prevSnap.val()?.uid === currentUid) {
+        await remove(prevRef).catch(() => {});
+      }
+    }
+    return { ok: true, name: clean };
+  } catch (e) {
+    console.warn("claimPlayerName error:", e);
+    return { ok: true, name: clean, offline: true };
   }
 }

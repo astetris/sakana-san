@@ -2,37 +2,110 @@ import * as THREE from "three";
 import { clampWorldPosition, WORLD_LAYOUT } from "../systems/worldMap.js?v=20261128_042032";
 import { audioEngine } from "../systems/audioEngine.js?v=20261128_042032";
 
-// ===== リアル海面シェーダー（港内は穏やか・外海はうねり・沖防波堤の白波・夜景映り込み） =====
+// ===== リアル海面シェーダー（日替わり波高・6層セット波・岸壁衝突白波・桟橋/防波堤泡・ウキ波紋） =====
 const OCEAN_VERTEX_SHADER = `
   uniform float uTime;
   uniform float uWaveAmp;
+  uniform vec2 uWaveDir;
+  uniform float uChoppiness;
+  uniform float uWaveSeed;
+  uniform vec2 uBobberPos;
+  uniform float uBobberActive;
+  uniform float uSplashAge;
+  uniform float uBiteIntensity;
+
   varying vec3 vWorldPos;
   varying float vWaveHeight;
   varying float vShoreMask;
+  varying float vWallImpact;
+  varying float vSetMod;
 
   void main() {
     vec4 wp = modelMatrix * vec4(position, 1.0);
-    // 岸辺(z > -6)および沖防波堤の内側（港内）は波を穏やかにし、外海でうねりを強める
-    float shoreFade = smoothstep(4.0, -14.0, wp.z);
-    float inHarbor = (1.0 - smoothstep(-38.0, -54.0, wp.z)) * (1.0 - smoothstep(55.0, 88.0, abs(wp.x)));
-    float harborCalm = mix(1.0, 0.42, inHarbor);
-    float amp = uWaveAmp * (0.20 + 0.80 * shoreFade) * harborCalm;
+    float t = uTime;
 
-    float w1 = sin(wp.x * 0.11 + wp.z * 0.08 + uTime * 1.35) * 0.24;
-    float w2 = cos(wp.x * 0.07 - wp.z * 0.16 + uTime * 1.05) * 0.19;
-    float w3 = sin(wp.x * 0.34 + wp.z * 0.29 - uTime * 2.15) * 0.08;
-    float w4 = cos(wp.x * 0.58 - wp.z * 0.47 + uTime * 2.85) * 0.035;
-    float h = (w1 + w2 + w3 + w4) * amp;
+    vec2 bd = normalize(uWaveDir + vec2(0.0001, 0.0));
+    vec2 pd = vec2(-bd.y, bd.x);
+
+    vec2 d1 = normalize(bd * 0.96 + pd * 0.28);
+    vec2 d2 = normalize(bd * 0.72 - pd * 0.69);
+    vec2 d3 = normalize(bd * 0.45 + pd * 0.89);
+    vec2 d4 = normalize(-bd * 0.31 + pd * 0.95);
+    vec2 d5 = normalize(bd * 0.84 - pd * 0.54);
+    vec2 d6 = normalize(-bd * 0.62 - pd * 0.78);
+
+    // 港内は少し穏やか・外海は大きなうねり
+    float shoreFade = smoothstep(3.5, -14.0, wp.z);
+    float inHarbor = (1.0 - smoothstep(-38.0, -54.0, wp.z)) * (1.0 - smoothstep(55.0, 88.0, abs(wp.x)));
+    float harborCalm = mix(1.0, 0.48, inHarbor);
+
+    // 同じ動きを繰り返さないセット波エンベロープ（強弱の波群がゆっくり流れてくる）
+    float set1 = sin(dot(wp.xz, d1) * 0.021 - t * 0.23 + uWaveSeed * 0.71);
+    float set2 = cos(dot(wp.xz, d2) * 0.017 - t * 0.143 + uWaveSeed * 1.13);
+    float gust = 0.86 + 0.24 * sin(t * 0.19 + wp.x * 0.013 - wp.z * 0.011 + uWaveSeed * 0.37);
+    float setMod = (0.64 + 0.52 * (0.5 + 0.5 * set1) * (0.55 + 0.45 * set2)) * gust;
+    vSetMod = setMod;
+
+    float amp = uWaveAmp * (0.24 + 0.76 * shoreFade) * harborCalm * setMod;
+
+    float p1 = dot(wp.xz, d1) * 0.072 - t * 1.18 + uWaveSeed * 0.4;
+    float p2 = dot(wp.xz, d2) * 0.113 - t * 1.47 + uWaveSeed * 0.9;
+    float p3 = dot(wp.xz, d3) * 0.197 - t * 1.93 + uWaveSeed * 1.5;
+    float p4 = dot(wp.xz, d4) * 0.311 - t * 2.41 + uWaveSeed * 2.1;
+    float p5 = dot(wp.xz, d5) * 0.487 - t * 2.97 + uWaveSeed * 2.7;
+    float p6 = dot(wp.xz, d6) * 0.743 - t * 3.61 + uWaveSeed * 3.3;
+
+    float s1 = sin(p1); float c1 = cos(p1);
+    float s2 = sin(p2); float c2 = cos(p2);
+
+    // 波頭を尖らせ谷を緩やかにするゲルストナー風プロファイル
+    float sharp = 0.26 * uChoppiness;
+    float w1 = (s1 + sharp * (1.0 - c1 * c1) * s1) * 0.28;
+    float w2 = (s2 + sharp * (1.0 - c2 * c2) * s2) * 0.19;
+    float w3 = sin(p3) * 0.105;
+    float w4 = sin(p4) * 0.062;
+    float w5 = sin(p5) * 0.035;
+    float w6 = sin(p6) * 0.020;
+
+    float h = (w1 + w2 + w3 + w4 + w5 + w6) * amp;
+
+    // 港の護岸に当たって跳ね返る重複波（壁際での上下のうねり）
+    float portWallX = 1.0 - smoothstep(35.0, 39.5, abs(wp.x));
+    float portWallBand = exp(-pow(max(0.0, -wp.z) * 0.42, 2.0)) * portWallX;
+    float wallClap = sin(-wp.z * 0.78 - t * 2.35 + sin(wp.x * 0.14) * 1.6) * 0.16 * uWaveAmp * setMod * portWallBand;
+    h += wallClap;
+
+    // 沖合のみ水平ピンチ（岸壁に隙間ができないよう shoreFade を掛ける）
+    float pinch = shoreFade * amp * uChoppiness * 0.22;
+    wp.xz += (d1 * c1 * 0.65 + d2 * c2 * 0.35) * pinch;
+
+    // ウキ着水＆アタリの微細な水面押し下げ
+    if (uBobberActive > 0.5) {
+      float bDist = length(wp.xz - uBobberPos);
+      if (uSplashAge < 3.5) {
+        float front = uSplashAge * 2.8;
+        float rEnv = exp(-pow((bDist - front) * 0.9, 2.0)) * exp(-uSplashAge * 0.85);
+        h += sin(bDist * 6.0 - uSplashAge * 12.0) * 0.075 * rEnv;
+      }
+      if (uBiteIntensity > 0.05) {
+        float bEnv = exp(-bDist * 0.65);
+        h += sin(bDist * 7.5 - t * 16.0) * 0.06 * uBiteIntensity * bEnv;
+      }
+    }
 
     wp.y += h;
     vWorldPos = wp.xyz;
     vWaveHeight = h;
 
-    // 岸辺と沖防波堤まわりに白波マスクを発生
-    float coastFoam = 1.0 - smoothstep(-1.5, -15.0, wp.z);
-    float bwZ = exp(-pow((wp.z + 43.5) * 0.22, 2.0));
-    float bwX = smoothstep(19.0, 23.0, abs(wp.x)) * (1.0 - smoothstep(74.0, 82.0, abs(wp.x)));
-    vShoreMask = clamp(coastFoam + bwZ * bwX * 0.9, 0.0, 1.0);
+    // 岸辺・護岸・沖防波堤・テトラポッド・南国島の白波マスク
+    float coastFoam = 1.0 - smoothstep(-0.8, -12.0, wp.z);
+    float bwZ = exp(-pow((wp.z + 43.5) * 0.21, 2.0));
+    float bwX = smoothstep(18.5, 22.5, abs(wp.x)) * (1.0 - smoothstep(75.0, 83.0, abs(wp.x)));
+    float islandDist = length(wp.xz - vec2(145.0, -295.0));
+    float islandFoam = exp(-pow((islandDist - 31.5) * 0.22, 2.0));
+
+    vShoreMask = clamp(coastFoam + bwZ * bwX * 0.95 + islandFoam * 0.85, 0.0, 1.0);
+    vWallImpact = clamp(portWallBand * (0.45 + max(0.0, h) * 2.8) + bwZ * bwX * (0.35 + max(0.0, h) * 1.9), 0.0, 1.0);
 
     gl_Position = projectionMatrix * viewMatrix * wp;
   }
@@ -41,6 +114,14 @@ const OCEAN_VERTEX_SHADER = `
 const OCEAN_FRAGMENT_SHADER = `
   uniform float uTime;
   uniform float uWaveAmp;
+  uniform vec2 uWaveDir;
+  uniform float uChoppiness;
+  uniform float uWaveSeed;
+  uniform vec2 uBobberPos;
+  uniform float uBobberActive;
+  uniform float uSplashAge;
+  uniform float uBiteIntensity;
+
   uniform vec3 uDeepColor;
   uniform vec3 uShallowColor;
   uniform vec3 uSkyHorizon;
@@ -54,50 +135,127 @@ const OCEAN_FRAGMENT_SHADER = `
   varying vec3 vWorldPos;
   varying float vWaveHeight;
   varying float vShoreMask;
+  varying float vWallImpact;
+  varying float vSetMod;
+
+  float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+  }
+
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash21(i);
+    float b = hash21(i + vec2(1.0, 0.0));
+    float c = hash21(i + vec2(0.0, 1.0));
+    float d = hash21(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
 
   void main() {
     float t = uTime;
     vec2 p = vWorldPos.xz;
-    float nx =
-      cos(p.x * 0.11 + p.y * 0.08 + t * 1.35) * 0.09 +
-      cos(p.x * 0.34 + p.y * 0.29 - t * 2.15) * 0.11 +
-      sin(p.x * 0.92 - p.y * 0.78 + t * 3.1) * 0.065 +
-      cos(p.x * 1.75 + p.y * 1.45 - t * 4.2) * 0.04;
-    float nz =
-      -sin(p.x * 0.07 - p.y * 0.16 + t * 1.05) * 0.09 +
-      cos(p.x * 0.34 + p.y * 0.29 - t * 2.15) * 0.09 -
-      cos(p.x * 0.88 - p.y * 0.82 + t * 2.9) * 0.065 +
-      sin(p.x * 1.62 - p.y * 1.58 + t * 3.9) * 0.04;
+    vec2 bd = normalize(uWaveDir + vec2(0.0001, 0.0));
+    vec2 pd = vec2(-bd.y, bd.x);
 
-    vec3 N = normalize(vec3(-nx * (0.75 + 0.35 * uWaveAmp), 1.0, -nz * (0.75 + 0.35 * uWaveAmp)));
+    vec2 d1 = normalize(bd * 0.96 + pd * 0.28);
+    vec2 d2 = normalize(bd * 0.72 - pd * 0.69);
+    vec2 d3 = normalize(bd * 0.45 + pd * 0.89);
+    vec2 d4 = normalize(-bd * 0.31 + pd * 0.95);
+
+    // ドメインワープで規則的な格子模様を消した自然なさざ波法線
+    vec2 warp = vec2(
+      sin(p.y * 0.17 + t * 0.55 + uWaveSeed),
+      cos(p.x * 0.15 - t * 0.48 + uWaveSeed * 1.3)
+    ) * 1.15;
+    vec2 pw = p + warp;
+
+    float g1 = cos(dot(p, d1) * 0.072 - t * 1.18 + uWaveSeed * 0.4) * 0.085;
+    float g2 = cos(dot(p, d2) * 0.113 - t * 1.47 + uWaveSeed * 0.9) * 0.075;
+    float g3 = cos(dot(pw, d3) * 0.29 - t * 2.15 + uWaveSeed * 1.5) * 0.085;
+    float g4 = cos(dot(pw, d4) * 0.58 - t * 2.88 + uWaveSeed * 2.1) * 0.062;
+    float micro1 = sin(pw.x * 1.35 - pw.y * 1.12 + t * 3.4) * 0.042;
+    float micro2 = cos(pw.x * 2.35 + pw.y * 1.95 - t * 4.3) * 0.026;
+
+    vec2 slope = d1 * g1 + d2 * g2 + d3 * g3 + d4 * g4 + vec2(micro1 + micro2, micro2 - micro1);
+    float slopeScale = (0.62 + 0.42 * uWaveAmp) * (0.78 + 0.28 * uChoppiness) * clamp(vSetMod, 0.55, 1.45);
+    vec2 nXZ = -slope * slopeScale;
+
+    // ===== ウキ着水＆アタリの同心円波紋（法線を曲げて水面反射にリアルな波紋を出す） =====
+    float bobberFoam = 0.0;
+    if (uBobberActive > 0.5) {
+      vec2 toB = p - uBobberPos;
+      float bDist = length(toB);
+      vec2 bDir = toB / max(bDist, 0.001);
+
+      // 1. 着水時の大きく広がる多層波紋
+      if (uSplashAge >= 0.0 && uSplashAge < 4.8) {
+        float front1 = uSplashAge * 2.9;
+        float env1 = exp(-pow((bDist - front1) * 1.15, 2.0)) * exp(-uSplashAge * 0.72) * smoothstep(0.0, 0.06, uSplashAge);
+        float front2 = max(0.0, (uSplashAge - 0.30) * 2.25);
+        float env2 = exp(-pow((bDist - front2) * 1.4, 2.0)) * exp(-max(0.0, uSplashAge - 0.30) * 0.85) * step(0.30, uSplashAge);
+        float front3 = max(0.0, (uSplashAge - 0.62) * 1.75);
+        float env3 = exp(-pow((bDist - front3) * 1.6, 2.0)) * exp(-max(0.0, uSplashAge - 0.62) * 0.95) * step(0.62, uSplashAge);
+
+        float wSplash = (cos(bDist * 7.8 - uSplashAge * 14.5) * env1
+                      + cos(bDist * 9.2 - uSplashAge * 13.0) * env2 * 0.75
+                      + cos(bDist * 10.5 - uSplashAge * 11.5) * env3 * 0.5);
+        nXZ += bDir * wSplash * 0.58;
+
+        // 着水直後の白い飛沫リング
+        float ringGlow = (env1 * 0.75 + env2 * 0.45) * smoothstep(0.15, 0.95, 0.5 + 0.5 * sin(bDist * 7.8 - uSplashAge * 14.5));
+        float centerPop = exp(-bDist * bDist * 2.2) * exp(-uSplashAge * 1.85);
+        bobberFoam += ringGlow * 0.65 + centerPop * 0.85;
+      }
+
+      // 2. 浮いている間の細かい揺らぎ波紋
+      if (bDist < 4.5) {
+        float idleEnv = exp(-bDist * 0.85) * smoothstep(0.08, 0.45, bDist);
+        nXZ += bDir * cos(bDist * 8.2 - t * 6.8) * idleEnv * 0.14;
+      }
+
+      // 3. アタリ・ファイト時の激しい波紋＆白泡
+      if (uBiteIntensity > 0.05 && bDist < 6.5) {
+        float biteEnv = exp(-bDist * 0.52) * uBiteIntensity;
+        float biteWave = cos(bDist * 9.5 - t * 18.5);
+        nXZ += bDir * biteWave * biteEnv * 0.62;
+        bobberFoam += exp(-bDist * 1.35) * uBiteIntensity * (0.45 + 0.45 * vnoise(p * 4.5 + t * 3.0));
+      }
+    }
+
+    vec3 N = normalize(vec3(nXZ.x, 1.0, nXZ.y));
     vec3 V = normalize(cameraPosition - vWorldPos);
     float NoV = max(dot(N, V), 0.001);
-    float fresnel = pow(1.0 - NoV, 3.6);
+    float fresnel = pow(1.0 - NoV, 3.8);
 
-    float beachShallow = smoothstep(-58.0, -4.0, vWorldPos.z) * (0.45 + 0.55 * smoothstep(40.0, -100.0, vWorldPos.x));
+    float beachShallow = smoothstep(-58.0, -3.5, vWorldPos.z) * (0.45 + 0.55 * smoothstep(40.0, -100.0, vWorldPos.x));
     float tropical = smoothstep(-195.0, -255.0, vWorldPos.z) * smoothstep(45.0, 115.0, vWorldPos.x);
     float shallowFactor = clamp(beachShallow * 0.72 + tropical * 0.85, 0.0, 1.0);
     vec3 waterBody = mix(uDeepColor, uShallowColor, shallowFactor);
 
-    float sss = pow(max(dot(V, -uSunDir + N * 0.45), 0.0001), 3.0) * max(vWaveHeight * 1.4 + 0.25, 0.0);
-    waterBody += uShallowColor * uSunColor * sss * (0.35 * (1.0 - uNightFactor * 0.7));
+    // 太陽光の透過（波の山のエメラルドグリーン）
+    float sss = pow(max(dot(V, -uSunDir + N * 0.45), 0.0001), 3.0) * max(vWaveHeight * 1.55 + 0.22, 0.0);
+    waterBody += uShallowColor * uSunColor * sss * (0.40 * (1.0 - uNightFactor * 0.72));
 
     vec3 R = reflect(-V, N);
     float skyGrad = clamp(R.y * 1.6 + 0.15, 0.0, 1.0);
     vec3 skyReflect = mix(uSkyHorizon, uSkyZenith, skyGrad);
-    vec3 col = mix(waterBody, skyReflect, clamp(fresnel * 0.88 + 0.08, 0.0, 0.92));
+    vec3 col = mix(waterBody, skyReflect, clamp(fresnel * 0.88 + 0.07, 0.0, 0.92));
 
     vec3 H = normalize(uSunDir + V);
     float NoH = max(dot(N, H), 0.0001);
-    float specSharp = pow(NoH, 240.0) * 1.9;
-    float specSoft = pow(NoH, 26.0) * 0.28;
+    float specSharp = pow(NoH, 260.0) * 2.0;
+    float specSoft = pow(NoH, 28.0) * 0.26;
     col += uSunColor * (specSharp + specSoft);
 
     // 夜の港町の街灯・家明かり・赤白灯台が水面に揺らめく映り込み
     if (uNightFactor > 0.05) {
       float townGlow = exp(-length((vWorldPos.xz - vec2(0.0, 2.0)) * vec2(0.013, 0.028)));
-      float shimmer = pow(max(0.0, sin(p.x * 1.35 + t * 2.1) * cos(p.y * 1.85 - t * 2.7) * 0.5 + 0.5), 2.8);
-      col += vec3(1.0, 0.68, 0.32) * townGlow * (0.26 + 0.62 * shimmer) * uNightFactor;
+      float shimmer = pow(max(0.0, sin(p.x * 1.35 + t * 2.1 + nXZ.x * 4.0) * cos(p.y * 1.85 - t * 2.7 + nXZ.y * 4.0) * 0.5 + 0.5), 2.8);
+      col += vec3(1.0, 0.68, 0.32) * townGlow * (0.26 + 0.64 * shimmer) * uNightFactor;
 
       float redLh = exp(-length((vWorldPos.xz - vec2(22.0, -43.5)) * 0.075));
       col += vec3(1.0, 0.22, 0.22) * redLh * (0.35 + 0.4 * shimmer) * uNightFactor;
@@ -105,11 +263,41 @@ const OCEAN_FRAGMENT_SHADER = `
       col += vec3(0.75, 1.0, 0.85) * whtLh * (0.32 + 0.4 * shimmer) * uNightFactor;
     }
 
-    float shoreWave = sin(vWorldPos.z * 1.35 + t * 2.6 + sin(vWorldPos.x * 0.25) * 1.8) * 0.5 + 0.5;
-    float shoreFoam = smoothstep(0.55, 0.96, shoreWave * vShoreMask + vShoreMask * 0.42);
-    float crestFoam = smoothstep(0.24, 0.48, vWaveHeight + (uWaveAmp - 1.0) * 0.15) * 0.55;
-    float foam = clamp(shoreFoam * 0.72 + crestFoam, 0.0, 0.88);
-    vec3 foamColor = mix(vec3(0.92, 0.97, 1.0), uSkyHorizon * 1.05, 0.25);
+    // ===== 港護岸・桟橋杭・砂浜引き波・テトラポッド・防波堤の自然な白波と泡 =====
+    float foamNoise = vnoise(p * 0.85 + vec2(t * 0.35, -t * 0.52)) * 0.65 + vnoise(p * 2.4 - vec2(t * 0.7, t * 0.4)) * 0.35;
+
+    // 1. 港のコンクリート護岸（z ≈ 0, |x| <= 37.5）に打ち寄せて広がる白泡
+    float inPortX = 1.0 - smoothstep(35.5, 38.5, abs(p.x));
+    float wallDist = max(0.0, -p.y);
+    float wallPulse = 0.5 + 0.5 * sin(t * 1.85 + sin(p.x * 0.16) * 2.2 + uWaveSeed);
+    float wallReach = 0.75 + (0.65 + 1.35 * wallPulse) * clamp(uWaveAmp, 0.4, 2.2) * clamp(vSetMod, 0.6, 1.4);
+    float wallBand = (1.0 - smoothstep(0.1, wallReach, wallDist)) * inPortX;
+    float portWallFoam = smoothstep(0.28, 0.78, wallBand * (0.65 + 0.65 * foamNoise) + vWallImpact * 0.35);
+
+    // 2. 桟橋の側面＆木杭まわりのさざ波泡
+    float nearPierZ = smoothstep(-16.2, -14.8, p.y) * (1.0 - smoothstep(-0.2, 1.2, p.y));
+    float pierEdge = exp(-pow((abs(p.x) - 4.45) * 1.7, 2.0)) * nearPierZ;
+    float pilingZ = abs(fract((p.y + 14.8) / 3.5 + 0.5) - 0.5) * 3.5;
+    float pilingRing = exp(-(pow(abs(p.x) - 4.1, 2.0) + pilingZ * pilingZ) * 2.2) * nearPierZ;
+    float pierFoam = clamp((pierEdge * 0.5 + pilingRing * 0.9) * (0.45 + 0.65 * foamNoise), 0.0, 0.85);
+
+    // 3. 砂浜（x ∈ [-105, -36]）の押し寄せて引く波打ち際の泡レース
+    float inBeachX = smoothstep(-108.0, -98.0, p.x) * (1.0 - smoothstep(-39.0, -34.0, p.x));
+    float swashPhase = sin(p.y * 0.65 + t * 1.65 + sin(p.x * 0.09) * 2.5);
+    float beachBand = (1.0 - smoothstep(0.0, 9.5, max(0.0, -p.y - 0.6))) * inBeachX;
+    float beachFoam = smoothstep(0.42, 0.86, beachBand * (0.45 + 0.55 * (0.5 + 0.5 * swashPhase)) * (0.55 + 0.65 * foamNoise));
+
+    // 4. 沖防波堤・テトラポッド・磯場の砕け波
+    float tetraBand = smoothstep(33.0, 37.0, p.x) * (1.0 - smoothstep(72.0, 82.0, p.x)) * exp(-pow((p.y + 1.6) * 0.38, 2.0));
+    float shoreWave = sin(p.y * 1.15 + t * 2.35 + sin(p.x * 0.22) * 2.1 + foamNoise * 2.4) * 0.5 + 0.5;
+    float breakFoam = smoothstep(0.46, 0.92, (shoreWave * vShoreMask + vShoreMask * 0.32 + tetraBand * 0.85) * (0.62 + 0.55 * foamNoise));
+
+    // 5. 高波・白波の立つ日だけ沖の波頭に現れる白波（うさぎ跳び）
+    float crestThreshold = mix(0.42, 0.19, clamp((uWaveAmp - 0.5) * 0.6, 0.0, 1.0));
+    float crestFoam = smoothstep(crestThreshold, crestThreshold + 0.24, vWaveHeight + (foamNoise - 0.5) * 0.14) * clamp((uWaveAmp - 0.55) * 0.65, 0.0, 0.85);
+
+    float foam = clamp(portWallFoam * 0.82 + pierFoam * 0.65 + beachFoam * 0.78 + breakFoam * 0.72 + crestFoam + bobberFoam, 0.0, 0.94);
+    vec3 foamColor = mix(vec3(0.94, 0.98, 1.0), uSkyHorizon * 1.08, 0.22);
     col = mix(col, foamColor, foam);
 
     float dist = length(cameraPosition - vWorldPos);
@@ -379,30 +567,42 @@ function createFlagTexture() {
 }
 
 function createNameSprite(text) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 72;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "rgba(10, 22, 36, 0.84)";
-  ctx.strokeStyle = "rgba(56, 189, 248, 0.88)";
-  ctx.lineWidth = 4;
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 112;
+  const ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  // 角丸ネームタグ背景
+  const r = 28;
+  const x = 16, y = 16, w = c.width - 32, h = c.height - 32;
   ctx.beginPath();
-  ctx.roundRect(8, 10, 240, 52, 16);
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(10, 18, 34, 0.84)";
   ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.9)";
   ctx.stroke();
 
-  ctx.fillStyle = "#f8fafc";
-  ctx.font = "bold 24px sans-serif";
+  ctx.font = "800 38px 'Hiragino Sans', 'Noto Sans JP', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text.slice(0, 14), 128, 36);
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillText(String(text || "漁師").slice(0, 18), c.width / 2, c.height / 2 + 2);
 
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(4.6, 1.3, 1);
-  sprite.position.set(0, 3.6, 0);
-  return sprite;
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(3.4, 0.76, 1);
+  sp.position.set(0, 2.55, 0);
+  sp.renderOrder = 10;
+  return sp;
 }
 
 // リアル漁船モデル（大漁旗＆集魚灯オプション付き）
@@ -529,6 +729,143 @@ function buildKeiTruck() {
   return g;
 }
 
+
+// ===== 高クオリティ釣り人・漁師3Dアバター生成（自分＆マルチ共通） =====
+function hashColorFromName(name = "") {
+  const palette = [0x0284c7, 0x0f766e, 0xd97706, 0xe11d48, 0x7c3aed, 0x2563eb, 0x16a34a, 0xea580c];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
+}
+
+function buildHighQualityAngler(accentHex = 0x0284c7, withRod = true) {
+  const root = new THREE.Group();
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xf7cfa0, roughness: 0.72 });
+  const hairMat = new THREE.MeshStandardMaterial({ color: 0x261c16, roughness: 0.85 });
+  const shirtMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.75 });
+  const vestMat = new THREE.MeshStandardMaterial({ color: accentHex, roughness: 0.58, metalness: 0.08 });
+  const pocketMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.65 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.85 });
+  const bootMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.45 });
+  const hatMat = new THREE.MeshStandardMaterial({ color: 0xd6a55c, roughness: 0.72 });
+  const hatBandMat = new THREE.MeshStandardMaterial({ color: accentHex, roughness: 0.5 });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111827 });
+
+  // 胴体（シャツ＋フィッシングベスト＋胸ポケット＆ライフベルト）
+  const torso = new THREE.Group();
+  torso.position.y = 1.06;
+  const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.58, 0.28), shirtMat);
+  const vest = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.52, 0.31), vestMat);
+  vest.position.y = -0.01;
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.1, 10), shirtMat);
+  collar.position.y = 0.32;
+  [-0.14, 0.14].forEach((px) => {
+    const pock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.05), pocketMat);
+    pock.position.set(px, 0.05, -0.16);
+    torso.add(pock);
+  });
+  const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.42, 0.16), pocketMat);
+  backpack.position.set(0, 0.02, 0.21);
+  torso.add(shirt, vest, collar, backpack);
+  root.add(torso);
+
+  // 首・頭部・顔・後ろ髪・つば付きアウトドア帽
+  const headGrp = new THREE.Group();
+  headGrp.position.y = 1.56;
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.14, 8), skinMat);
+  neck.position.y = -0.14;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 14), skinMat);
+  const hairBack = new THREE.Mesh(new THREE.SphereGeometry(0.228, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat);
+  hairBack.rotation.x = -0.25;
+  hairBack.position.set(0, 0.02, 0.02);
+  // 目（前方 = -Z側）
+  [-0.075, 0.075].forEach((ex) => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 8), eyeMat);
+    eye.position.set(ex, 0.02, -0.205);
+    headGrp.add(eye);
+  });
+  // アウトドア・フィッシングハット
+  const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.37, 0.40, 0.04, 18), hatMat);
+  hatBrim.position.y = 0.15;
+  const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.23, 0.17, 16), hatMat);
+  hatCrown.position.y = 0.24;
+  const hatBand = new THREE.Mesh(new THREE.CylinderGeometry(0.228, 0.232, 0.05, 16), hatBandMat);
+  hatBand.position.y = 0.18;
+  headGrp.add(neck, head, hairBack, hatBrim, hatCrown, hatBand);
+  root.add(headGrp);
+
+  // 両腕（肩ピボット）
+  const makeArm = (side) => {
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.32, 1.30, 0);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.068, 0.34, 10), shirtMat);
+    sleeve.position.y = -0.17;
+    const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.055, 0.24, 10), skinMat);
+    fore.position.y = -0.42;
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 10), skinMat);
+    hand.position.y = -0.55;
+    arm.add(sleeve, fore, hand);
+    return arm;
+  };
+  const leftArm = makeArm(-1);
+  const rightArm = makeArm(1);
+
+  if (withRod) {
+    const miniRod = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.012, 0.024, 1.9, 8),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.6, roughness: 0.3 })
+    );
+    miniRod.rotation.x = -Math.PI * 0.36;
+    miniRod.position.set(0, -0.45, -0.78);
+    const tip = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.008, 0.012, 0.45, 6),
+      new THREE.MeshStandardMaterial({ color: 0xff5a36, roughness: 0.3 })
+    );
+    tip.rotation.x = -Math.PI * 0.36;
+    tip.position.set(0, -0.02, -1.68);
+    rightArm.add(miniRod, tip);
+  }
+  root.add(leftArm, rightArm);
+
+  // 両脚（腰ピボット＋長靴）
+  const makeLeg = (side) => {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.13, 0.76, 0);
+    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.082, 0.42, 10), pantsMat);
+    thigh.position.y = -0.21;
+    const boot = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.085, 0.34, 10), bootMat);
+    boot.position.y = -0.56;
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.11, 0.26), bootMat);
+    foot.position.set(0, -0.71, -0.05);
+    leg.add(thigh, boot, foot);
+    return leg;
+  };
+  const leftLeg = makeLeg(-1);
+  const rightLeg = makeLeg(1);
+  root.add(leftLeg, rightLeg);
+
+  root.userData.rig = { torso, headGrp, leftArm, rightArm, leftLeg, rightLeg };
+  return root;
+}
+
+function animateAnglerRig(angler, walkPhase, speedFactor, isBoating) {
+  const rig = angler?.userData?.rig;
+  if (!rig) return;
+  if (isBoating) {
+    rig.leftLeg.rotation.x = -1.1;
+    rig.rightLeg.rotation.x = -1.1;
+    rig.leftArm.rotation.x = -0.55;
+    rig.rightArm.rotation.x = -0.55;
+    return;
+  }
+  const amp = Math.min(0.65, speedFactor * 0.65);
+  const s = Math.sin(walkPhase) * amp;
+  rig.leftLeg.rotation.x = s;
+  rig.rightLeg.rotation.x = -s;
+  rig.leftArm.rotation.x = -s * 0.8;
+  rig.rightArm.rotation.x = s * 0.45 - 0.18;
+}
+
 export class FishingScene {
   constructor(canvas) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -565,7 +902,14 @@ export class FishingScene {
       uSunDir: { value: new THREE.Vector3(0.32, 0.48, -0.82).normalize() },
       uFogColor: { value: new THREE.Color(0x7cc4ed) },
       uFogDensity: { value: 0.0042 },
-      uNightFactor: { value: 0.0 }
+      uNightFactor: { value: 0.0 },
+      uWaveDir: { value: new THREE.Vector2(0.45, 0.89) },
+      uChoppiness: { value: 0.52 },
+      uWaveSeed: { value: 1.0 },
+      uBobberPos: { value: new THREE.Vector2(0, -10) },
+      uBobberActive: { value: 0.0 },
+      uSplashAge: { value: 99.0 },
+      uBiteIntensity: { value: 0.0 }
     };
     this.seaMat = new THREE.ShaderMaterial({
       vertexShader: OCEAN_VERTEX_SHADER,
@@ -603,6 +947,10 @@ export class FishingScene {
     this.boatGroup = buildRealisticBoatModel(0xc2410c, false);
     this.boatGroup.visible = false;
     this.playerRig.add(this.boatGroup);
+    this.localAvatar = buildHighQualityAngler(0x0284c7, false);
+    this.localAvatar.position.set(0, 0.0, 3.05);
+    this.localWalkPhase = 0;
+    this.playerRig.add(this.localAvatar);
 
     this.wakeParticles = [];
     const wakeGeo = new THREE.CircleGeometry(0.45, 10);
@@ -615,6 +963,14 @@ export class FishingScene {
       this.wakeParticles.push({ mesh: wm, life: 0, maxLife: 1.1 });
     }
     this.wakeSpawnAcc = 0;
+    this.waveDir = { x: 0.45, z: 0.89 };
+    this.waveChoppiness = 0.52;
+    this.waveSeed = 1.0;
+    this.bobberSplashAt = -99;
+    this.bobberWorldPos = new THREE.Vector2(0, -10);
+    this.wallSprayAcc = 0;
+    this.biteSprayAcc = 0;
+    this.initWaveEffects();
 
     this.parkedBoat = buildRealisticBoatModel(0xc2410c, true);
     this.parkedBoat.visible = true;
@@ -935,7 +1291,7 @@ export class FishingScene {
 
     // 4-3 港の自販機コーナー＆ベンチ（7.0, 27.5：夜間に光ってリアル！）
     const vendGrp = new THREE.Group();
-    vendGrp.position.set(7.0, 1.0, 27.5);
+    vendGrp.position.set(WORLD_LAYOUT.portVendX, 1.0, WORLD_LAYOUT.portVendZ);
     [[-0.85, 0x0284c7], [0.85, 0xdc2626]].forEach(([vx, vcol]) => {
       const body = new THREE.Mesh(new THREE.BoxGeometry(1.45, 2.25, 0.95), new THREE.MeshStandardMaterial({ color: vcol, roughness: 0.4 }));
       body.position.set(vx, 1.12, 0);
@@ -1013,7 +1369,7 @@ export class FishingScene {
 
     // ===== 6. 港の主要店舗（魚市場・寿司処 凪・岬の水族館） =====
     const marketGrp = new THREE.Group();
-    marketGrp.position.set(-20, 1.0, 20.8);
+    marketGrp.position.set(-21.0, 1.0, 20.5);
     const mBody = new THREE.Mesh(new THREE.BoxGeometry(16, 5.6, 10), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.78 }));
     mBody.position.y = 2.8;
     const mRoof = new THREE.Mesh(new THREE.BoxGeometry(17.4, 0.7, 11.4), new THREE.MeshStandardMaterial({ color: 0x1e3a5f, roughness: 0.55 }));
@@ -1050,7 +1406,7 @@ export class FishingScene {
     world.add(marketGrp);
 
     const sushiGrp = new THREE.Group();
-    sushiGrp.position.set(-1.5, 1.0, 25.8);
+    sushiGrp.position.set(-2.2, 1.0, 24.5);
     const sBody = new THREE.Mesh(new THREE.BoxGeometry(11.5, 4.6, 8.2), new THREE.MeshStandardMaterial({ color: 0x5c3d24, roughness: 0.85 }));
     sBody.position.y = 2.3;
     const sRoof = new THREE.Mesh(new THREE.ConeGeometry(8.6, 2.8, 4), new THREE.MeshStandardMaterial({ map: createRoofTileTexture("#23272f", 3, 2), roughness: 0.65 }));
@@ -1079,7 +1435,7 @@ export class FishingScene {
     world.add(sushiGrp);
 
     const aqGrp = new THREE.Group();
-    aqGrp.position.set(17.5, 1.0, 24);
+    aqGrp.position.set(19.5, 1.0, 23.0);
     const aqBase = new THREE.Mesh(new THREE.CylinderGeometry(7.8, 8.2, 1.6, 20), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.6 }));
     aqBase.position.y = 0.8;
     const aqDomeMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, emissive: 0x0369a1, emissiveIntensity: 0.35, roughness: 0.14, metalness: 0.45 });
@@ -1098,43 +1454,23 @@ export class FishingScene {
     aqGrp.add(aqBase, aqDome, aqRing, aqSign);
     world.add(aqGrp);
 
-    // ===== 7. 海沿い道路・ガードレール・電柱と電線（日本の港町らしさの決定打） =====
-    const roadMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(270, 0.24, 8.6),
-      new THREE.MeshStandardMaterial({ map: roadTex, roughness: 0.86 })
-    );
-    roadMesh.position.set(-5, 0.96, 38.6);
-    world.add(roadMesh);
-
-    // 白いガードレール（海側の歩行境界 z = 34.25 沿い）
-    const grRail = new THREE.Mesh(new THREE.BoxGeometry(240, 0.28, 0.12), whiteRailMat);
-    grRail.position.set(-5, 1.68, 34.25);
-    world.add(grRail);
-    for (let x = -120; x <= 112; x += 4.5) {
-      const gpost = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.92, 6), whiteRailMat);
-      gpost.position.set(x, 1.45, 34.25);
-      world.add(gpost);
-    }
-
-    // 電柱＆垂れ下がる電線（カテナリー曲線）
-    const poleXs = [];
-    for (let x = -112; x <= 112; x += 28) poleXs.push(x);
+    // ===== 7. 電柱と電線（道路・ガードレールは buildTraffic で1本だけ綺麗に構築） =====
+    const poleXs = WORLD_LAYOUT.poleXs;
+    const poleZ = WORLD_LAYOUT.poleZ;
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.9 });
     const wireMat = new THREE.LineBasicMaterial({ color: 0x0f172a, transparent: true, opacity: 0.72 });
 
     poleXs.forEach((px) => {
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, 10.2, 8), poleMat);
-      pole.position.set(px, 6.0, 43.2);
+      pole.position.set(px, 6.0, poleZ);
       const arm1 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 2.2), metalMat);
-      arm1.position.set(px, 10.4, 43.2);
+      arm1.position.set(px, 10.4, poleZ);
       const arm2 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 1.8), metalMat);
-      arm2.position.set(px, 9.4, 43.2);
-      // 変圧器ドラム
+      arm2.position.set(px, 9.4, poleZ);
       const trans = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.82, 8), darkConcreteMat);
-      trans.position.set(px + 0.34, 8.6, 43.2);
+      trans.position.set(px + 0.34, 8.6, poleZ);
       world.add(pole, arm1, arm2, trans);
     });
-    // 電柱間を繋ぐ3本の垂れ下がり電線
     for (let i = 0; i < poleXs.length - 1; i++) {
       const x1 = poleXs[i], x2 = poleXs[i + 1];
       [[-0.85, 10.45], [0.85, 10.45], [0.0, 9.45]].forEach(([zOff, yTop]) => {
@@ -1142,7 +1478,7 @@ export class FishingScene {
         for (let s = 0; s <= 10; s++) {
           const f = s / 10;
           const sag = Math.sin(f * Math.PI) * 0.95;
-          pts.push(new THREE.Vector3(THREE.MathUtils.lerp(x1, x2, f), yTop - sag, 43.2 + zOff));
+          pts.push(new THREE.Vector3(THREE.MathUtils.lerp(x1, x2, f), yTop - sag, poleZ + zOff));
         }
         const geo = new THREE.BufferGeometry().setFromPoints(pts);
         world.add(new THREE.Line(geo, wireMat));
@@ -1151,14 +1487,14 @@ export class FishingScene {
 
     // ===== 8. 段丘に建ち並ぶ港町の家並み＆高台の神社（日本の漁村風景） =====
     // 1段目＆2段目の石垣段丘
-    const terrace1 = new THREE.Mesh(new THREE.BoxGeometry(275, 4.2, 24), stoneMat);
-    terrace1.position.set(-5, 2.6, 55.2);
-    const terrace1Top = new THREE.Mesh(new THREE.BoxGeometry(275, 0.25, 24), concreteMat);
-    terrace1Top.position.set(-5, 4.72, 55.2);
+    const terrace1 = new THREE.Mesh(new THREE.BoxGeometry(295, 4.2, 22), stoneMat);
+    terrace1.position.set(-5, 2.6, 72.5);
+    const terrace1Top = new THREE.Mesh(new THREE.BoxGeometry(295, 0.25, 22), concreteMat);
+    terrace1Top.position.set(-5, 4.72, 72.5);
     const terrace2 = new THREE.Mesh(new THREE.BoxGeometry(285, 9.6, 28), stoneMat);
-    terrace2.position.set(-5, 5.4, 79.5);
+    terrace2.position.set(-5, 5.4, 97.5);
     const terrace2Top = new THREE.Mesh(new THREE.BoxGeometry(285, 0.3, 28), new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.95 }));
-    terrace2Top.position.set(-5, 10.22, 79.5);
+    terrace2Top.position.set(-5, 10.22, 97.5);
     world.add(terrace1, terrace1Top, terrace2, terrace2Top);
 
     // 民家・漁協倉庫・海辺の民宿の共有マテリアル
@@ -1234,20 +1570,20 @@ export class FishingScene {
     // 1段目（道路のすぐ山側：商店・漁協倉庫・海辺の民家 26棟）
     for (let x = -118; x <= 110; x += 9.2) {
       const jitterX = (rand() - 0.5) * 2.2;
-      const jitterZ = 48.2 + rand() * 8.5;
+      const jitterZ = 65.5 + rand() * 8.5;
       addTownHouse(x + jitterX, 4.8, jitterZ, rand() < 0.2);
     }
     // 2段目（高台の漁村住宅街＆海辺の旅館 24棟）
     for (let x = -124; x <= 116; x += 10.2) {
       if (Math.abs(x - 14) < 12) continue; // 高台の神社スペースを空ける
       const jitterX = (rand() - 0.5) * 2.8;
-      const jitterZ = 71.0 + rand() * 14.5;
+      const jitterZ = 89.5 + rand() * 14.5;
       addTownHouse(x + jitterX, 10.3, jitterZ, rand() < 0.18);
     }
 
     // 高台の海見神社（朱色の鳥居＋石段＋社殿）
     const shrineGrp = new THREE.Group();
-    shrineGrp.position.set(14, 10.35, 72);
+    shrineGrp.position.set(14, 10.35, 90.0);
     const toriiMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.45 });
     const tL = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 5.2, 8), toriiMat);
     tL.position.set(-1.9, 2.6, -4.5);
@@ -1413,8 +1749,8 @@ export class FishingScene {
       mesh.position.set(0, 6.5, zCenter);
       world.add(mesh);
     };
-    buildMountainRange(122, 420, 76, 52, 0x244734, 0.022);
-    buildMountainRange(162, 520, 92, 82, 0x2c4b57, 0.017);
+    buildMountainRange(140, 440, 76, 52, 0x244734, 0.022);
+    buildMountainRange(180, 540, 92, 82, 0x2c4b57, 0.017);
 
     // ===== 13. 沖のランドマーク（南国島・遠景島影・航路ブイ） =====
     const tropicalIsland = new THREE.Group();
@@ -1603,74 +1939,61 @@ export class FishingScene {
 
   buildTraffic(world) {
     const L = WORLD_LAYOUT;
-    const roadMat = new THREE.MeshStandardMaterial({ color: 0x2a313b, roughness: 0.92 });
+    const roadTex = createAsphaltRoadTexture(26, 1);
+    const roadMat = new THREE.MeshStandardMaterial({ map: roadTex, roughness: 0.88 });
     const lineMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.7 });
-    const guardMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.45, metalness: 0.5 });
+    const guardMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.45, metalness: 0.3 });
 
-    const backRoad = new THREE.Mesh(new THREE.BoxGeometry(295, 0.08, 7.1), roadMat);
-    backRoad.position.set(-10, 1.01, 37.95);
+    // 海沿い道路（1本のみ・z: 34.4〜41.6）
+    const backRoad = new THREE.Mesh(new THREE.BoxGeometry(300, 0.1, 7.2), roadMat);
+    backRoad.position.set(-10, 1.0, L.roadCenterZ);
     world.add(backRoad);
-    for (let x = -150; x <= 130; x += 10) {
-      if (x >= 1.5 && x <= 12.5) continue;
-      const dash = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.09, 0.22), lineMat);
-      dash.position.set(x, 1.02, 37.95);
-      world.add(dash);
-    }
 
-    // ガードレール（二重生成防止のため1回だけ生成・横断歩道 x: 3.4〜10.6 を開口）
+    // ガードレール（1重のみ・横断歩道 x: 3.2〜10.8 を綺麗に開口）
     const addGuardSection = (x1, x2, zPos) => {
       if (x2 <= x1 + 0.5) return;
       const len = x2 - x1;
       const cx = (x1 + x2) / 2;
-      const rMesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.34, 0.14), guardMat);
-      rMesh.position.set(cx, 1.65, zPos);
-      rMesh.name = "guardrail_beam";
+      const rMesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.32, 0.14), guardMat);
+      rMesh.position.set(cx, 1.66, zPos);
       world.add(rMesh);
-      for (let x = x1 + 1.2; x <= x2 - 0.8; x += 10) {
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9, 6), guardMat);
-        post.position.set(x, 1.35, zPos);
-        post.name = "guardrail_post";
+      for (let x = x1 + 1.2; x <= x2 - 0.8; x += 6.0) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.92, 6), guardMat);
+        post.position.set(x, 1.38, zPos);
         world.add(post);
       }
     };
-    addGuardSection(-157, L.crosswalkMinX - 0.15, L.roadMinZ);
-    addGuardSection(L.crosswalkMaxX + 0.15, 137, L.roadMinZ);
-    addGuardSection(-157, L.crosswalkMinX - 0.15, L.roadMaxZ);
-    addGuardSection(L.crosswalkMaxX + 0.15, 137, L.roadMaxZ);
+    addGuardSection(-157, L.crosswalkMinX - 0.1, L.roadMinZ);
+    addGuardSection(L.crosswalkMaxX + 0.1, 137, L.roadMinZ);
+    addGuardSection(-157, L.crosswalkMinX - 0.1, L.roadMaxZ);
+    addGuardSection(L.crosswalkMaxX + 0.1, 137, L.roadMaxZ);
+
+    // 交差点・横断歩道・信号機・向こう側歩道
     this.buildIntersection(world, roadMat, lineMat, guardMat);
 
-    const portLane = new THREE.Mesh(new THREE.BoxGeometry(73, 0.06, 4.2), roadMat);
-    portLane.position.set(0, 1.01, 10.6);
-    world.add(portLane);
-    for (let x = -32; x <= 32; x += 8) {
-      const dash = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.07, 0.16), lineMat);
-      dash.position.set(x, 1.02, 10.6);
-      world.add(dash);
-    }
-
+    // 港前バス停（横断歩道の右脇・導線の外）
     const stopPole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.5, 8), guardMat);
-    stopPole.position.set(13.5, 2.25, 33.8);
+    stopPole.position.set(L.busStopX, 2.25, L.busStopZ);
     const stopSign = new THREE.Mesh(
       new THREE.CylinderGeometry(0.38, 0.38, 0.08, 14),
       new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4 })
     );
     stopSign.rotation.x = Math.PI / 2;
-    stopSign.position.set(13.5, 3.35, 33.8);
+    stopSign.position.set(L.busStopX, 3.35, L.busStopZ);
     const bench = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.48, 0.55), new THREE.MeshStandardMaterial({ color: 0x78563a, roughness: 0.85 }));
-    bench.position.set(15.6, 1.24, 33.6);
+    bench.position.set(L.busStopX + 1.9, 1.24, L.busStopZ);
     world.add(stopPole, stopSign, bench);
 
+    // 海沿い道路をたまに通過する車両ラインナップ（港内道路は撤去済み）
     const specs = [
-      { type: "keitora",  color: 0xf8fafc, z: 10.6, dir: 1,  minX: -44,  maxX: 44,  speed: 6.2,  waitMin: 11, waitMax: 24, inPort: true,  initDelay: 3.5 },
-      { type: "truck",    color: 0x1d4ed8, z: 10.6, dir: -1, minX: -46,  maxX: 46,  speed: 5.4,  waitMin: 18, waitMax: 34, inPort: true,  initDelay: 16.0 },
-      { type: "car",      color: 0xdc2626, z: 36.4, dir: 1,  minX: -165, maxX: 145, speed: 15.0, waitMin: 7,  waitMax: 18, inPort: false, initDelay: 2.0 },
-      { type: "car",      color: 0xe2e8f0, z: 39.5, dir: -1, minX: -165, maxX: 145, speed: 15.8, waitMin: 9,  waitMax: 22, inPort: false, initDelay: 9.0 },
-      { type: "truck",    color: 0x0f766e, z: 36.4, dir: 1,  minX: -165, maxX: 145, speed: 12.0, waitMin: 14, waitMax: 28, inPort: false, initDelay: 17.0 },
-      { type: "keitora",  color: 0xfef3c7, z: 39.5, dir: -1, minX: -165, maxX: 145, speed: 13.0, waitMin: 12, waitMax: 26, inPort: false, initDelay: 24.0 },
-      { type: "bus",      color: 0x0284c7, z: 36.4, dir: 1,  minX: -175, maxX: 155, speed: 11.0, waitMin: 18, waitMax: 34, inPort: false, initDelay: 5.5 },
-      { type: "bus",      color: 0x16a34a, z: 39.5, dir: -1, minX: -175, maxX: 155, speed: 11.4, waitMin: 22, waitMax: 40, inPort: false, initDelay: 20.0 },
-      { type: "bigtruck", color: 0x1e3a8a, z: 36.4, dir: 1,  minX: -175, maxX: 155, speed: 10.2, waitMin: 20, waitMax: 38, inPort: false, initDelay: 12.5 },
-      { type: "bigtruck", color: 0x991b1b, z: 39.5, dir: -1, minX: -175, maxX: 155, speed: 10.6, waitMin: 24, waitMax: 42, inPort: false, initDelay: 29.0 }
+      { type: "car",      color: 0xdc2626, z: 36.4, dir: 1,  minX: -165, maxX: 145, speed: 14.8, waitMin: 10, waitMax: 24, inPort: false, initDelay: 3.0 },
+      { type: "car",      color: 0xe2e8f0, z: 39.6, dir: -1, minX: -165, maxX: 145, speed: 15.2, waitMin: 12, waitMax: 26, inPort: false, initDelay: 11.0 },
+      { type: "truck",    color: 0x0f766e, z: 36.4, dir: 1,  minX: -165, maxX: 145, speed: 11.8, waitMin: 18, waitMax: 34, inPort: false, initDelay: 20.0 },
+      { type: "keitora",  color: 0xfef3c7, z: 39.6, dir: -1, minX: -165, maxX: 145, speed: 12.6, waitMin: 16, waitMax: 32, inPort: false, initDelay: 28.0 },
+      { type: "bus",      color: 0x0284c7, z: 36.4, dir: 1,  minX: -175, maxX: 155, speed: 10.8, waitMin: 24, waitMax: 44, inPort: false, initDelay: 8.0 },
+      { type: "bus",      color: 0x16a34a, z: 39.6, dir: -1, minX: -175, maxX: 155, speed: 11.2, waitMin: 28, waitMax: 48, inPort: false, initDelay: 25.0 },
+      { type: "bigtruck", color: 0x1e3a8a, z: 36.4, dir: 1,  minX: -175, maxX: 155, speed: 10.0, waitMin: 26, waitMax: 46, inPort: false, initDelay: 16.0 },
+      { type: "bigtruck", color: 0x991b1b, z: 39.6, dir: -1, minX: -175, maxX: 155, speed: 10.4, waitMin: 30, waitMax: 52, inPort: false, initDelay: 35.0 }
     ];
 
     specs.forEach((s) => {
@@ -1695,27 +2018,30 @@ export class FishingScene {
     const cx = L.crosswalkCenterX;
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.45, metalness: 0.65 });
     const housingMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.55, metalness: 0.3 });
-    const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.9 });
+    const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0x737b86, roughness: 0.9 });
     const curbMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.85 });
 
-    const northWalk = new THREE.Mesh(new THREE.BoxGeometry(76, 1.48, 5.7), sidewalkMat);
-    northWalk.position.set(0, 0.28, 44.35);
-    const northCurbL = new THREE.Mesh(new THREE.BoxGeometry(40.0, 0.16, 0.32), curbMat);
-    northCurbL.position.set(-16.7, 1.04, 41.5);
-    const northCurbR = new THREE.Mesh(new THREE.BoxGeometry(26.0, 0.16, 0.32), curbMat);
-    northCurbR.position.set(23.7, 1.04, 41.5);
+    // 向こう側歩道（z: 41.6〜48.2）
+    const northWalk = new THREE.Mesh(new THREE.BoxGeometry(78, 1.48, 6.8), sidewalkMat);
+    northWalk.position.set(0, 0.28, 44.9);
+    const northCurbL = new THREE.Mesh(new THREE.BoxGeometry(40.2, 0.14, 0.28), curbMat);
+    northCurbL.position.set(-17.0, 1.04, L.roadMaxZ + 0.08);
+    const northCurbR = new THREE.Mesh(new THREE.BoxGeometry(26.2, 0.14, 0.28), curbMat);
+    northCurbR.position.set(24.0, 1.04, L.roadMaxZ + 0.08);
 
-    const backFenceL = new THREE.Mesh(new THREE.BoxGeometry(39.8, 0.65, 0.14), guardMat);
-    backFenceL.position.set(-16.8, 1.42, 47.2);
-    const backFenceR = new THREE.Mesh(new THREE.BoxGeometry(25.8, 0.65, 0.14), guardMat);
-    backFenceR.position.set(23.8, 1.42, 47.2);
-    world.add(northWalk, northCurbL, northCurbR, backFenceL, backFenceR);
+    // 線路手前の安全柵（踏切正面 x: 3.2〜10.8 は完全開放）
+    const railFenceL = new THREE.Mesh(new THREE.BoxGeometry(40.2, 0.72, 0.14), guardMat);
+    railFenceL.position.set(-17.0, 1.44, L.trackMinZ);
+    const railFenceR = new THREE.Mesh(new THREE.BoxGeometry(26.2, 0.72, 0.14), guardMat);
+    railFenceR.position.set(24.0, 1.44, L.trackMinZ);
+    world.add(northWalk, northCurbL, northCurbR, railFenceL, railFenceR);
 
+    // 向こう側歩道の自販機＆ベンチ（端側 x=28.5 / 24.5 に寄せて邪魔にならない配置）
     const vendBody = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.1, 0.85), new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35 }));
-    vendBody.position.set(L.vendingX, 2.08, L.vendingZ);
+    vendBody.position.set(L.northVendX, 2.08, L.northVendZ);
     const vendFrontMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, emissive: 0x7dd3fc, emissiveIntensity: 0.7 });
     const vendFront = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.15), vendFrontMat);
-    vendFront.position.set(L.vendingX, 2.32, L.vendingZ - 0.44);
+    vendFront.position.set(L.northVendX, 2.32, L.northVendZ - 0.44);
     vendFront.rotation.y = Math.PI;
     this.nightEmissives.push(vendFrontMat);
 
@@ -1723,17 +2049,19 @@ export class FishingScene {
     northBench.position.set(L.northBenchX, 1.26, L.northBenchZ);
     world.add(vendBody, vendFront, northBench);
 
-    for (let z = 35.1; z <= 40.8; z += 0.92) {
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(8.0, 0.02, 0.50), lineMat);
-      stripe.position.set(cx, 1.06, z);
+    // 横断歩道（幅7.4mのゆったりゼブラ）＆車両停止線
+    for (let z = 35.1; z <= 40.9; z += 0.92) {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.02, 0.50), lineMat);
+      stripe.position.set(cx, 1.07, z);
       world.add(stripe);
     }
     const stopLineW = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.02, 2.8), lineMat);
-    stopLineW.position.set(1.6, 1.06, 36.4);
+    stopLineW.position.set(1.5, 1.07, 36.4);
     const stopLineE = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.02, 2.8), lineMat);
-    stopLineE.position.set(12.4, 1.06, 39.5);
+    stopLineE.position.set(12.5, 1.07, 39.6);
     world.add(stopLineW, stopLineE);
 
+    // 車両用3灯信号機＆歩行者用2灯信号機
     const makeBulb = (colHex, r = 0.16) => {
       const mat = new THREE.MeshBasicMaterial({ color: colHex });
       return { mesh: new THREE.Mesh(new THREE.SphereGeometry(r, 10, 10), mat), mat };
@@ -1747,7 +2075,7 @@ export class FishingScene {
       pole.position.y = 2.7;
       g.add(pole);
 
-      const armDirZ = pz < 38 ? 1 : -1;
+      const armDirZ = pz < L.roadCenterZ ? 1 : -1;
       const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.1, 8), poleMat);
       arm.rotation.x = Math.PI / 2;
       arm.position.set(0, 4.95, armDirZ * 1.05);
@@ -1789,8 +2117,8 @@ export class FishingScene {
       world.add(g);
     };
 
-    addSignalPole(11.3, 33.9, Math.PI / 2, 0);
-    addSignalPole(2.7, 42.0, -Math.PI / 2, Math.PI);
+    addSignalPole(L.crosswalkMaxX + 0.65, L.roadMinZ - 0.55, Math.PI / 2, 0);
+    addSignalPole(L.crosswalkMinX - 0.65, L.roadMaxZ + 0.55, -Math.PI / 2, Math.PI);
   }
 
   updateTrafficSignals(t) {
@@ -1828,9 +2156,9 @@ export class FishingScene {
     this.updateTrafficSignals(t);
 
     if (this.signalState.ped === "green") {
-      const dCw = Math.hypot(this.pos.x - L.crosswalkCenterX, this.pos.y - 38.0);
-      if (dCw < 42) {
-        audioEngine.playCrosswalkChime(Math.pow(1 - dCw / 42, 1.5), this.signalState.pedBlink);
+      const dCw = Math.hypot(this.pos.x - L.crosswalkCenterX, this.pos.y - L.roadCenterZ);
+      if (dCw < 40) {
+        audioEngine.playCrosswalkChime(Math.pow(1 - dCw / 40, 1.5), this.signalState.pedBlink);
       }
     }
 
@@ -1849,14 +2177,13 @@ export class FishingScene {
         if (v.cooldown <= 0) {
           const laneBusy = this.trafficVehicles.some((o) => {
             if (o === v || !o.active) return false;
-            if (v.inPort && o.inPort) return true;
-            if (!v.inPort && !o.inPort && Math.abs(o.z - v.z) < 0.8) {
+            if (Math.abs(o.z - v.z) < 0.8) {
               const startX = v.dir > 0 ? v.minX : v.maxX;
-              return Math.abs(o.mesh.position.x - startX) < 34;
+              return Math.abs(o.mesh.position.x - startX) < 36;
             }
             return false;
           });
-          if (laneBusy) { v.cooldown = 3.0; continue; }
+          if (laneBusy) { v.cooldown = 3.5; continue; }
           v.active = true;
           v.mesh.visible = true;
           v.mesh.position.set(v.dir > 0 ? v.minX : v.maxX, 1.0, v.z);
@@ -1865,27 +2192,17 @@ export class FishingScene {
       }
 
       let paused = false;
-
-      if (v.inPort && !this.isBoating) {
-        const dx = this.pos.x - v.mesh.position.x;
-        const dz = Math.abs(this.pos.y - v.z);
-        const ahead = dx * v.dir;
-        if (dz < 2.4 && ahead > -v.halfLen - 0.6 && ahead < v.halfLen + 4.8) paused = true;
+      const stopLineX = v.dir > 0 ? 1.5 : 12.5;
+      const frontX = v.mesh.position.x + v.dir * v.halfLen;
+      const distToLine = (stopLineX - frontX) * v.dir;
+      if ((this.signalState.car !== "green" || playerOnCrosswalk) && distToLine >= -0.4 && distToLine <= 4.0) {
+        paused = true;
       }
-
-      if (!v.inPort) {
-        const stopLineX = v.dir > 0 ? 1.6 : 12.4;
-        const frontX = v.mesh.position.x + v.dir * v.halfLen;
-        const distToLine = (stopLineX - frontX) * v.dir;
-        if ((this.signalState.car !== "green" || playerOnCrosswalk) && distToLine >= -0.4 && distToLine <= 3.8) {
-          paused = true;
-        }
-        if (!paused) {
-          for (const o of this.trafficVehicles) {
-            if (o === v || !o.active || o.inPort || o.dir !== v.dir || Math.abs(o.z - v.z) > 0.8) continue;
-            const gap = (o.mesh.position.x - v.mesh.position.x) * v.dir - (o.halfLen + v.halfLen);
-            if (gap > -1.0 && gap < 3.0) { paused = true; break; }
-          }
+      if (!paused) {
+        for (const o of this.trafficVehicles) {
+          if (o === v || !o.active || o.dir !== v.dir || Math.abs(o.z - v.z) > 0.8) continue;
+          const gap = (o.mesh.position.x - v.mesh.position.x) * v.dir - (o.halfLen + v.halfLen);
+          if (gap > -1.0 && gap < 3.2) { paused = true; break; }
         }
       }
 
@@ -1908,6 +2225,7 @@ export class FishingScene {
     }
   }
 
+  // ===== 海沿いのローカル電車・踏切・さかな港駅（たまに走る情緒あるペース） =====
   buildRailway(world) {
     const L = WORLD_LAYOUT;
     const trackZ = L.trackZ;
@@ -1920,6 +2238,11 @@ export class FishingScene {
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.5, metalness: 0.6 });
     const concMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.88 });
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 });
+
+    // 線路の砕石・枕木・レール・架線（地面 y=1.0 の上に完全に独立配置）
+    const railGround = new THREE.Mesh(new THREE.BoxGeometry(310, 1.48, 14.0), new THREE.MeshStandardMaterial({ color: 0x5f686e, roughness: 0.95 }));
+    railGround.position.set(-10, 0.26, 54.5);
+    world.add(railGround);
 
     const ballast = new THREE.Mesh(new THREE.BoxGeometry(310, 0.22, 4.4), ballastMat);
     ballast.position.set(-10, groundY + 0.11, trackZ);
@@ -1938,19 +2261,20 @@ export class FishingScene {
       world.add(rail);
     });
 
-    for (let x = -140; x <= 130; x += 26) {
-      if (Math.abs(x - crossX) < 6.5 || (x >= 11 && x <= 36)) continue;
+    for (let x = -140; x <= 130; x += 28) {
+      if (Math.abs(x - crossX) < 7.0 || (x >= 11 && x <= 37)) continue;
       const p = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 6.2, 8), poleMat);
-      p.position.set(x, groundY + 3.1, trackZ + 2.5);
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 3.2), poleMat);
-      arm.position.set(x, groundY + 5.8, trackZ + 0.9);
+      p.position.set(x, groundY + 3.1, trackZ + 2.6);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 3.3), poleMat);
+      arm.position.set(x, groundY + 5.8, trackZ + 1.0);
       world.add(p, arm);
     }
     const wire = new THREE.Mesh(new THREE.BoxGeometry(310, 0.04, 0.04), darkMat);
     wire.position.set(-10, groundY + 5.65, trackZ);
     world.add(wire);
 
-    const crossDeck = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.16, 4.6), concMat);
+    // 踏切（渡り板・警報機・可動遮断機）
+    const crossDeck = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.16, 4.8), concMat);
     crossDeck.position.set(crossX, groundY + 0.24, trackZ);
     world.add(crossDeck);
 
@@ -2000,7 +2324,7 @@ export class FishingScene {
 
       const pivot = new THREE.Group();
       pivot.position.set(0, 1.15, 0);
-      const armLen = 6.2;
+      const armLen = 6.6;
       const armMesh = new THREE.Mesh(new THREE.BoxGeometry(armLen, 0.12, 0.12), stripeMat);
       armMesh.position.set(barDirX * (armLen / 2), 0, 0);
       pivot.add(armMesh);
@@ -2015,41 +2339,43 @@ export class FishingScene {
       world.add(g);
     };
 
-    addCrossingPost(3.1, trackZ - 2.6, 1, Math.PI);
-    addCrossingPost(10.9, trackZ + 2.6, -1, 0);
+    addCrossingPost(L.crosswalkMinX - 0.35, trackZ - 2.6, 1, Math.PI);
+    addCrossingPost(L.crosswalkMaxX + 0.35, trackZ + 2.6, -1, 0);
 
-    const plaza = new THREE.Mesh(new THREE.BoxGeometry(36, 0.16, 5.2), new THREE.MeshStandardMaterial({ color: 0x71717a, roughness: 0.9 }));
-    plaza.position.set(20.0, groundY + 0.08, 56.9);
+    // 駅前広場＆「さかな港駅」（石垣段丘 z=61.5 より手前で独立）
+    const plaza = new THREE.Mesh(new THREE.BoxGeometry(36, 0.14, 5.4), new THREE.MeshStandardMaterial({ color: 0x71717a, roughness: 0.9 }));
+    plaza.position.set(20.0, groundY + 0.07, 57.2);
     world.add(plaza);
 
-    const platform = new THREE.Mesh(new THREE.BoxGeometry(23.5, 0.55, 4.2), concMat);
-    platform.position.set(23.75, groundY + 0.275, 56.7);
+    const platform = new THREE.Mesh(new THREE.BoxGeometry(23.0, 0.55, 4.2), concMat);
+    platform.position.set(24.0, groundY + 0.275, 56.7);
     const yellowLine = new THREE.Mesh(
-      new THREE.BoxGeometry(23.0, 0.04, 0.34),
+      new THREE.BoxGeometry(22.6, 0.04, 0.34),
       new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.65 })
     );
-    yellowLine.position.set(23.75, groundY + 0.57, 54.85);
+    yellowLine.position.set(24.0, groundY + 0.57, 54.85);
     const roof = new THREE.Mesh(new THREE.BoxGeometry(16, 0.24, 3.6), new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.55 }));
-    roof.position.set(23.75, groundY + 3.65, 56.9);
+    roof.position.set(24.0, groundY + 3.65, 57.1);
     for (let px = 17.25; px <= 30.25; px += 6.5) {
       const col = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.0, 8), poleMat);
-      col.position.set(px, groundY + 2.05, 56.9);
+      col.position.set(px, groundY + 2.05, 57.1);
       world.add(col);
     }
     const stSign = new THREE.Mesh(
       new THREE.PlaneGeometry(4.8, 1.35),
       new THREE.MeshBasicMaterial({ map: createSignTexture("🚉 さかな港", "SAKANA-MINATO", "#f8fafc", "#0f172a", "#0284c7"), side: THREE.DoubleSide })
     );
-    stSign.position.set(23.75, groundY + 2.75, 55.05);
+    stSign.position.set(24.0, groundY + 2.75, 55.25);
     stSign.rotation.y = Math.PI;
     const stLampMat = new THREE.MeshStandardMaterial({ color: 0xfff8dc, emissive: 0xffd166, emissiveIntensity: 0.4 });
     const stLamp = new THREE.Mesh(new THREE.BoxGeometry(10.5, 0.14, 0.32), stLampMat);
-    stLamp.position.set(23.75, groundY + 3.46, 56.3);
+    stLamp.position.set(24.0, groundY + 3.46, 56.5);
     this.nightEmissives.push(stLampMat);
     const stBench = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.48, 0.65), new THREE.MeshStandardMaterial({ color: 0x78563a, roughness: 0.85 }));
-    stBench.position.set(23.75, groundY + 0.79, 57.8);
+    stBench.position.set(23.75, groundY + 0.79, 57.85);
     world.add(platform, yellowLine, roof, stSign, stLamp, stBench);
 
+    // レトロ2両編成ローカル電車
     const trainGroup = new THREE.Group();
     const creamMat = new THREE.MeshStandardMaterial({ color: 0xfef9e7, roughness: 0.38, metalness: 0.15 });
     const seaBlueMat = new THREE.MeshStandardMaterial({ color: 0x0e7490, roughness: 0.36, metalness: 0.22 });
@@ -2103,7 +2429,8 @@ export class FishingScene {
     tailL.position.set(-11.75, 1.35, 0);
     trainGroup.add(headL, tailL);
 
-    trainGroup.position.set(-165, railTopY, trackZ);
+    trainGroup.position.set(-168, railTopY, trackZ);
+    trainGroup.visible = false;
     world.add(trainGroup);
 
     this.railState = {
@@ -2111,16 +2438,16 @@ export class FishingScene {
       railY: railTopY,
       trackZ,
       crossX,
-      stationX: 23.75,
+      stationX: 24.0,
       gateArms,
       flashL,
       flashR,
-      x: -165,
+      x: -168,
       dir: 1,
       speed: 0,
-      maxSpeed: 17.5,
+      maxSpeed: 16.5,
       mode: "wait",
-      timer: 5.5,
+      timer: 18.0, // 初回は18秒後、以降は55〜95秒おきにたまに通過
       stoppedThisTrip: false,
       gateClosed: 0
     };
@@ -2156,7 +2483,7 @@ export class FishingScene {
         r.speed = 0;
         r.stoppedThisTrip = true;
         r.mode = "stop";
-        r.timer = 4.5;
+        r.timer = 5.0;
         const dSt = Math.hypot(this.pos.x - r.stationX, this.pos.y - r.trackZ);
         if (dSt < 55) audioEngine.playStationBell(Math.pow(1 - dSt / 55, 1.3));
       } else {
@@ -2166,7 +2493,7 @@ export class FishingScene {
 
       if ((r.dir > 0 && r.x > 152) || (r.dir < 0 && r.x < -172)) {
         r.mode = "wait";
-        r.timer = 12 + Math.random() * 14;
+        r.timer = 55 + Math.random() * 40; // たまに来るペース（約1分〜1分半おき）
         r.dir *= -1;
         r.train.visible = false;
       }
@@ -2203,35 +2530,30 @@ export class FishingScene {
   // ===== 他プレイヤー3Dアバター同期 =====
   createRemoteAvatar(data) {
     const group = new THREE.Group();
-    const person = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.52, 1.5, 10), new THREE.MeshStandardMaterial({ color: 0x0ea5e9 }));
-    body.position.y = 0.8;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 10), new THREE.MeshStandardMaterial({ color: 0xfde68a }));
-    head.position.y = 1.85;
-    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.12, 10), new THREE.MeshStandardMaterial({ color: 0xd49449 }));
-    hat.position.y = 2.15;
-    person.add(body, head, hat);
+    const accent = hashColorFromName(data.name || "漁師");
+    const person = buildHighQualityAngler(accent, true);
 
-    const boat = buildRealisticBoatModel(0x0284c7, true);
+    const boat = buildRealisticBoatModel(accent, true);
     boat.position.set(0, 0, -1.2);
 
     const labelText = this.formatRemoteLabel(data);
     const labelSprite = createNameSprite(labelText);
 
     group.add(person, boat, labelSprite);
-    group.position.set(data.x || 0, data.isBoating ? 0.1 : 0.9, data.z || 4);
+    group.position.set(data.x || 0, data.isBoating ? 0.1 : 1.0, data.z || 4);
     this.remoteGroup.add(group);
 
     return {
       group, person, boat, labelSprite, labelText,
       targetX: data.x || 0, targetZ: data.z || 4, targetYaw: data.yaw || 0,
-      isBoating: !!data.isBoating, name: data.name || "漁師"
+      isBoating: !!data.isBoating, name: data.name || "漁師",
+      walkPhase: Math.random() * 6
     };
   }
 
   formatRemoteLabel(data) {
     const now = Date.now();
-    if (data.stamp && data.stampTs && now - data.stampTs < 6500) return `${data.stamp}`;
+    if (data.stamp && data.stampTs && now - data.stampTs < 6500) return `${data.name || "漁師"}「${data.stamp}」`;
     const icon = data.status === "fighting" ? "🔥" : data.isBoating ? "🚤" : "🎣";
     return `${icon} ${data.name || "漁師"}`;
   }
@@ -2255,19 +2577,23 @@ export class FishingScene {
       av.isBoating = !!data.isBoating;
       av.name = data.name || "漁師";
       av.boat.visible = av.isBoating;
-      av.person.visible = !av.isBoating;
+      // 船に乗っている間も操縦席に座る姿を表示
+      av.person.visible = true;
+      av.person.position.set(0, av.isBoating ? 0.55 : 0.0, av.isBoating ? -0.45 : 0);
+      av.labelSprite.position.y = av.isBoating ? 3.25 : 2.55;
+
       const nextLabel = this.formatRemoteLabel(data);
       if (nextLabel !== av.labelText) {
         av.labelSprite.material.map?.dispose();
         av.labelSprite.material.dispose();
         av.group.remove(av.labelSprite);
         av.labelSprite = createNameSprite(nextLabel);
+        av.labelSprite.position.y = av.isBoating ? 3.25 : 2.55;
         av.group.add(av.labelSprite);
         av.labelText = nextLabel;
       }
     }
   }
-
   clearRemotePlayers() { this.syncRemotePlayers({}); }
 
   getNearbyPlayers(radius = 35) {
@@ -2408,15 +2734,37 @@ export class FishingScene {
     this.busWindowMats.forEach((m) => { m.emissiveIntensity = p.night * 1.15; });
 
     this.rain.visible = env.weather === "rain" || env.weather === "rough";
-    this.waveAmp = env.weather === "rough" ? 2.1 : env.weather === "rain" ? 1.4 : 1.0;
+    this.waveAmp = typeof env.waveAmp === "number" ? env.waveAmp : (env.weather === "rough" ? 2.1 : env.weather === "rain" ? 1.4 : 1.0);
+    this.waveChoppiness = typeof env.waveChoppiness === "number" ? env.waveChoppiness : (env.weather === "rough" ? 0.92 : 0.52);
+    this.waveSeed = typeof env.waveSeed === "number" ? env.waveSeed : 1.0;
+    if (env.waveDir && typeof env.waveDir.x === "number") {
+      this.waveDir = { x: env.waveDir.x, z: env.waveDir.z };
+    }
     this.waterUniforms.uWaveAmp.value = this.waveAmp;
+    this.waterUniforms.uChoppiness.value = this.waveChoppiness;
+    this.waterUniforms.uWaveSeed.value = this.waveSeed;
+    this.waterUniforms.uWaveDir.value.set(this.waveDir.x, this.waveDir.z);
   }
 
   setBobber(visible, dist = 18, dip = 0) {
+    const wasVisible = this.bobber.visible;
+    const prevDip = this.bobberDip || 0;
     this.bobber.visible = visible;
     this.fishingLine.visible = visible;
     this.bobberDist = dist;
     this.bobberDip = dip;
+    if (visible && !wasVisible) {
+      this.onBobberLanded();
+    } else if (visible && dip > 0.08 && prevDip <= 0.08) {
+      const t = this.clock ? this.clock.elapsedTime : 0;
+      const wy = this.getWaveHeightAt(this.bobberWorldPos.x, this.bobberWorldPos.y, t);
+      this.spawnSplashBurst(this.bobberWorldPos.x, wy + 0.04, this.bobberWorldPos.y, 8, 2.3, 0.9);
+      this.spawnWorldRipple(this.bobberWorldPos.x, this.bobberWorldPos.y, 3.8, 1.35, 0.72);
+    }
+    if (!visible && this.waterUniforms?.uBobberActive) {
+      this.waterUniforms.uBobberActive.value = 0.0;
+      this.waterUniforms.uBiteIntensity.value = 0.0;
+    }
   }
   setRodBend(val) { this.rodBend = val; }
 
@@ -2429,6 +2777,231 @@ export class FishingScene {
     this.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(w, h);
+  }
+
+
+  // ===== リアル波エフェクト（CPU同期波高・岸壁＆防波堤3D水しぶき・ウキ多層波紋） =====
+  initWaveEffects() {
+    // 柔らかい水しぶき用スプライトテクスチャ
+    const sc = document.createElement("canvas");
+    sc.width = 64; sc.height = 64;
+    const sctx = sc.getContext("2d");
+    const grad = sctx.createRadialGradient(32, 32, 4, 32, 32, 30);
+    grad.addColorStop(0.0, "rgba(255,255,255,0.95)");
+    grad.addColorStop(0.45, "rgba(224,244,255,0.68)");
+    grad.addColorStop(1.0, "rgba(200,235,255,0.0)");
+    sctx.fillStyle = grad;
+    sctx.fillRect(0, 0, 64, 64);
+    const sprayTex = new THREE.CanvasTexture(sc);
+
+    this.splashParticles = [];
+    for (let i = 0; i < 72; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: sprayTex, transparent: true, opacity: 0.0, depthWrite: false
+      });
+      const sp = new THREE.Sprite(mat);
+      sp.visible = false;
+      this.scene.add(sp);
+      this.splashParticles.push({
+        mesh: sp, vx: 0, vy: 0, vz: 0, life: 0, maxLife: 0.65, baseSize: 0.35
+      });
+    }
+
+    // ワールド座標で広がる多層波紋リングプール（ウキ着水・アタリ用）
+    this.worldRipples = [];
+    const ringGeo = new THREE.RingGeometry(0.42, 0.56, 28);
+    ringGeo.rotateX(-Math.PI / 2);
+    for (let i = 0; i < 14; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xe8f7ff, transparent: true, opacity: 0.0, side: THREE.DoubleSide, depthWrite: false
+      });
+      const mesh = new THREE.Mesh(ringGeo, mat);
+      mesh.visible = false;
+      this.scene.add(mesh);
+      this.worldRipples.push({
+        mesh, life: 0, maxLife: 1.5, maxScale: 4.0, baseOpacity: 0.65, wx: 0, wz: 0
+      });
+    }
+  }
+
+  getWaveHeightAt(wx, wz, t) {
+    const smoothstep = (e0, e1, x) => {
+      const v = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+      return v * v * (3 - 2 * v);
+    };
+    const bdx = this.waveDir?.x ?? 0.45;
+    const bdz = this.waveDir?.z ?? 0.89;
+    const blen = Math.hypot(bdx, bdz) || 1;
+    const bx = bdx / blen, bz = bdz / blen;
+    const px = -bz, pz = bx;
+
+    const d1x = bx * 0.96 + px * 0.28, d1z = bz * 0.96 + pz * 0.28;
+    const d2x = bx * 0.72 - px * 0.69, d2z = bz * 0.72 - pz * 0.69;
+    const d3x = bx * 0.45 + px * 0.89, d3z = bz * 0.45 + pz * 0.89;
+    const d4x = -bx * 0.31 + px * 0.95, d4z = -bz * 0.31 + pz * 0.95;
+
+    const shoreFade = smoothstep(3.5, -14.0, wz);
+    const inHarbor = (1.0 - smoothstep(-38.0, -54.0, wz)) * (1.0 - smoothstep(55.0, 88.0, Math.abs(wx)));
+    const harborCalm = 1.0 + (0.48 - 1.0) * inHarbor;
+
+    const seed = this.waveSeed || 1.0;
+    const set1 = Math.sin((wx * d1x + wz * d1z) * 0.021 - t * 0.23 + seed * 0.71);
+    const set2 = Math.cos((wx * d2x + wz * d2z) * 0.017 - t * 0.143 + seed * 1.13);
+    const gust = 0.86 + 0.24 * Math.sin(t * 0.19 + wx * 0.013 - wz * 0.011 + seed * 0.37);
+    const setMod = (0.64 + 0.52 * (0.5 + 0.5 * set1) * (0.55 + 0.45 * set2)) * gust;
+
+    const amp = (this.waveAmp || 1.0) * (0.24 + 0.76 * shoreFade) * harborCalm * setMod;
+    const p1 = (wx * d1x + wz * d1z) * 0.072 - t * 1.18 + seed * 0.4;
+    const p2 = (wx * d2x + wz * d2z) * 0.113 - t * 1.47 + seed * 0.9;
+    const p3 = (wx * d3x + wz * d3z) * 0.197 - t * 1.93 + seed * 1.5;
+    const p4 = (wx * d4x + wz * d4z) * 0.311 - t * 2.41 + seed * 2.1;
+
+    const s1 = Math.sin(p1), c1 = Math.cos(p1);
+    const s2 = Math.sin(p2), c2 = Math.cos(p2);
+    const sharp = 0.26 * (this.waveChoppiness || 0.52);
+
+    let h = ((s1 + sharp * (1 - c1 * c1) * s1) * 0.28
+          + (s2 + sharp * (1 - c2 * c2) * s2) * 0.19
+          + Math.sin(p3) * 0.105
+          + Math.sin(p4) * 0.062) * amp;
+
+    const portWallX = 1.0 - smoothstep(35.0, 39.5, Math.abs(wx));
+    const portWallBand = Math.exp(-Math.pow(Math.max(0, -wz) * 0.42, 2)) * portWallX;
+    h += Math.sin(-wz * 0.78 - t * 2.35 + Math.sin(wx * 0.14) * 1.6) * 0.16 * (this.waveAmp || 1.0) * setMod * portWallBand;
+    return h;
+  }
+
+  spawnSplashBurst(wx, wy, wz, count = 6, power = 2.6, spread = 1.2) {
+    if (!this.splashParticles) return;
+    let spawned = 0;
+    for (const p of this.splashParticles) {
+      if (p.life <= 0) {
+        const ang = Math.random() * Math.PI * 2;
+        const spd = (0.35 + Math.random() * 0.65) * spread;
+        p.vx = Math.cos(ang) * spd;
+        p.vz = Math.sin(ang) * spd;
+        p.vy = (0.55 + Math.random() * 0.65) * power;
+        p.maxLife = 0.42 + Math.random() * 0.38;
+        p.life = p.maxLife;
+        p.baseSize = 0.24 + Math.random() * 0.34;
+        p.mesh.position.set(wx + (Math.random() - 0.5) * 0.3, wy, wz + (Math.random() - 0.5) * 0.3);
+        p.mesh.scale.set(p.baseSize, p.baseSize, 1);
+        p.mesh.material.opacity = 0.82;
+        p.mesh.visible = true;
+        spawned++;
+        if (spawned >= count) break;
+      }
+    }
+  }
+
+  spawnWorldRipple(wx, wz, maxScale = 4.6, life = 1.6, baseOpacity = 0.7) {
+    if (!this.worldRipples) return;
+    for (const r of this.worldRipples) {
+      if (r.life <= 0) {
+        r.wx = wx; r.wz = wz;
+        r.maxLife = life; r.life = life;
+        r.maxScale = maxScale;
+        r.baseOpacity = baseOpacity;
+        r.mesh.position.set(wx, 0.04, wz);
+        r.mesh.scale.set(0.25, 0.25, 1);
+        r.mesh.material.opacity = baseOpacity;
+        r.mesh.visible = true;
+        break;
+      }
+    }
+  }
+
+  onBobberLanded() {
+    const t = this.clock ? this.clock.elapsedTime : 0;
+    const bz = 2.5 - this.bobberDist * 0.6;
+    const wx = this.pos.x + Math.sin(this.yaw) * bz;
+    const wz = this.pos.y + Math.cos(this.yaw) * bz;
+    this.bobberWorldPos.set(wx, wz);
+    this.bobberSplashAt = t;
+
+    const wy = this.getWaveHeightAt(wx, wz, t);
+    // 着水の水柱しぶき＋時間差3重波紋リング
+    this.spawnSplashBurst(wx, wy + 0.04, wz, 14, 3.1, 1.35);
+    this.spawnWorldRipple(wx, wz, 4.8, 1.55, 0.82);
+    setTimeout(() => { if (this.bobber.visible) this.spawnWorldRipple(wx, wz, 5.8, 1.85, 0.58); }, 220);
+    setTimeout(() => { if (this.bobber.visible) this.spawnWorldRipple(wx, wz, 6.6, 2.05, 0.40); }, 480);
+
+    if (this.waterUniforms?.uBobberPos) {
+      this.waterUniforms.uBobberPos.value.set(wx, wz);
+      this.waterUniforms.uBobberActive.value = 1.0;
+      this.waterUniforms.uSplashAge.value = 0.0;
+    }
+  }
+
+  updateWaveEffects(dt, t) {
+    // 1. 港護岸・テトラポッド・沖防波堤に波が当たった時の3D水しぶき
+    this.wallSprayAcc += dt;
+    const sprayInterval = Math.max(0.11, 0.44 - (this.waveAmp || 1.0) * 0.14);
+    if (this.wallSprayAcc >= sprayInterval) {
+      this.wallSprayAcc = 0;
+      // 港の護岸（プレイヤーに近い範囲を中心に発生）
+      if (this.pos.y > -35 && Math.abs(this.pos.x) < 55) {
+        const sx = Math.max(-35, Math.min(35, this.pos.x + (Math.random() - 0.5) * 34));
+        const wh = this.getWaveHeightAt(sx, -0.5, t);
+        if (wh > 0.06 || this.waveAmp > 1.35) {
+          const pwr = 1.3 + (this.waveAmp || 1.0) * 1.15 + Math.max(0, wh) * 2.2;
+          this.spawnSplashBurst(sx, Math.max(0.1, wh + 0.15), -0.35, this.waveAmp > 1.3 ? 5 : 3, pwr, 0.9);
+        }
+      }
+      // 磯場のテトラポッド防波帯
+      if (this.pos.x > 12 && this.pos.y > -28) {
+        const tx = 35 + Math.random() * 32;
+        const twh = this.getWaveHeightAt(tx, -2.0, t);
+        if (twh > 0.04 || this.waveAmp > 1.15) {
+          this.spawnSplashBurst(tx, Math.max(0.2, twh + 0.3), -1.8, 5, 1.9 + (this.waveAmp || 1.0) * 1.35, 1.25);
+        }
+      }
+      // 沖防波堤の外洋側（船で近づいた時や高波の日に迫力アップ）
+      if (this.waveAmp > 0.95 && this.pos.y < 12 && this.pos.y > -95) {
+        const side = Math.random() < 0.5 ? -1 : 1;
+        const bx = side * (24 + Math.random() * 48);
+        const bwh = this.getWaveHeightAt(bx, -46.8, t);
+        if (bwh > 0.08) {
+          this.spawnSplashBurst(bx, 0.4 + bwh, -46.5, 6, 2.4 + (this.waveAmp || 1.0) * 1.5, 1.5);
+        }
+      }
+    }
+
+    // 2. 3D水しぶきパーティクル更新（重力放物線＋霧散フェード）
+    if (this.splashParticles) {
+      for (const p of this.splashParticles) {
+        if (p.life > 0) {
+          p.life -= dt;
+          p.vy -= 8.6 * dt;
+          p.mesh.position.x += p.vx * dt;
+          p.mesh.position.y += p.vy * dt;
+          p.mesh.position.z += p.vz * dt;
+          const r = Math.max(0, p.life / p.maxLife);
+          const sz = p.baseSize * (1.0 + (1.0 - r) * 1.15);
+          p.mesh.scale.set(sz, sz, 1);
+          p.mesh.material.opacity = r * 0.78;
+          if (p.life <= 0 || p.mesh.position.y < -0.25) {
+            p.life = 0;
+            p.mesh.visible = false;
+          }
+        }
+      }
+    }
+
+    // 3. ワールド波紋リング更新
+    if (this.worldRipples) {
+      for (const r of this.worldRipples) {
+        if (r.life > 0) {
+          r.life -= dt;
+          const prog = 1.0 - Math.max(0, r.life / r.maxLife);
+          const sc = 0.3 + prog * r.maxScale;
+          r.mesh.scale.set(sc, sc, 1);
+          r.mesh.position.y = this.getWaveHeightAt(r.wx, r.wz, t) + 0.04;
+          r.mesh.material.opacity = Math.pow(1.0 - prog, 1.4) * r.baseOpacity;
+          if (r.life <= 0) r.mesh.visible = false;
+        }
+      }
+    }
   }
 
   spawnWake(wx, wz) {
@@ -2475,7 +3048,7 @@ export class FishingScene {
     if (movedDist > 0 && this.isBoating && this.onFuelConsume && !this.onFuelConsume(movedDist)) {
       this.autopilot = false; nx = this.pos.x; nz = this.pos.y;
     } else {
-      const clamped = clampWorldPosition(nx, nz, this.isBoating, this.boatTier);
+      const clamped = clampWorldPosition(nx, nz, this.isBoating, this.boatTier, this.pos.x, this.pos.y);
       let fx = clamped.x, fz = clamped.z;
       if (!this.isBoating) {
         for (const v of this.trafficVehicles) {
@@ -2509,9 +3082,35 @@ export class FishingScene {
       }
     }
 
-    this.playerRig.position.set(this.pos.x, this.isBoating ? Math.sin(t * 2.1) * 0.1 * this.waveAmp : 0.78, this.pos.y);
+    let rigY = 0.78, boatPitch = 0, boatRoll = 0;
+    if (this.isBoating) {
+      const hC = this.getWaveHeightAt(this.pos.x, this.pos.y, t);
+      const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+      const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
+      const hF = this.getWaveHeightAt(this.pos.x + fx * 2.4, this.pos.y + fz * 2.4, t);
+      const hR = this.getWaveHeightAt(this.pos.x + rx * 1.4, this.pos.y + rz * 1.4, t);
+      rigY = hC * 0.85;
+      boatPitch = THREE.MathUtils.clamp((hF - hC) * 0.12, -0.12, 0.12);
+      boatRoll = THREE.MathUtils.clamp((hC - hR) * 0.16, -0.14, 0.14);
+    }
+    this.playerRig.position.set(this.pos.x, rigY, this.pos.y);
     this.playerRig.rotation.y = this.yaw;
-    this.playerRig.rotation.z = this.isBoating ? Math.sin(t * 1.6) * 0.028 * this.waveAmp : 0;
+    if (this.localAvatar) {
+      const spd = Math.hypot(this.moveInput.x, this.moveInput.y);
+      if (spd > 0.05 && !this.isBoating) this.localWalkPhase += dt * 9.5;
+      this.localAvatar.position.set(0, this.isBoating ? 0.42 : 0.0, this.isBoating ? 0.45 : 3.05);
+      animateAnglerRig(this.localAvatar, this.localWalkPhase, this.isBoating ? 0 : spd, this.isBoating);
+    }
+    for (const av of this.remoteAvatars.values()) {
+      const dMove = Math.hypot((av.targetX ?? 0) - av.group.position.x, (av.targetZ ?? 0) - av.group.position.z);
+      if (dMove > 0.06 && !av.isBoating) av.walkPhase = (av.walkPhase || 0) + dt * 9.5;
+      animateAnglerRig(av.person, av.walkPhase || 0, Math.min(1, dMove * 2.5), av.isBoating);
+    }
+    this.playerRig.rotation.z = this.isBoating ? boatRoll * 0.28 : 0;
+    if (this.boatGroup && this.isBoating) {
+      this.boatGroup.rotation.x += (boatPitch - this.boatGroup.rotation.x) * Math.min(1, dt * 6);
+      this.boatGroup.rotation.z += (boatRoll - this.boatGroup.rotation.z) * Math.min(1, dt * 6);
+    }
 
     if (this.isBoating && movedDist > 0.05) {
       this.wakeSpawnAcc += dt;
@@ -2535,17 +3134,22 @@ export class FishingScene {
     this.stars.position.set(this.pos.x, 0, this.pos.y);
     this.sea.position.set(Math.floor(this.pos.x / 5) * 5, 0, Math.floor(this.pos.y / 5) * 5);
     this.waterUniforms.uTime.value = t;
+    this.updateWaveEffects(dt, t);
 
     for (const db of this.dockedBoats) {
-      db.mesh.position.y = 0.08 + Math.sin(t * 1.8 + db.phase) * 0.06 * this.waveAmp;
-      db.mesh.rotation.z = Math.sin(t * 1.4 + db.phase) * 0.025 * this.waveAmp;
+      const dh = this.getWaveHeightAt(db.mesh.position.x, db.mesh.position.z, t);
+      const dhR = this.getWaveHeightAt(db.mesh.position.x + 1.2, db.mesh.position.z, t);
+      db.mesh.position.y = 0.06 + dh * 0.85;
+      db.mesh.rotation.z = THREE.MathUtils.clamp((dh - dhR) * 0.14, -0.1, 0.1);
     }
     for (const fl of this.flags) {
       fl.mesh.rotation.y = Math.PI / 2 + Math.sin(t * 5.0 + fl.phase) * 0.22;
     }
     if (this.parkedBoat.visible) {
-      this.parkedBoat.position.y = 0.08 + Math.sin(t * 1.9 + 0.5) * 0.06 * this.waveAmp;
-      this.parkedBoat.rotation.z = Math.sin(t * 1.5) * 0.02 * this.waveAmp;
+      const ph = this.getWaveHeightAt(this.parkedBoat.position.x, this.parkedBoat.position.z, t);
+      const phR = this.getWaveHeightAt(this.parkedBoat.position.x + 1.2, this.parkedBoat.position.z, t);
+      this.parkedBoat.position.y = 0.06 + ph * 0.85;
+      this.parkedBoat.rotation.z = THREE.MathUtils.clamp((ph - phR) * 0.14, -0.1, 0.1);
     }
 
     if (this.lighthouseBeam) this.lighthouseBeam.rotation.y = t * 0.55;
@@ -2571,7 +3175,7 @@ export class FishingScene {
     for (const av of this.remoteAvatars.values()) {
       av.group.position.x += (av.targetX - av.group.position.x) * Math.min(1, dt * 7);
       av.group.position.z += (av.targetZ - av.group.position.z) * Math.min(1, dt * 7);
-      av.group.position.y = av.isBoating ? Math.sin(t * 2.1 + av.targetX) * 0.08 * this.waveAmp : 0.85;
+      av.group.position.y = av.isBoating ? this.getWaveHeightAt(av.group.position.x, av.group.position.z, t) * 0.85 : 0.85;
       av.group.rotation.y = av.targetYaw;
     }
 
@@ -2594,22 +3198,47 @@ export class FishingScene {
     this.rodGroup.rotation.x = -this.rodBend * 0.48 + Math.sin(t * 2) * 0.015;
     if (this.bobber.visible) {
       const bz = 2.5 - this.bobberDist * 0.6;
-      const by = Math.sin(t * 4) * 0.08 - this.bobberDip;
+      const bwx = this.pos.x + Math.sin(this.yaw) * bz;
+      const bwz = this.pos.y + Math.cos(this.yaw) * bz;
+      this.bobberWorldPos.set(bwx, bwz);
+      const oceanY = this.getWaveHeightAt(bwx, bwz, t);
+      const by = (oceanY + 0.05) - rigY - this.bobberDip * 0.55;
       this.bobber.position.set(0, by, bz);
-      const rs = 1.0 + ((t * 1.4) % 1.0) * 2.2;
+      this.bobber.rotation.z = Math.sin(t * 3.1 + bwx) * (0.06 + this.bobberDip * 0.35);
+
+      const bitePow = Math.min(1.0, Math.max(this.bobberDip * 2.2, this.rodBend * 0.85));
+      const rCycle = (t * (1.25 + bitePow * 1.5)) % 1.0;
+      const rs = 0.8 + rCycle * (2.6 + bitePow * 1.8);
       this.bobberRipple.scale.set(rs, rs, 1);
-      this.bobberRipple.material.opacity = (1.0 - ((t * 1.4) % 1.0)) * 0.55;
+      this.bobberRipple.material.opacity = (1.0 - rCycle) * (0.48 + bitePow * 0.32);
+
+      // シェーダーのリアル水面波紋を更新
+      this.waterUniforms.uBobberPos.value.set(bwx, bwz);
+      this.waterUniforms.uBobberActive.value = 1.0;
+      this.waterUniforms.uSplashAge.value = Math.max(0, t - this.bobberSplashAt);
+      this.waterUniforms.uBiteIntensity.value = bitePow;
+
+      // アタリ・ファイト中はウキ周りに細かい水しぶき＆波紋を連続発生
+      if (bitePow > 0.16) {
+        this.biteSprayAcc += dt;
+        if (this.biteSprayAcc > 0.16) {
+          this.biteSprayAcc = 0;
+          this.spawnSplashBurst(bwx, oceanY + 0.05, bwz, 4, 1.9 + bitePow * 1.4, 0.85);
+          this.spawnWorldRipple(bwx, bwz, 3.2 + bitePow * 2.2, 1.1, 0.65);
+        }
+      }
 
       const tip = this.rodTipLocal.clone().applyMatrix4(this.rodGroup.matrix);
-      const end = new THREE.Vector3(0, by + 0.12, bz);
-      const sag = Math.max(0.08, (1.0 - this.rodBend) * 1.15);
+      const end = new THREE.Vector3(0, by + 0.14, bz);
+      const sag = Math.max(0.06, (1.0 - this.rodBend) * 0.95);
       const lp = this.fishingLineGeo.attributes.position;
+      const minLineY = (oceanY + 0.02) - rigY;
       for (let i = 0; i < 12; i++) {
         const f = i / 11;
         const lx = THREE.MathUtils.lerp(tip.x, end.x, f);
         const lz = THREE.MathUtils.lerp(tip.z, end.z, f);
         const ly = THREE.MathUtils.lerp(tip.y, end.y, f) - Math.sin(f * Math.PI) * sag;
-        lp.setXYZ(i, lx, Math.max(0.02, ly), lz);
+        lp.setXYZ(i, lx, Math.max(minLineY, ly), lz);
       }
       lp.needsUpdate = true;
     }
